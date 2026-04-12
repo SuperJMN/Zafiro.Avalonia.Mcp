@@ -43,14 +43,14 @@ public sealed class ScreenTextHandler : IRequestHandler
 
             // Deduplicate: templated controls (e.g. Button→AccessText→TextBlock)
             // produce the same text at nearly the same position. Keep only the
-            // first (outermost) occurrence within a 5px radius.
+            // first (outermost) occurrence within a 20px radius (accounts for padding).
             var deduped = new List<ScreenTextEntry>();
             foreach (var entry in entries)
             {
                 var isDuplicate = deduped.Any(e =>
                     e.Text == entry.Text &&
-                    Math.Abs(e.X - entry.X) < 5 &&
-                    Math.Abs(e.Y - entry.Y) < 5);
+                    Math.Abs(e.X - entry.X) < 20 &&
+                    Math.Abs(e.Y - entry.Y) < 20);
                 if (!isDuplicate)
                     deduped.Add(entry);
             }
