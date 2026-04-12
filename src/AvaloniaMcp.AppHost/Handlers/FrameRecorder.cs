@@ -51,9 +51,9 @@ public sealed class FrameRecorder : IDisposable
             rtb.Render(_target);
             _frames.Add(rtb);
         }
-        catch
+        catch (Exception ex)
         {
-            // Skip failed frames
+            System.Diagnostics.Trace.TraceWarning($"FrameRecorder: failed to capture frame: {ex.Message}");
         }
     }
 

@@ -390,3 +390,239 @@ Revisar las descripciones de cada tool en `Server/Tools/*.cs` para que sean desc
 ```
 
 **Reducción:** De ~5000+ tokens por turno a ~200 tokens. De 6+ llamadas a 2. De fallos silenciosos a éxito fiable.
+
+---
+
+## Estado tras Fase 0–3 — Validación con app real (Angor, Abril 2026)
+
+> Fases 0–3 implementadas. Se evaluó contra **Angor** (app real de Bitcoin, Avalonia 11.3.12, ~50 vistas, custom controls, ScrollViewers con cientos de items).
+
+### ✅ Lo que funciona bien (valoración 8.5/10 para comfort IA)
+
+| Tool | Rating | Notas |
+|---|---|---|
+| `get_screen_text` | ⭐⭐⭐⭐⭐ | Texto visible en orden de lectura con nodeIds. ~200 tokens vs ~5000 de screenshot. |
+| `get_interactables` | ⭐⭐⭐⭐⭐ | JSON plano `{nodeId, role, text, automationId}`. Decisión inmediata. |
+| `search` | ⭐⭐⭐⭐⭐ | Encuentra por tipo, nombre o texto. Bounds + parentId incluidos. |
+| `click` | ⭐⭐⭐⭐⭐ | Navegación real — cambió de sección, UI se actualizó correctamente. |
+| `set_prop` | ⭐⭐⭐⭐⭐ | Modificó `Text` y `Foreground` en vivo. Confirmado con screenshot. |
+| `get_tree` (Logical) | ⭐⭐⭐⭐ | Estructura `MainWindow > ShellView > DockPanel > [TopBar, Nav, Content]` — orientación inmediata. |
+| `get_props` / `get_styles` | ⭐⭐⭐⭐ | Valores actuales con prioridad (Style/StyleTrigger/LocalValue). Clases CSS activas. |
+| `get_ancestors` | ⭐⭐⭐⭐ | Cadena completa hasta raíz — 25 nodos en un click. |
+| `screenshot` | ⭐⭐⭐ | Funciona, pero alto coste en tokens. Último recurso. |
+| `list_assets` / `get_resources` | ⭐⭐⭐ | Funcional pero ruidoso (miles de assets de icon packs). |
+
+### 🐛 Bugs encontrados
+
+#### B1. `click_by_query` no encuentra controles custom
+
+**Síntoma:** `click_by_query("Funds", role="listitem")` → `"No interactive element found"`, pero `get_interactables` SÍ devuelve el `SectionStripItem` con ese texto.
+
+**Causa probable:** `click_by_query` usa un motor de búsqueda diferente (más restrictivo) que `get_interactables`. Debería compartir la misma lógica de matching.
+
+**Archivos:** `src/AvaloniaMcp.AppHost/Handlers/` — comparar búsqueda de `ClickByQueryHandler` vs `InteractablesHandler`.
+
+#### B2. `pseudo_class` falla al activar pseudo-clases
+
+**Síntoma:** `pseudo_class(nodeId, "pointerover", isActive=true)` → error de servidor. Listar pseudo-clases funciona (`pseudo_class(nodeId)` → `[]`).
+
+**Archivos:** `src/AvaloniaMcp.AppHost/Handlers/PseudoClassHandler.cs`
+
+#### B3. `capture_animation` inestable
+
+**Síntoma:** Devuelve "Recorded 25 frames" pero el proceso se interrumpe. GIF resultante corrupto o no entregado.
+
+**Archivos:** `src/AvaloniaMcp.AppHost/Handlers/RecordingHandler.cs`, `GifEncoder.cs`
+
+---
+
+## Fase 5 — Inteligencia MVVM y puente XAML↔Runtime
+
+> Objetivo: la IA no solo "ve" la UI, sino que entiende *por qué* se ve así y *cómo modificarla permanentemente*.
+
+### 5.1 `get_datacontext(nodeId)` — Ver el ViewModel
+
+**Problema:** `get_props` devuelve `"DataContext": "Zafiro.UI.Navigation.Sections.Section"` (solo el tipo). La IA no puede inspeccionar las propiedades del ViewModel.
+
+**API:**
+```
+get_datacontext(nodeId, depth?: int = 1)
+```
+
+**Output:**
+```json
+{
+  "type": "FindProjectsSectionViewModel",
+  "properties": [
+    { "name": "Projects", "type": "ObservableCollection<ProjectViewModel>", "count": 42 },
+    { "name": "IsLoading", "type": "Boolean", "value": "False" },
+    { "name": "SearchQuery", "type": "String", "value": "" },
+    { "name": "RefreshCommand", "type": "ReactiveCommand", "canExecute": true }
+  ]
+}
+```
+
+**Implementación:** Reflexión sobre el DataContext del control. Serializar propiedades públicas a 1 nivel (2 con `depth=2`). Para colecciones, solo `count`. Para commands (ReactiveCommand, ICommand), incluir `canExecute`.
+
+**Archivos nuevos:**
+- `src/AvaloniaMcp.AppHost/Handlers/DataContextHandler.cs`
+- `src/AvaloniaMcp.Server/Tools/DataContextTools.cs`
+
+### 5.2 `get_bindings(nodeId)` — Diagnosticar bindings
+
+**Problema:** Un TextBlock muestra "" vacío. ¿Es porque el binding está roto, el valor es null, o no hay binding? Ahora no hay forma de saberlo sin leer el XAML.
+
+**API:**
+```
+get_bindings(nodeId)
+```
+
+**Output:**
+```json
+[
+  {
+    "property": "Text",
+    "path": "Name",
+    "mode": "OneWay",
+    "source": "DataContext",
+    "status": "Bound",
+    "actualValue": "Pay Flow 168ec533b028"
+  },
+  {
+    "property": "IsVisible",
+    "path": "HasFunders",
+    "mode": "OneWay",
+    "source": "DataContext",
+    "status": "Error",
+    "error": "Property 'HasFunders' not found on 'ProjectCardViewModel'"
+  }
+]
+```
+
+**Implementación:** Iterar `AvaloniaObject.GetSetValues()` o reflection sobre binding expressions. Para cada `BindingExpression` activa, extraer path, modo, estado y valor actual.
+
+**Archivos nuevos:**
+- `src/AvaloniaMcp.AppHost/Handlers/BindingHandler.cs`
+
+### 5.3 `find_view_source(nodeId)` — Localizar el XAML
+
+**Problema:** La IA sabe que hay un `ShellView` en el árbol, pero no sabe que está definido en `UI/Shell/ShellView.axaml`.
+
+**API:**
+```
+find_view_source(nodeId)
+```
+
+**Output:**
+```json
+{
+  "type": "ShellView",
+  "assembly": "AngorApp",
+  "xamlAsset": "avares://AngorApp/UI/Shell/ShellView.axaml",
+  "codeBehind": "UI/Shell/ShellView.axaml.cs"
+}
+```
+
+**Implementación:** 
+1. Obtener el tipo CLR del control (o su View ancestro más cercano)
+2. Buscar en `list_assets` un `.axaml` cuyo path coincida con el namespace/nombre del tipo
+3. `codeBehind` = derivado por convención (`.axaml` → `.axaml.cs`)
+
+### 5.4 `get_xaml(nodeId)` — Ver el XAML fuente
+
+**Problema:** El árbol visual dice QUÉ hay. El XAML dice POR QUÉ y CÓMO cambiarlo de forma duradera.
+
+**API:**
+```
+get_xaml(nodeId)
+```
+
+**Output:** El contenido del `.axaml` asset asociado al View que contiene el control.
+
+**Implementación:** 
+1. Usar `find_view_source` para localizar el `avares://` URL
+2. Leer el asset embebido (ya existe `open_asset`)
+3. Devolver el contenido XAML
+
+**Dependencia:** Requiere `find_view_source` (5.3).
+
+### 5.5 `get_screen_text` con filtro `visibleOnly`
+
+**Problema:** En la vista "Find Projects" de Angor, `get_screen_text` devolvió **260+ líneas** incluyendo todos los items del ScrollViewer que están fuera de pantalla. Desperdicio masivo de tokens.
+
+**API:** Añadir parámetro opcional:
+```
+get_screen_text(nodeId?, visibleOnly?: bool = false)
+```
+
+**Implementación:** Cuando `visibleOnly=true`, filtrar TextBlocks cuyas bounds absolutas no intersecten con el viewport de su ScrollViewer ancestro (o la ventana).
+
+### 5.6 `diff_tree` — Comparar estados antes/después
+
+**Problema:** Patrón actual de la IA: `get_screen_text` → `click` → `get_screen_text` → diff mental (costoso en tokens y propenso a errores).
+
+**API:**
+```
+diff_tree(before_snapshot_id, after_snapshot_id)
+```
+
+O versión autocontenida:
+```
+take_snapshot() → snapshot_id
+// ... interact ...
+diff_snapshot(snapshot_id) → { added: [...], removed: [...], changed: [...] }
+```
+
+**Implementación:** Guardar snapshots del texto visible con nodeIds. Al hacer diff, comparar por nodeId y texto.
+
+---
+
+## Resumen de prioridades (actualizado Abril 2026)
+
+| Item | Impacto | Esfuerzo |
+|---|---|---|
+| **B1** Fix `click_by_query` matching | 🔴 Crítico — herramienta de conveniencia inutilizable | Pequeño |
+| **B2** Fix `pseudo_class` activation | 🟡 Medio — afecta testing visual de estados | Pequeño |
+| **B3** Fix `capture_animation` stability | 🟡 Medio — GIF recording no fiable | Medio |
+| **5.5** `get_screen_text` visibleOnly | 🔴 Crítico — ScrollViews con 100+ items queman tokens | Pequeño |
+| **5.1** `get_datacontext` | 🔴 Crítico — transforma debugging MVVM | Medio |
+| **5.2** `get_bindings` | 🔴 Crítico — diagnosticar bindings rotos sin leer código | Medio |
+| **5.3** `find_view_source` | 🟡 Medio — puente runtime→código fuente | Pequeño |
+| **5.4** `get_xaml` | 🟡 Medio — ver definición XAML en contexto | Pequeño (depende de 5.3) |
+| **5.6** `diff_tree` | 🟡 Medio — reduce tokens en flujos interactivos | Medio |
+
+---
+
+## Estado de implementación (Actualizado)
+
+| Item | Estado | Notas |
+|---|---|---|
+| **B1** `click_by_query` | ✅ Implementado | Reescrito `FindMatchingVisuals` con filtro de interactividad (misma lógica que `InteractablesHandler.IsInteractive`), matching de texto por hijos visuales, AutomationId y AutomationName |
+| **B2** `pseudo_class` | ✅ Implementado | Cambiado `styled.Classes.Set()` → `((IPseudoClasses)styled.Classes).Set()` para pseudo-classes gestionadas por el framework |
+| **B3** `capture_animation` | ✅ Parcialmente implementado | Corregido LZW off-by-one, añadido GCE disposal method (restore-to-background), encoding GIF movido fuera del UI thread, error handling en FrameRecorder. PNG round-trip sigue como área de mejora potencial |
+| **5.1** `get_datacontext` | ✅ Implementado | `DataContextHandler` — refleja propiedades públicas del DataContext con valores truncados |
+| **5.2** `get_bindings` | ✅ Implementado | `BindingsHandler` — usa `GetDiagnostic()` de Avalonia.Diagnostics para mostrar propiedades con binding activo, prioridad, valor y diagnóstico |
+| **5.3** `find_view_source` | ✅ Implementado | `FindViewSourceHandler` — mapea tipo runtime → avares:// URL probando convenciones de path comunes |
+| **5.4** `get_xaml` | ✅ Implementado | `GetXamlHandler` — combina find_view_source + open_asset en una sola llamada, devuelve el XAML fuente |
+| **5.5** `visibleOnly` | ✅ Implementado | Parámetro `visibleOnly` en `ScreenTextHandler` — filtra por intersección con viewport de ventana y ScrollViewers ancestros |
+| **5.6** `diff_tree` | ✅ Implementado | `DiffTreeHandler` — snapshot/diff de texto visible, devuelve solo líneas añadidas/eliminadas |
+
+### Archivos nuevos
+- `src/AvaloniaMcp.AppHost/Handlers/DataContextHandler.cs`
+- `src/AvaloniaMcp.AppHost/Handlers/BindingsHandler.cs`
+- `src/AvaloniaMcp.AppHost/Handlers/FindViewSourceHandler.cs`
+- `src/AvaloniaMcp.AppHost/Handlers/GetXamlHandler.cs`
+- `src/AvaloniaMcp.AppHost/Handlers/DiffTreeHandler.cs`
+- `src/AvaloniaMcp.Server/Tools/DataTools.cs`
+
+### Archivos modificados
+- `ClickByQueryHandler.cs` — reescrito completamente
+- `PseudoClassHandler.cs` — fix IPseudoClasses cast
+- `GifEncoder.cs` — LZW fix + GCE disposal
+- `FrameRecorder.cs` — error logging
+- `RecordingHandler.cs` — GIF encoding off UI thread
+- `ScreenTextHandler.cs` — visibleOnly + viewport clipping
+- `RequestDispatcher.cs` — 5 nuevos handlers registrados
+- `ProtocolMethods.cs` — 5 nuevas constantes
+- `TreeTools.cs` — parámetro visibleOnly en get_screen_text
+- `DataTools.cs` — 5 nuevas herramientas MCP

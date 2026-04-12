@@ -64,34 +64,63 @@ public sealed class StopRecordingHandler : IRequestHandler
 
     public async Task<object> Handle(DiagnosticRequest request)
     {
-        return await Dispatcher.UIThread.InvokeAsync<object>(() =>
+        // Stop recording and collect frames on UI thread
+        List<RenderTargetBitmap> frames;
+        int frameDelayMs;
+
+        var uiResult = await Dispatcher.UIThread.InvokeAsync<object?>(() =>
         {
             var recorder = RecordingHandler.GetActiveRecorder();
             if (recorder is null)
                 return new { error = "No active recording" };
 
             recorder.Stop();
-            var frames = recorder.GetFrames();
-            RecordingHandler.ClearRecorder();
-
-            if (frames.Count == 0)
-                return new { error = "No frames captured" };
-
-            // Encode as animated GIF
-            var gifBytes = GifEncoder.Encode(frames, recorder.FrameDelayMs);
-            var base64 = Convert.ToBase64String(gifBytes);
-
-            foreach (var frame in frames)
-                frame.Dispose();
-
-            return new
-            {
-                data = base64,
-                mimeType = "image/gif",
-                frameCount = frames.Count,
-                durationMs = frames.Count * recorder.FrameDelayMs,
-                sizeBytes = gifBytes.Length
-            };
+            return null; // success — proceed with encoding
         });
+
+        if (uiResult is not null)
+            return uiResult;
+
+        var recorder2 = RecordingHandler.GetActiveRecorder();
+        if (recorder2 is null)
+            return new { error = "No active recording" };
+
+        frames = recorder2.GetFrames();
+        frameDelayMs = recorder2.FrameDelayMs;
+        RecordingHandler.ClearRecorder();
+
+        if (frames.Count == 0)
+            return new { error = "No frames captured" };
+
+        // Encode GIF off the UI thread to avoid blocking
+        var gifBytes = await Task.Run(() =>
+        {
+            try
+            {
+                return GifEncoder.Encode(frames, frameDelayMs);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError($"GIF encoding failed: {ex}");
+                return null;
+            }
+        });
+
+        foreach (var frame in frames)
+            frame.Dispose();
+
+        if (gifBytes is null)
+            return new { error = "GIF encoding failed" };
+
+        var base64 = Convert.ToBase64String(gifBytes);
+
+        return new
+        {
+            data = base64,
+            mimeType = "image/gif",
+            frameCount = frames.Count,
+            durationMs = frames.Count * frameDelayMs,
+            sizeBytes = gifBytes.Length
+        };
     }
 }

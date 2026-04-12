@@ -51,7 +51,7 @@ public static class GifEncoder
             writer.Write((byte)0x21); // Extension
             writer.Write((byte)0xF9); // GCE
             writer.Write((byte)4);    // Block size
-            writer.Write((byte)0x00); // No transparency, no disposal
+            writer.Write((byte)0x08); // Dispose: restore to background (avoids frame accumulation)
             writer.Write(delayCs);    // Delay
             writer.Write((byte)0);    // Transparent color index
             writer.Write((byte)0);    // Block terminator
@@ -203,7 +203,7 @@ public static class GifEncoder
                 if (nextCode <= 4095)
                 {
                     table[key] = nextCode++;
-                    if (nextCode > maxCode + 1 && codeSize < 12)
+                    if (nextCode > maxCode && codeSize < 12)
                     {
                         codeSize++;
                         maxCode = (1 << codeSize) - 1;

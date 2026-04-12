@@ -55,6 +55,13 @@ public static class ProtocolMethods
     public const string ClickAndWait = "click_and_wait";
     public const string ClickByQuery = "click_by_query";
 
+    // MVVM / Data inspection
+    public const string GetDataContext = "get_datacontext";
+    public const string GetBindings = "get_bindings";
+    public const string FindViewSource = "find_view_source";
+    public const string GetXaml = "get_xaml";
+    public const string DiffTree = "diff_tree";
+
     // Connection
     public const string ListWindows = "list_windows";
     public const string Ping = "ping";

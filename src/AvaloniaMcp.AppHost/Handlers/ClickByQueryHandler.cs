@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -12,8 +13,8 @@ using AvaloniaMcp.Protocol.Messages;
 namespace AvaloniaMcp.AppHost.Handlers;
 
 /// <summary>
-/// Atomic search-and-click: finds a control by query and clicks it in a single UI thread dispatch,
-/// eliminating the race condition where nodeIds become stale between separate search and click calls.
+/// Atomic search-and-click: finds an interactive control by query and clicks it in a single UI thread dispatch.
+/// Uses the same interactivity filter as <see cref="InteractablesHandler"/> so results are consistent.
 /// </summary>
 public sealed class ClickByQueryHandler : IRequestHandler
 {
@@ -61,9 +62,8 @@ public sealed class ClickByQueryHandler : IRequestHandler
         {
             foreach (var visual in window.GetVisualDescendants())
             {
-                if (!visual.IsVisible) continue;
-                if (visual is InputElement { IsEnabled: false }) continue;
-
+                // Same interactivity filter as InteractablesHandler
+                if (!IsInteractive(visual)) continue;
                 if (!MatchesQuery(visual, query)) continue;
                 if (role != null && !MatchesRole(visual, role)) continue;
 
@@ -74,6 +74,26 @@ public sealed class ClickByQueryHandler : IRequestHandler
         return results;
     }
 
+    /// <summary>
+    /// Mirrors InteractablesHandler.IsInteractive — only returns controls the user can act on.
+    /// </summary>
+    private static bool IsInteractive(Visual visual)
+    {
+        if (!visual.IsVisible) return false;
+
+        if (visual is InputElement input)
+        {
+            if (!input.IsEnabled) return false;
+            if (input.Focusable) return true;
+        }
+
+        return visual is Button
+            or MenuItem
+            or ListBoxItem
+            or TabItem
+            or ComboBoxItem;
+    }
+
     private static bool MatchesQuery(Visual visual, string query)
     {
         if (visual.GetType().Name.Contains(query, StringComparison.OrdinalIgnoreCase))
@@ -81,6 +101,14 @@ public sealed class ClickByQueryHandler : IRequestHandler
 
         if (visual is Control c && c.Name?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)
             return true;
+
+        // Check AutomationId (commonly used to identify controls)
+        if (visual is Control ctrl)
+        {
+            var automationId = AutomationProperties.GetAutomationId(ctrl);
+            if (automationId?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)
+                return true;
+        }
 
         var text = GetText(visual);
         if (text?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)
@@ -166,12 +194,36 @@ public sealed class ClickByQueryHandler : IRequestHandler
         return "no_action";
     }
 
+    /// <summary>
+    /// Extracts text from a visual, walking visual children for containers (same as InteractablesHandler).
+    /// </summary>
     private static string? GetText(Visual visual) => visual switch
     {
         TextBox tb => tb.Text,
         TextBlock tb => tb.Text,
-        ContentControl cc when cc.Content is string s => s,
-        HeaderedContentControl hcc when hcc.Header is string s => s,
-        _ => null,
+        HeaderedContentControl hcc => hcc.Header as string ?? hcc.Content as string,
+        ContentControl cc => cc.Content as string,
+        _ => GetAutomationName(visual) ?? GetTextFromVisualChildren(visual),
     };
+
+    private static string? GetAutomationName(Visual visual)
+    {
+        if (visual is Control control)
+        {
+            var name = AutomationProperties.GetName(control);
+            if (!string.IsNullOrEmpty(name)) return name;
+        }
+        return null;
+    }
+
+    private static string? GetTextFromVisualChildren(Visual visual)
+    {
+        var texts = visual.GetVisualDescendants()
+            .OfType<TextBlock>()
+            .Where(tb => tb.IsVisible && !string.IsNullOrWhiteSpace(tb.Text))
+            .Select(tb => tb.Text!)
+            .Take(5)
+            .ToList();
+        return texts.Count > 0 ? string.Join(" · ", texts) : null;
+    }
 }

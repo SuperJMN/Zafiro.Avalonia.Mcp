@@ -47,11 +47,13 @@ public sealed class TreeTools
     [McpServerTool(Name = "get_screen_text"), Description("Get all visible text on screen in reading order (top-to-bottom, left-to-right). The cheapest way to read UI content — no screenshot required. Returns plain text that represents what a user would see. Use this FIRST to understand what's on screen before taking a screenshot.")]
     public static async Task<string> GetScreenText(
         ConnectionPool pool,
-        [Description("Node ID to scope. Omit for the first window.")] int? nodeId = null)
+        [Description("Node ID to scope. Omit for the first window.")] int? nodeId = null,
+        [Description("When true, only returns text that is within the visible viewport (not scrolled off-screen). Default: false.")] bool visibleOnly = false)
     {
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object>();
         if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
+        if (visibleOnly) parms["visibleOnly"] = true;
         var result = await conn.SendAsync(ProtocolMethods.GetScreenText, parms);
         return result?.ToString() ?? "No text found";
     }

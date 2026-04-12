@@ -38,10 +38,12 @@ public sealed class PseudoClassHandler : IRequestHandler
 
             var fullName = pseudoClass.StartsWith(':') ? pseudoClass : $":{pseudoClass}";
 
-            // Set or unset pseudo-class via Classes.Set
+            // Set or unset pseudo-class
             if (isActive.HasValue)
             {
-                styled.Classes.Set(fullName, isActive.Value);
+                // Use IPseudoClasses to properly activate framework-managed pseudo-classes
+                // like :pointerover, :pressed, :focus, :disabled etc.
+                ((IPseudoClasses)styled.Classes).Set(fullName, isActive.Value);
                 return new { success = true, pseudoClass = fullName, isActive = isActive.Value };
             }
 

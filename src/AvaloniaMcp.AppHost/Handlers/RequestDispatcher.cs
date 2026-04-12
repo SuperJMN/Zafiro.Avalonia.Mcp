@@ -53,6 +53,13 @@ public sealed class RequestDispatcher
         Register(new ResourceHandler());
         Register(new ListAssetsHandler());
         Register(new OpenAssetHandler());
+
+        // MVVM / Data inspection
+        Register(new DataContextHandler());
+        Register(new BindingsHandler());
+        Register(new FindViewSourceHandler());
+        Register(new GetXamlHandler());
+        Register(new DiffTreeHandler());
     }
 
     private void Register(IRequestHandler handler)

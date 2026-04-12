@@ -16,10 +16,12 @@ public sealed class ScreenTextHandler : IRequestHandler
     public async Task<object> Handle(DiagnosticRequest request)
     {
         int? nodeId = null;
+        var visibleOnly = false;
 
         if (request.Params is JsonElement p)
         {
             if (p.TryGetProperty("nodeId", out var nid)) nodeId = nid.GetInt32();
+            if (p.TryGetProperty("visibleOnly", out var vo)) visibleOnly = vo.GetBoolean();
         }
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
@@ -37,9 +39,10 @@ public sealed class ScreenTextHandler : IRequestHandler
             }
 
             var rootVisual = FindRootVisual(root);
+            var windowBounds = new Rect(0, 0, rootVisual.Bounds.Width, rootVisual.Bounds.Height);
             var entries = new List<ScreenTextEntry>();
 
-            CollectText(root, rootVisual, entries);
+            CollectText(root, rootVisual, entries, visibleOnly, windowBounds);
 
             // Deduplicate: templated controls (e.g. Button→AccessText→TextBlock)
             // produce the same text at nearly the same position. Keep only the
@@ -77,7 +80,8 @@ public sealed class ScreenTextHandler : IRequestHandler
         return current;
     }
 
-    private static void CollectText(Visual visual, Visual rootVisual, List<ScreenTextEntry> entries)
+    private static void CollectText(Visual visual, Visual rootVisual, List<ScreenTextEntry> entries,
+        bool visibleOnly, Rect windowBounds)
     {
         if (!visual.IsVisible) return;
 
@@ -88,6 +92,12 @@ public sealed class ScreenTextHandler : IRequestHandler
             if (transform.HasValue)
             {
                 var absoluteBounds = visual.Bounds.TransformToAABB(transform.Value);
+
+                // When visibleOnly is true, skip elements outside the window viewport
+                // and elements clipped by ancestor ScrollViewers
+                if (visibleOnly && !IsInViewport(visual, absoluteBounds, rootVisual, windowBounds))
+                    return;
+
                 entries.Add(new ScreenTextEntry
                 {
                     Text = text,
@@ -100,8 +110,39 @@ public sealed class ScreenTextHandler : IRequestHandler
 
         foreach (var child in visual.GetVisualChildren())
         {
-            CollectText(child, rootVisual, entries);
+            CollectText(child, rootVisual, entries, visibleOnly, windowBounds);
         }
+    }
+
+    /// <summary>
+    /// Check if the element's absolute bounds intersect the visible viewport.
+    /// Walks up the ancestor chain to find ScrollViewers and tests against their clip regions.
+    /// </summary>
+    private static bool IsInViewport(Visual visual, Rect absoluteBounds, Visual rootVisual, Rect windowBounds)
+    {
+        // Must be within the window bounds
+        if (!windowBounds.Intersects(absoluteBounds))
+            return false;
+
+        // Check against each ancestor ScrollViewer's viewport
+        var current = visual.GetVisualParent();
+        while (current is not null)
+        {
+            if (current is ScrollViewer sv)
+            {
+                var svTransform = sv.TransformToVisual(rootVisual);
+                if (svTransform.HasValue)
+                {
+                    var svAbsoluteBounds = sv.Bounds.TransformToAABB(svTransform.Value);
+                    if (!svAbsoluteBounds.Intersects(absoluteBounds))
+                        return false;
+                }
+            }
+
+            current = current.GetVisualParent();
+        }
+
+        return true;
     }
 
     private static string? ExtractText(Visual visual)
