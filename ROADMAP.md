@@ -1,6 +1,49 @@
 # AvaloniaMcp — Roadmap: AI-Agent-Friendly Interaction
 
-## Problema
+## Estado general
+
+| Fase | Alcance | Estado |
+|---|---|---|
+| **Fase 0** | Fundamentos (bugs y deuda técnica) | ✅ Completada |
+| **Fase 1** | La IA puede "ver" sin screenshots | ✅ Completada |
+| **Fase 2** | La IA puede interactuar con fiabilidad | ✅ Completada |
+| **Fase 3** | La IA puede esperar y reaccionar | ✅ Completada |
+| **Fase 4** | Calidad y robustez | ⬜ Pendiente |
+| **Fase 5** | Inteligencia MVVM y puente XAML↔Runtime | ✅ Completada |
+
+### Desglose por item
+
+| Fase | Item | Descripción | Estado |
+|---|---|---|---|
+| F0 | 0.1 | Fix `RaisePointerEvent` — `PointerEventArgs` reales | ✅ Implementado |
+| F0 | 0.2 | Fix `NodeRegistry` O(n) → O(1) | ✅ Implementado |
+| F0 | 0.3 | Key modifiers en keyboard handler | ✅ Implementado |
+| F0 | 0.4 | Eliminar código muerto | ✅ Implementado |
+| F1 | 1.1 | Enriquecer `NodeInfo` (texto, role, estado) | ✅ Implementado |
+| F1 | 1.2 | `get_interactables` | ✅ Implementado |
+| F1 | 1.3 | `get_screen_text` | ✅ Implementado |
+| F2 | 2.1 | `select_item` | ✅ Implementado |
+| F2 | 2.2 | `toggle` | ✅ Implementado |
+| F2 | 2.3 | `set_value` | ✅ Implementado |
+| F2 | 2.4 | `scroll` | ✅ Implementado |
+| F3 | 3.1 | `wait_for` | ✅ Implementado |
+| F3 | 3.2 | `click_and_wait` | ✅ Implementado |
+| F4 | 4.1 | Tests (Protocol, NodeRegistry, Handlers, Integración) | ⬜ Pendiente |
+| F4 | 4.2 | Documentación del protocolo en README | ⬜ Pendiente |
+| F4 | 4.3 | Optimizar tool descriptions para LLMs | ⬜ Pendiente |
+| F5 | B1 | Fix `click_by_query` — filtro de interactividad | ✅ Implementado (v1.3.0) |
+| F5 | B2 | Fix `pseudo_class` — `IPseudoClasses.Set()` | ✅ Implementado (v1.3.0) |
+| F5 | B3 | Fix `capture_animation` — LZW, GCE, off-UI-thread | ⚠️ Parcial (v1.3.0) — PNG round-trip por mejorar |
+| F5 | 5.1 | `get_datacontext` — inspeccionar ViewModel | ✅ Implementado (v1.3.0) |
+| F5 | 5.2 | `get_bindings` — diagnosticar bindings | ✅ Implementado (v1.3.0) |
+| F5 | 5.3 | `find_view_source` — mapear control → AXAML | ✅ Implementado (v1.3.0) |
+| F5 | 5.4 | `get_xaml` — ver XAML fuente | ✅ Implementado (v1.3.0) |
+| F5 | 5.5 | `get_screen_text` `visibleOnly` — filtro viewport | ✅ Implementado (v1.3.0) |
+| F5 | 5.6 | `diff_tree` — snapshot/diff de cambios | ✅ Implementado (v1.3.0) |
+
+---
+
+## Problema original
 
 El MCP actual fue diseñado como herramienta de **inspección para desarrolladores**.
 Una IA que intenta *usar* una app Avalonia a través de él se encuentra con:
@@ -50,11 +93,11 @@ Una IA que intenta *usar* una app Avalonia a través de él se encuentra con:
 
 ---
 
-## Fase 0 — Fundamentos (bugs y deuda técnica)
+## Fase 0 — Fundamentos (bugs y deuda técnica) ✅
 
 > Sin esto, lo demás se construye sobre arena.
 
-### 0.1 Fix `RaisePointerEvent` — construir `PointerEventArgs` reales
+### 0.1 Fix `RaisePointerEvent` — construir `PointerEventArgs` reales ✅
 
 **Archivo:** `src/AvaloniaMcp.AppHost/Handlers/InputHandler.cs`
 
@@ -70,7 +113,7 @@ private static void RaisePointerEvent(Control control, RoutedEvent routedEvent, 
 
 **Criterio de éxito:** `click(nodeId)` funciona correctamente sobre `ListBoxItem`, `CheckBox`, `ToggleButton`, `RadioButton`, `Slider` (al menos mover al centro), `MenuItem`, `TabItem`, `ComboBoxItem`.
 
-### 0.2 Fix `NodeRegistry` — eliminar búsqueda O(n)
+### 0.2 Fix `NodeRegistry` — eliminar búsqueda O(n) ✅
 
 **Archivo:** `src/AvaloniaMcp.AppHost/Handlers/NodeRegistry.cs`
 
@@ -80,7 +123,7 @@ private static void RaisePointerEvent(Control control, RoutedEvent routedEvent, 
 
 **Criterio de éxito:** `GetOrRegister` pasa de O(n) a O(1). Medir con BenchmarkDotNet sobre un árbol de 1000+ nodos.
 
-### 0.3 Añadir key modifiers al keyboard handler
+### 0.3 Añadir key modifiers al keyboard handler ✅
 
 **Archivo:** `src/AvaloniaMcp.AppHost/Handlers/InputHandler.cs` (clases `KeyboardHandler` / `KeyUpHandler`)
 
@@ -90,7 +133,7 @@ private static void RaisePointerEvent(Control control, RoutedEvent routedEvent, 
 
 **Cambios en Server:** Actualizar `InputTools.cs` para exponer el parámetro `modifiers` en los tools `key_down` y `key_up`.
 
-### 0.4 Eliminar código muerto
+### 0.4 Eliminar código muerto ✅
 
 - `InputHandler.RaisePointerEvent`: el parámetro `position` se calcula pero no se usa (se arregla con 0.1).
 - `SearchHandler`: el parámetro `searchTemplates` se parsea (línea ~21) pero nunca se usa en `Matches()`. Eliminar o implementar.
@@ -98,11 +141,11 @@ private static void RaisePointerEvent(Control control, RoutedEvent routedEvent, 
 
 ---
 
-## Fase 1 — La IA puede "ver" sin screenshots
+## Fase 1 — La IA puede "ver" sin screenshots ✅
 
 > Objetivo: que una IA pueda entender el estado completo de la UI con una sola llamada textual.
 
-### 1.1 Enriquecer `NodeInfo` con texto, estado y semántica
+### 1.1 Enriquecer `NodeInfo` con texto, estado y semántica ✅
 
 **Archivos:**
 - `src/AvaloniaMcp.Protocol/Models/NodeInfo.cs` — añadir campos
@@ -141,7 +184,7 @@ public int? parentId { get; set; }          // nodeId del padre (para navegació
 - `TextBlock` → `"text"`
 - Default → `null` (no ensuciar con roles inútiles)
 
-### 1.2 Nuevo tool: `get_interactables`
+### 1.2 Nuevo tool: `get_interactables` ✅
 
 **Concepto:** Devuelve **solo** los controles accionables visibles, con su texto y estado. Esto es lo que una IA necesita el 90% del tiempo — equivalente a "¿qué puedo hacer ahora?".
 
@@ -183,7 +226,7 @@ public class InteractableInfo
 
 Con esto, **cero screenshots necesarios** para decidir qué hacer.
 
-### 1.3 Nuevo tool: `get_screen_text`
+### 1.3 Nuevo tool: `get_screen_text` ✅
 
 **Concepto:** Devuelve todo el texto visible en la pantalla en orden de lectura (top-to-bottom, left-to-right), agrupado por regiones lógicas. Alternativa ultra-barata a un screenshot.
 
@@ -206,11 +249,11 @@ Mi equipito: Pikachu, Pidgey, Machop
 
 ---
 
-## Fase 2 — La IA puede interactuar con fiabilidad
+## Fase 2 — La IA puede interactuar con fiabilidad ✅
 
 > Objetivo: que toda interacción sea fiable, no solo clicks en botones.
 
-### 2.1 Nuevo tool: `select_item`
+### 2.1 Nuevo tool: `select_item` ✅
 
 **Concepto:** Para `SelectingItemsControl` (ListBox, ComboBox, TabControl), seleccionar un item por índice o por texto. Más fiable que simular pointer events.
 
@@ -227,7 +270,7 @@ select_item(nodeId, index?: int, text?: string)
 3. Si `text` dado → iterar `Items`, encontrar el que coincida con su texto/ToString, seleccionarlo
 4. Devolver el item seleccionado con su texto y index
 
-### 2.2 Nuevo tool: `toggle`
+### 2.2 Nuevo tool: `toggle` ✅
 
 **Concepto:** Para `ToggleButton`, `CheckBox`, `RadioButton`, `ToggleSwitch` — cambiar estado directamente.
 
@@ -238,7 +281,7 @@ toggle(nodeId, state?: bool)  // si state omitido, toggle; si dado, set
 
 **Lógica:** `control.IsChecked = state ?? !control.IsChecked`
 
-### 2.3 Nuevo tool: `set_value`
+### 2.3 Nuevo tool: `set_value` ✅
 
 **Concepto:** Para `Slider`, `NumericUpDown`, `ProgressBar` — establecer valor numérico.
 
@@ -247,7 +290,7 @@ toggle(nodeId, state?: bool)  // si state omitido, toggle; si dado, set
 set_value(nodeId, value: double)
 ```
 
-### 2.4 Nuevo tool: `scroll`
+### 2.4 Nuevo tool: `scroll` ✅
 
 **Concepto:** Scroll de contenido visible.
 
@@ -260,11 +303,11 @@ scroll(nodeId, direction: "up"|"down"|"left"|"right", amount?: double)
 
 ---
 
-## Fase 3 — La IA puede esperar y reaccionar
+## Fase 3 — La IA puede esperar y reaccionar ✅
 
 > Objetivo: eliminar el polling manual y los race conditions.
 
-### 3.1 Nuevo tool: `wait_for`
+### 3.1 Nuevo tool: `wait_for` ✅
 
 **Concepto:** Esperar hasta que una condición se cumpla en la UI, con timeout. Elimina el patrón de "click → screenshot → check → repeat".
 
@@ -287,7 +330,7 @@ wait_for(query: "ErrorMessage", condition: "exists", timeout_ms: 2000)
 
 **Implementación:** Polling interno cada 100ms (dentro del UI thread via `DispatcherTimer`) hasta que la condición se cumpla o se agote el timeout. Devuelve el `NodeInfo` del elemento encontrado o error con timeout.
 
-### 3.2 Nuevo tool: `click_and_wait`
+### 3.2 Nuevo tool: `click_and_wait` ✅
 
 **Concepto:** Acción compuesta — click + esperar resultado. Reduce 3 llamadas MCP a 1.
 
@@ -309,9 +352,9 @@ click_and_wait(nodeId: 12, wait_query: "BattleView", wait_condition: "visible")
 
 ---
 
-## Fase 4 — Calidad y robustez
+## Fase 4 — Calidad y robustez ⬜
 
-### 4.1 Tests
+### 4.1 Tests ⬜
 
 **Directorio:** `test/AvaloniaMcp.Tests/`
 
@@ -326,14 +369,14 @@ click_and_wait(nodeId: 12, wait_query: "BattleView", wait_condition: "visible")
   - `SelectionHandler` — selección por index y por texto
 - **Integración:** Named pipe round-trip completo (Server ↔ AppHost)
 
-### 4.2 Documentación del protocolo
+### 4.2 Documentación del protocolo ⬜
 
 **Archivo:** actualizar `README.md` del repo con:
 - Lista completa de tools con ejemplos para IA
 - Patrones recomendados ("primero `get_interactables`, luego `click`")
 - Anti-patrones ("no uses `get_tree` para entender la UI, usa `get_interactables`")
 
-### 4.3 MCP tool descriptions optimizadas
+### 4.3 MCP tool descriptions optimizadas ⬜
 
 Revisar las descripciones de cada tool en `Server/Tools/*.cs` para que sean descriptivas para el modelo de lenguaje. Incluir en la descripción:
 - Cuándo usar este tool vs alternativas
@@ -414,7 +457,7 @@ Revisar las descripciones de cada tool en `Server/Tools/*.cs` para que sean desc
 
 ### 🐛 Bugs encontrados
 
-#### B1. `click_by_query` no encuentra controles custom
+#### B1. `click_by_query` no encuentra controles custom ✅ (v1.3.0)
 
 **Síntoma:** `click_by_query("Funds", role="listitem")` → `"No interactive element found"`, pero `get_interactables` SÍ devuelve el `SectionStripItem` con ese texto.
 
@@ -422,13 +465,13 @@ Revisar las descripciones de cada tool en `Server/Tools/*.cs` para que sean desc
 
 **Archivos:** `src/AvaloniaMcp.AppHost/Handlers/` — comparar búsqueda de `ClickByQueryHandler` vs `InteractablesHandler`.
 
-#### B2. `pseudo_class` falla al activar pseudo-clases
+#### B2. `pseudo_class` falla al activar pseudo-clases ✅ (v1.3.0)
 
 **Síntoma:** `pseudo_class(nodeId, "pointerover", isActive=true)` → error de servidor. Listar pseudo-clases funciona (`pseudo_class(nodeId)` → `[]`).
 
 **Archivos:** `src/AvaloniaMcp.AppHost/Handlers/PseudoClassHandler.cs`
 
-#### B3. `capture_animation` inestable
+#### B3. `capture_animation` inestable ⚠️ Parcial (v1.3.0)
 
 **Síntoma:** Devuelve "Recorded 25 frames" pero el proceso se interrumpe. GIF resultante corrupto o no entregado.
 
@@ -436,11 +479,11 @@ Revisar las descripciones de cada tool en `Server/Tools/*.cs` para que sean desc
 
 ---
 
-## Fase 5 — Inteligencia MVVM y puente XAML↔Runtime
+## Fase 5 — Inteligencia MVVM y puente XAML↔Runtime ✅
 
 > Objetivo: la IA no solo "ve" la UI, sino que entiende *por qué* se ve así y *cómo modificarla permanentemente*.
 
-### 5.1 `get_datacontext(nodeId)` — Ver el ViewModel
+### 5.1 `get_datacontext(nodeId)` — Ver el ViewModel ✅
 
 **Problema:** `get_props` devuelve `"DataContext": "Zafiro.UI.Navigation.Sections.Section"` (solo el tipo). La IA no puede inspeccionar las propiedades del ViewModel.
 
@@ -468,7 +511,7 @@ get_datacontext(nodeId, depth?: int = 1)
 - `src/AvaloniaMcp.AppHost/Handlers/DataContextHandler.cs`
 - `src/AvaloniaMcp.Server/Tools/DataContextTools.cs`
 
-### 5.2 `get_bindings(nodeId)` — Diagnosticar bindings
+### 5.2 `get_bindings(nodeId)` — Diagnosticar bindings ✅
 
 **Problema:** Un TextBlock muestra "" vacío. ¿Es porque el binding está roto, el valor es null, o no hay binding? Ahora no hay forma de saberlo sin leer el XAML.
 
@@ -504,7 +547,7 @@ get_bindings(nodeId)
 **Archivos nuevos:**
 - `src/AvaloniaMcp.AppHost/Handlers/BindingHandler.cs`
 
-### 5.3 `find_view_source(nodeId)` — Localizar el XAML
+### 5.3 `find_view_source(nodeId)` — Localizar el XAML ✅
 
 **Problema:** La IA sabe que hay un `ShellView` en el árbol, pero no sabe que está definido en `UI/Shell/ShellView.axaml`.
 
@@ -528,7 +571,7 @@ find_view_source(nodeId)
 2. Buscar en `list_assets` un `.axaml` cuyo path coincida con el namespace/nombre del tipo
 3. `codeBehind` = derivado por convención (`.axaml` → `.axaml.cs`)
 
-### 5.4 `get_xaml(nodeId)` — Ver el XAML fuente
+### 5.4 `get_xaml(nodeId)` — Ver el XAML fuente ✅
 
 **Problema:** El árbol visual dice QUÉ hay. El XAML dice POR QUÉ y CÓMO cambiarlo de forma duradera.
 
@@ -546,7 +589,7 @@ get_xaml(nodeId)
 
 **Dependencia:** Requiere `find_view_source` (5.3).
 
-### 5.5 `get_screen_text` con filtro `visibleOnly`
+### 5.5 `get_screen_text` con filtro `visibleOnly` ✅
 
 **Problema:** En la vista "Find Projects" de Angor, `get_screen_text` devolvió **260+ líneas** incluyendo todos los items del ScrollViewer que están fuera de pantalla. Desperdicio masivo de tokens.
 
@@ -557,7 +600,7 @@ get_screen_text(nodeId?, visibleOnly?: bool = false)
 
 **Implementación:** Cuando `visibleOnly=true`, filtrar TextBlocks cuyas bounds absolutas no intersecten con el viewport de su ScrollViewer ancestro (o la ventana).
 
-### 5.6 `diff_tree` — Comparar estados antes/después
+### 5.6 `diff_tree` — Comparar estados antes/después ✅
 
 **Problema:** Patrón actual de la IA: `get_screen_text` → `click` → `get_screen_text` → diff mental (costoso en tokens y propenso a errores).
 
