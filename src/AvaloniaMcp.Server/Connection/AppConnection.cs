@@ -1,0 +1,82 @@
+using System.IO.Pipes;
+using System.Text;
+using System.Text.Json;
+using AvaloniaMcp.Protocol;
+using AvaloniaMcp.Protocol.Messages;
+using AvaloniaMcp.Protocol.Models;
+
+namespace AvaloniaMcp.Server.Connection;
+
+public sealed class AppConnection : IDisposable
+{
+    private readonly DiscoveryInfo _info;
+    private NamedPipeClientStream? _pipe;
+    private StreamReader? _reader;
+    private StreamWriter? _writer;
+    private int _requestId;
+    private readonly SemaphoreSlim _sendLock = new(1, 1);
+
+    public AppConnection(DiscoveryInfo info)
+    {
+        _info = info;
+    }
+
+    public int Pid => _info.Pid;
+    public string ProcessName => _info.ProcessName;
+    public bool IsConnected => _pipe?.IsConnected ?? false;
+
+    public async Task ConnectAsync(CancellationToken ct = default)
+    {
+        _pipe = new NamedPipeClientStream(".", _info.PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await _pipe.ConnectAsync(5000, ct);
+        _reader = new StreamReader(_pipe, Encoding.UTF8);
+        _writer = new StreamWriter(_pipe, Encoding.UTF8) { AutoFlush = true };
+    }
+
+    public async Task<JsonElement?> SendAsync(string method, object? parameters = null, CancellationToken ct = default)
+    {
+        if (_writer is null || _reader is null)
+            throw new InvalidOperationException("Not connected");
+
+        await _sendLock.WaitAsync(ct);
+        try
+        {
+            var id = Interlocked.Increment(ref _requestId).ToString();
+
+            var request = new DiagnosticRequest
+            {
+                Method = method,
+                Id = id,
+                Params = parameters is not null ? ProtocolSerializer.ToElement(parameters) : null
+            };
+
+            var json = ProtocolSerializer.Serialize(request);
+            await _writer.WriteLineAsync(json.AsMemory(), ct);
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(30));
+
+            var responseLine = await _reader.ReadLineAsync(timeout.Token);
+            if (responseLine is null)
+                throw new IOException("Connection closed");
+
+            var response = ProtocolSerializer.Deserialize<DiagnosticResponse>(responseLine);
+            if (response?.Error is not null)
+                throw new InvalidOperationException(response.Error);
+
+            return response?.Result;
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
+    }
+
+    public void Dispose()
+    {
+        _writer?.Dispose();
+        _reader?.Dispose();
+        _pipe?.Dispose();
+        _sendLock.Dispose();
+    }
+}

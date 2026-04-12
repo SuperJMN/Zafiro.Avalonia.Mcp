@@ -1,0 +1,163 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="650"
+        x:Class="SampleApp.MainWindow"
+        Title="AvaloniaMcp Sample App"
+        Width="900" Height="650">
+
+  <Window.Resources>
+    <SolidColorBrush x:Key="AccentBrush" Color="#FF6200EE" />
+  </Window.Resources>
+
+  <TabControl Margin="8">
+
+    <!-- Tab 1: Basic Controls -->
+    <TabItem Header="Controls">
+      <ScrollViewer Padding="16">
+        <StackPanel Spacing="12">
+
+          <TextBlock Text="Basic Controls Gallery" FontSize="20" FontWeight="Bold" />
+
+          <TextBlock x:Name="StatusText" Text="Ready" Foreground="Gray" />
+
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="ClickMeButton" Content="Click Me" Click="OnClickMe" />
+            <Button x:Name="DisabledButton" Content="Disabled" IsEnabled="False" />
+            <ToggleButton x:Name="ToggleBtn" Content="Toggle" />
+          </StackPanel>
+
+          <TextBox x:Name="InputBox" PlaceholderText="Type something here..." />
+
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <CheckBox x:Name="CheckOption" Content="Check me" IsChecked="True" />
+            <RadioButton x:Name="RadioA" Content="Option A" GroupName="Options" IsChecked="True" />
+            <RadioButton x:Name="RadioB" Content="Option B" GroupName="Options" />
+          </StackPanel>
+
+          <Slider x:Name="ValueSlider" Minimum="0" Maximum="100" Value="50" Width="300" HorizontalAlignment="Left" />
+
+          <ComboBox x:Name="ColorPicker" SelectedIndex="0" Width="200">
+            <ComboBoxItem Content="Red" />
+            <ComboBoxItem Content="Green" />
+            <ComboBoxItem Content="Blue" />
+          </ComboBox>
+
+          <ProgressBar x:Name="Progress" Value="65" Maximum="100" Width="300" HorizontalAlignment="Left" />
+
+          <ListBox x:Name="ItemList" Height="120">
+            <ListBoxItem Content="Item 1" />
+            <ListBoxItem Content="Item 2" />
+            <ListBoxItem Content="Item 3" />
+            <ListBoxItem Content="Item 4" />
+          </ListBox>
+
+        </StackPanel>
+      </ScrollViewer>
+    </TabItem>
+
+    <!-- Tab 2: Animation -->
+    <TabItem Header="Animation">
+      <Panel>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="24">
+          <TextBlock Text="Animated Elements" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
+
+          <Border x:Name="PulsingBorder"
+                  Width="120" Height="120"
+                  CornerRadius="60"
+                  Background="#FF6200EE"
+                  HorizontalAlignment="Center">
+            <Border.Styles>
+              <Style Selector="Border#PulsingBorder">
+                <Style.Animations>
+                  <Animation Duration="0:0:2" IterationCount="INFINITE" PlaybackDirection="Alternate">
+                    <KeyFrame Cue="0%">
+                      <Setter Property="Opacity" Value="0.3" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                      <Setter Property="Opacity" Value="1.0" />
+                    </KeyFrame>
+                  </Animation>
+                </Style.Animations>
+              </Style>
+            </Border.Styles>
+            <TextBlock Text="Pulse" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" />
+          </Border>
+
+          <Border x:Name="SpinningBorder"
+                  Width="80" Height="80"
+                  Background="#FF03DAC5"
+                  CornerRadius="8"
+                  HorizontalAlignment="Center"
+                  RenderTransformOrigin="50%,50%">
+            <Border.RenderTransform>
+              <RotateTransform />
+            </Border.RenderTransform>
+            <Border.Styles>
+              <Style Selector="Border#SpinningBorder">
+                <Style.Animations>
+                  <Animation Duration="0:0:3" IterationCount="INFINITE">
+                    <KeyFrame Cue="0%">
+                      <Setter Property="RotateTransform.Angle" Value="0" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                      <Setter Property="RotateTransform.Angle" Value="360" />
+                    </KeyFrame>
+                  </Animation>
+                </Style.Animations>
+              </Style>
+            </Border.Styles>
+            <TextBlock Text="Spin" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" />
+          </Border>
+
+          <Button x:Name="AnimateButton" Content="Trigger Color Animation" HorizontalAlignment="Center" Click="OnAnimateClick" />
+
+          <Border x:Name="ColorTarget" Width="200" Height="50" CornerRadius="8" Background="DodgerBlue">
+            <TextBlock Text="Color Target" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center" />
+          </Border>
+
+        </StackPanel>
+      </Panel>
+    </TabItem>
+
+    <!-- Tab 3: Layout Nesting -->
+    <TabItem Header="Layout">
+      <Grid ColumnDefinitions="*,*" RowDefinitions="*,*" Margin="8">
+        <Border Grid.Row="0" Grid.Column="0" Background="#20FF0000" CornerRadius="8" Margin="4" Padding="12">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Top-Left" FontWeight="Bold" />
+            <TextBlock Text="Nested stack panel" />
+            <Border Background="#40FF0000" Padding="8" CornerRadius="4">
+              <TextBlock Text="Deeply nested" />
+            </Border>
+          </StackPanel>
+        </Border>
+        <Border Grid.Row="0" Grid.Column="1" Background="#2000FF00" CornerRadius="8" Margin="4" Padding="12">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="Top-Right" FontWeight="Bold" />
+            <TextBlock Text="DockPanel layout" />
+          </DockPanel>
+        </Border>
+        <Border Grid.Row="1" Grid.Column="0" Background="#200000FF" CornerRadius="8" Margin="4" Padding="12">
+          <WrapPanel>
+            <TextBlock Text="Bottom-Left: " FontWeight="Bold" />
+            <Button Content="A" Margin="2" />
+            <Button Content="B" Margin="2" />
+            <Button Content="C" Margin="2" />
+            <Button Content="D" Margin="2" />
+            <Button Content="E" Margin="2" />
+          </WrapPanel>
+        </Border>
+        <Border Grid.Row="1" Grid.Column="1" Background="#20FFFF00" CornerRadius="8" Margin="4" Padding="12">
+          <Canvas>
+            <Ellipse Canvas.Left="10" Canvas.Top="10" Width="60" Height="60" Fill="Orange" />
+            <Rectangle Canvas.Left="80" Canvas.Top="30" Width="80" Height="40" Fill="CornflowerBlue" />
+            <TextBlock Canvas.Left="20" Canvas.Top="90" Text="Canvas layout" FontWeight="Bold" />
+          </Canvas>
+        </Border>
+      </Grid>
+    </TabItem>
+
+  </TabControl>
+</Window>

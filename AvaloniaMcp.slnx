@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/SampleApp/SampleApp.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/AvaloniaMcp.AppHost/AvaloniaMcp.AppHost.csproj" />
+    <Project Path="src/AvaloniaMcp.Protocol/AvaloniaMcp.Protocol.csproj" />
+    <Project Path="src/AvaloniaMcp.Server/AvaloniaMcp.Server.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/AvaloniaMcp.Tests/AvaloniaMcp.Tests.csproj" />
+  </Folder>
+</Solution>

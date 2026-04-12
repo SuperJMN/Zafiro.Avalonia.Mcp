@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "avalonia-mcp": {
+      "type": "stdio",
+      "command": "avalonia-mcp"
+    }
+  }
+}
