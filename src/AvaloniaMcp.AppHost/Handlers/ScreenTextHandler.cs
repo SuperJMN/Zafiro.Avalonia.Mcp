@@ -41,7 +41,21 @@ public sealed class ScreenTextHandler : IRequestHandler
 
             CollectText(root, rootVisual, entries);
 
-            entries.Sort((a, b) =>
+            // Deduplicate: templated controls (e.g. Button→AccessText→TextBlock)
+            // produce the same text at nearly the same position. Keep only the
+            // first (outermost) occurrence within a 5px radius.
+            var deduped = new List<ScreenTextEntry>();
+            foreach (var entry in entries)
+            {
+                var isDuplicate = deduped.Any(e =>
+                    e.Text == entry.Text &&
+                    Math.Abs(e.X - entry.X) < 5 &&
+                    Math.Abs(e.Y - entry.Y) < 5);
+                if (!isDuplicate)
+                    deduped.Add(entry);
+            }
+
+            deduped.Sort((a, b) =>
             {
                 var yCompare = a.Y.CompareTo(b.Y);
                 return yCompare != 0 ? yCompare : a.X.CompareTo(b.X);
@@ -49,8 +63,8 @@ public sealed class ScreenTextHandler : IRequestHandler
 
             return new
             {
-                lines = entries,
-                plainText = string.Join("\n", entries.Select(e => e.Text))
+                lines = deduped,
+                plainText = string.Join("\n", deduped.Select(e => e.Text))
             };
         });
     }

@@ -7,7 +7,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaMcp.Protocol;
 using AvaloniaMcp.Protocol.Messages;
-using AvaloniaMcp.Protocol.Models;
 
 namespace AvaloniaMcp.AppHost.Handlers;
 
@@ -62,60 +61,66 @@ public sealed class WaitForHandler : IRequestHandler
         {
             case "exists":
                 if (matches.Count > 0)
-                    return new { success = true, elapsed_ms = elapsedMs, matches };
+                    return new { success = true, elapsed_ms = elapsedMs, matchCount = matches.Count };
                 break;
 
             case "not_exists":
                 if (matches.Count == 0)
-                    return new { success = true, elapsed_ms = elapsedMs, matches = Array.Empty<NodeInfo>() };
+                    return new { success = true, elapsed_ms = elapsedMs, matchCount = 0 };
                 break;
 
             case "visible":
-                var visible = matches.Where(m => m.IsVisible == true).ToList();
-                if (visible.Count > 0)
-                    return new { success = true, elapsed_ms = elapsedMs, matches = visible };
+                var visibleCount = matches.Count(v => v.IsVisible);
+                if (visibleCount > 0)
+                    return new { success = true, elapsed_ms = elapsedMs, matchCount = visibleCount };
                 break;
 
             case "enabled":
-                var enabled = matches.Where(m => m.IsEnabled == true).ToList();
-                if (enabled.Count > 0)
-                    return new { success = true, elapsed_ms = elapsedMs, matches = enabled };
+                var enabledCount = matches.Count(v => v is InputElement { IsEnabled: true });
+                if (enabledCount > 0)
+                    return new { success = true, elapsed_ms = elapsedMs, matchCount = enabledCount };
                 break;
 
             case "text_equals":
-                var textEquals = matches.Where(m =>
-                    m.Text is not null && m.Text.Equals(value, StringComparison.Ordinal)).ToList();
-                if (textEquals.Count > 0)
-                    return new { success = true, elapsed_ms = elapsedMs, matches = textEquals };
+                var textEqualsCount = matches.Count(v => GetVisualText(v)?.Equals(value, StringComparison.Ordinal) == true);
+                if (textEqualsCount > 0)
+                    return new { success = true, elapsed_ms = elapsedMs, matchCount = textEqualsCount };
                 break;
 
             case "text_contains":
-                var textContains = matches.Where(m =>
-                    m.Text is not null && value is not null &&
-                    m.Text.Contains(value, StringComparison.OrdinalIgnoreCase)).ToList();
-                if (textContains.Count > 0)
-                    return new { success = true, elapsed_ms = elapsedMs, matches = textContains };
+                var textContainsCount = matches.Count(v =>
+                    value is not null && GetVisualText(v)?.Contains(value, StringComparison.OrdinalIgnoreCase) == true);
+                if (textContainsCount > 0)
+                    return new { success = true, elapsed_ms = elapsedMs, matchCount = textContainsCount };
                 break;
 
             case "count_equals":
                 if (value is not null && int.TryParse(value, out var expected) && matches.Count == expected)
-                    return new { success = true, elapsed_ms = elapsedMs, matches };
+                    return new { success = true, elapsed_ms = elapsedMs, matchCount = matches.Count };
                 break;
         }
 
         return null;
     }
 
-    private static List<NodeInfo> FindMatches(string query)
+    private static string? GetVisualText(Visual visual) => visual switch
     {
-        var results = new List<NodeInfo>();
+        TextBlock tb => tb.Text,
+        TextBox tb => tb.Text,
+        ContentControl cc when cc.Content is string s => s,
+        _ => null,
+    };
+
+    private static List<Visual> FindMatches(string query)
+    {
+        var results = new List<Visual>();
         var visuals = NodeRegistry.GetWindows()
             .SelectMany(w => new[] { (Visual)w }.Concat(w.GetVisualDescendants()));
 
         foreach (var visual in visuals)
         {
             if (Matches(visual, query))
-                results.Add(NodeInfoBuilder.Create(visual));
+                results.Add(visual);
         }
 
         return results;

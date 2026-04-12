@@ -56,7 +56,7 @@ public sealed class SelectionHandler : IRequestHandler
                     if (item is ContentControl cc)
                         itemText = cc.Content?.ToString() ?? itemText;
 
-                    if (string.Equals(itemText, text, StringComparison.OrdinalIgnoreCase))
+                    if (itemText.Contains(text, StringComparison.OrdinalIgnoreCase))
                     {
                         selector.SelectedIndex = i;
                         found = true;

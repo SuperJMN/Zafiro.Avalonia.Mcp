@@ -113,7 +113,7 @@ public sealed class InteractablesHandler : IRequestHandler
         TextBlock tb => tb.Text,
         HeaderedContentControl hcc => hcc.Header as string ?? GetContentText(hcc),
         ContentControl cc => GetContentText(cc),
-        _ => GetAutomationName(visual),
+        _ => GetAutomationName(visual) ?? GetTextFromVisualChildren(visual),
     };
 
     private static string? GetContentText(ContentControl cc)
@@ -131,15 +131,35 @@ public sealed class InteractablesHandler : IRequestHandler
         return null;
     }
 
-    private static string? GetValue(Visual visual) => visual switch
+    /// <summary>
+    /// Walk visual children to extract text (for ListBoxItem and similar containers).
+    /// Returns the concatenation of visible TextBlock texts.
+    /// </summary>
+    private static string? GetTextFromVisualChildren(Visual visual)
     {
-        TextBox tb => tb.Text,
-        CheckBox cb => cb.IsChecked?.ToString(),
-        ToggleSwitch ts => ts.IsChecked?.ToString(),
-        ToggleButton tb => tb.IsChecked?.ToString(),
-        Slider s => s.Value.ToString(),
-        NumericUpDown nud => nud.Value?.ToString(),
-        ComboBox cb => cb.SelectedItem?.ToString(),
-        _ => null,
-    };
+        var texts = visual.GetVisualDescendants()
+            .OfType<TextBlock>()
+            .Where(tb => tb.IsVisible && !string.IsNullOrWhiteSpace(tb.Text))
+            .Select(tb => tb.Text!)
+            .Take(5)
+            .ToList();
+        return texts.Count > 0 ? string.Join(" · ", texts) : null;
+    }
+
+    private static string? GetValue(Visual visual)
+    {
+        var raw = visual switch
+        {
+            TextBox tb => tb.Text,
+            CheckBox cb => cb.IsChecked?.ToString(),
+            ToggleSwitch ts => ts.IsChecked?.ToString(),
+            ToggleButton tb => tb.IsChecked?.ToString(),
+            Slider s => s.Value.ToString(),
+            NumericUpDown nud => nud.Value?.ToString(),
+            ComboBox cb => cb.SelectedItem?.ToString(),
+            _ => null,
+        };
+        // Truncate verbose values (e.g. full ViewModel ToString)
+        return raw is { Length: > 80 } ? raw[..77] + "..." : raw;
+    }
 }
