@@ -19,6 +19,16 @@ public sealed class InputTools
         return result?.ToString() ?? "No result";
     }
 
+    [McpServerTool(Name = "tap"), Description("Tap a UI element (equivalent to a single-finger touch). Behaves like click — handles Button, ToggleButton, ListBoxItem, TabItem, and MenuItem semantics. Falls back to pointer simulation for other controls. Use this when simulating touch interactions.")]
+    public static async Task<string> Tap(
+        ConnectionPool pool,
+        [Description("Node ID of the element to tap")] int nodeId)
+    {
+        var conn = pool.GetActive();
+        var result = await conn.SendAsync(ProtocolMethods.Tap, new { nodeId });
+        return result?.ToString() ?? "No result";
+    }
+
     [McpServerTool(Name = "key_down"), Description("Send a key down event to a focused element. Use the modifiers parameter for key combinations like Ctrl+C, Shift+Tab, Alt+F4, etc. Returns the key event result.")]
     public static async Task<string> KeyDown(
         ConnectionPool pool,
