@@ -1,5 +1,5 @@
-using Zafiro.Avalonia.Mcp.Server.Connection;
-using Zafiro.Avalonia.Mcp.Server.Tools;
+using Zafiro.Avalonia.Mcp.Tool.Connection;
+using Zafiro.Avalonia.Mcp.Tool.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

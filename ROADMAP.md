@@ -194,7 +194,7 @@ public int? parentId { get; set; }          // nodeId del padre (para navegació
 - `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/InteractablesHandler.cs`
 - Registrar en `RequestDispatcher.cs`
 - Añadir method constant en `ProtocolMethods.cs`
-- `src/Zafiro.Avalonia.Mcp.Server/Tools/TreeTools.cs` — añadir tool
+- `src/Zafiro.Avalonia.Mcp.Tool/Tools/TreeTools.cs` — añadir tool
 
 **Lógica:**
 1. Recorrer el logical tree desde la ventana activa (o `nodeId` dado)
@@ -511,7 +511,7 @@ get_datacontext(nodeId, depth?: int = 1)
 
 **Archivos nuevos:**
 - `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/DataContextHandler.cs`
-- `src/Zafiro.Avalonia.Mcp.Server/Tools/DataContextTools.cs`
+- `src/Zafiro.Avalonia.Mcp.Tool/Tools/DataContextTools.cs`
 
 ### 5.2 `get_bindings(nodeId)` — Diagnosticar bindings ✅
 
@@ -658,7 +658,7 @@ diff_snapshot(snapshot_id) → { added: [...], removed: [...], changed: [...] }
 - `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/FindViewSourceHandler.cs`
 - `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/GetXamlHandler.cs`
 - `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/DiffTreeHandler.cs`
-- `src/Zafiro.Avalonia.Mcp.Server/Tools/DataTools.cs`
+- `src/Zafiro.Avalonia.Mcp.Tool/Tools/DataTools.cs`
 
 ### Archivos modificados
 - `ClickByQueryHandler.cs` — reescrito completamente

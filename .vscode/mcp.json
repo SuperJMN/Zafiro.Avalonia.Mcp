@@ -6,7 +6,7 @@
       "args": [
         "run",
         "--project",
-        "src/Zafiro.Avalonia.Mcp.Server/Zafiro.Avalonia.Mcp.Server.csproj",
+        "src/Zafiro.Avalonia.Mcp.Tool/Zafiro.Avalonia.Mcp.Tool.csproj",
         "-f",
         "net8.0"
       ]

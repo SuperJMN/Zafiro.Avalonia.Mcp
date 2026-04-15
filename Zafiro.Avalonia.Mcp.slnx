@@ -5,7 +5,7 @@
   <Folder Name="/src/">
     <Project Path="src/Zafiro.Avalonia.Mcp.AppHost/Zafiro.Avalonia.Mcp.AppHost.csproj" />
     <Project Path="src/Zafiro.Avalonia.Mcp.Protocol/Zafiro.Avalonia.Mcp.Protocol.csproj" />
-    <Project Path="src/Zafiro.Avalonia.Mcp.Server/Zafiro.Avalonia.Mcp.Server.csproj" />
+    <Project Path="src/Zafiro.Avalonia.Mcp.Tool/Zafiro.Avalonia.Mcp.Tool.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Zafiro.Avalonia.Mcp.Tests/Zafiro.Avalonia.Mcp.Tests.csproj" />

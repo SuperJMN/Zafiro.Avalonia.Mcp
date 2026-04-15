@@ -1,9 +1,9 @@
 using System.ComponentModel;
 using Zafiro.Avalonia.Mcp.Protocol;
-using Zafiro.Avalonia.Mcp.Server.Connection;
+using Zafiro.Avalonia.Mcp.Tool.Connection;
 using ModelContextProtocol.Server;
 
-namespace Zafiro.Avalonia.Mcp.Server.Tools;
+namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 
 [McpServerToolType]
 public sealed class PropertyTools

@@ -3,7 +3,7 @@ using System.Diagnostics;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Models;
 
-namespace Zafiro.Avalonia.Mcp.Server.Connection;
+namespace Zafiro.Avalonia.Mcp.Tool.Connection;
 
 public sealed class ConnectionPool : IDisposable
 {

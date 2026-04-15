@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
-    <Description>MCP server for Avalonia app inspection, interaction and video capture</Description>
+    <Description>MCP server tool for Avalonia app inspection, interaction and video capture</Description>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>zafiro-avalonia-mcp</ToolCommandName>
   </PropertyGroup>

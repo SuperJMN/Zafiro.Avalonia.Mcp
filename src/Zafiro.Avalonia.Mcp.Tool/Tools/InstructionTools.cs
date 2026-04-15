@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 
-namespace Zafiro.Avalonia.Mcp.Server.Tools;
+namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 
 [McpServerToolType]
 public sealed class InstructionTools
@@ -83,7 +83,7 @@ public sealed class InstructionTools
         MCP Server setup (for AI agent integration):
 
         Install as a global dotnet tool:
-           dotnet tool install -g Zafiro.Avalonia.Mcp.Server
+           dotnet tool install -g Zafiro.Avalonia.Mcp.Tool
 
         Configure in your MCP client (e.g., Claude Desktop, Copilot):
            {
