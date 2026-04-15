@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simple named pipe client for AvaloniaMcp diagnostic protocol."""
+"""Simple named pipe client for Zafiro.Avalonia.Mcp diagnostic protocol."""
 import socket
 import json
 import sys
@@ -7,7 +7,7 @@ import os
 import glob
 
 def find_app():
-    disc_dir = os.path.join("/tmp", "avalonia-mcp")
+    disc_dir = os.path.join("/tmp", "zafiro-avalonia-mcp")
     if not os.path.isdir(disc_dir):
         return None
     for f in glob.glob(os.path.join(disc_dir, "*.json")):

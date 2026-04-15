@@ -1,4 +1,6 @@
-# AvaloniaMcp — Roadmap: AI-Agent-Friendly Interaction
+# Zafiro.Avalonia.Mcp — Roadmap: AI-Agent-Friendly Interaction
+
+> **Community project** — This project is independently maintained and is not officially affiliated with, endorsed by, or maintained by Avalonia UI (AvaloniaUI OÜ). "Avalonia" is a trademark of AvaloniaUI OÜ.
 
 ## Estado general
 
@@ -99,7 +101,7 @@ Una IA que intenta *usar* una app Avalonia a través de él se encuentra con:
 
 ### 0.1 Fix `RaisePointerEvent` — construir `PointerEventArgs` reales ✅
 
-**Archivo:** `src/AvaloniaMcp.AppHost/Handlers/InputHandler.cs`
+**Archivo:** `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/InputHandler.cs`
 
 **Problema actual** (línea ~54-58):
 ```csharp
@@ -115,7 +117,7 @@ private static void RaisePointerEvent(Control control, RoutedEvent routedEvent, 
 
 ### 0.2 Fix `NodeRegistry` — eliminar búsqueda O(n) ✅
 
-**Archivo:** `src/AvaloniaMcp.AppHost/Handlers/NodeRegistry.cs`
+**Archivo:** `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/NodeRegistry.cs`
 
 **Problema:** `GetOrRegister()` itera todo el `Dictionary<int, WeakReference<Visual>>` para cada nodo buscando `ReferenceEquals`.
 
@@ -125,7 +127,7 @@ private static void RaisePointerEvent(Control control, RoutedEvent routedEvent, 
 
 ### 0.3 Añadir key modifiers al keyboard handler ✅
 
-**Archivo:** `src/AvaloniaMcp.AppHost/Handlers/InputHandler.cs` (clases `KeyboardHandler` / `KeyUpHandler`)
+**Archivo:** `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/InputHandler.cs` (clases `KeyboardHandler` / `KeyUpHandler`)
 
 **Problema:** `KeyEventArgs` se crea sin `KeyModifiers`. No se puede hacer Ctrl+A, Ctrl+C, Shift+Tab.
 
@@ -148,8 +150,8 @@ private static void RaisePointerEvent(Control control, RoutedEvent routedEvent, 
 ### 1.1 Enriquecer `NodeInfo` con texto, estado y semántica ✅
 
 **Archivos:**
-- `src/AvaloniaMcp.Protocol/Models/NodeInfo.cs` — añadir campos
-- `src/AvaloniaMcp.AppHost/Handlers/TreeHandler.cs` — poblar los campos en `SerializeNode()`
+- `src/Zafiro.Avalonia.Mcp.Protocol/Models/NodeInfo.cs` — añadir campos
+- `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/TreeHandler.cs` — poblar los campos en `SerializeNode()`
 
 **Campos nuevos en `NodeInfo`:**
 
@@ -189,10 +191,10 @@ public int? parentId { get; set; }          // nodeId del padre (para navegació
 **Concepto:** Devuelve **solo** los controles accionables visibles, con su texto y estado. Esto es lo que una IA necesita el 90% del tiempo — equivalente a "¿qué puedo hacer ahora?".
 
 **Archivos nuevos:**
-- `src/AvaloniaMcp.AppHost/Handlers/InteractablesHandler.cs`
+- `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/InteractablesHandler.cs`
 - Registrar en `RequestDispatcher.cs`
 - Añadir method constant en `ProtocolMethods.cs`
-- `src/AvaloniaMcp.Server/Tools/TreeTools.cs` — añadir tool
+- `src/Zafiro.Avalonia.Mcp.Server/Tools/TreeTools.cs` — añadir tool
 
 **Lógica:**
 1. Recorrer el logical tree desde la ventana activa (o `nodeId` dado)
@@ -231,7 +233,7 @@ Con esto, **cero screenshots necesarios** para decidir qué hacer.
 **Concepto:** Devuelve todo el texto visible en la pantalla en orden de lectura (top-to-bottom, left-to-right), agrupado por regiones lógicas. Alternativa ultra-barata a un screenshot.
 
 **Archivos nuevos:**
-- `src/AvaloniaMcp.AppHost/Handlers/ScreenTextHandler.cs`
+- `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/ScreenTextHandler.cs`
 
 **Lógica:**
 1. Recorrer el visual tree recolectando todos los `TextBlock` y `ContentPresenter` con texto visible
@@ -257,7 +259,7 @@ Mi equipito: Pikachu, Pidgey, Machop
 
 **Concepto:** Para `SelectingItemsControl` (ListBox, ComboBox, TabControl), seleccionar un item por índice o por texto. Más fiable que simular pointer events.
 
-**Archivo nuevo:** `src/AvaloniaMcp.AppHost/Handlers/SelectionHandler.cs`
+**Archivo nuevo:** `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/SelectionHandler.cs`
 
 **API:**
 ```
@@ -356,7 +358,7 @@ click_and_wait(nodeId: 12, wait_query: "BattleView", wait_condition: "visible")
 
 ### 4.1 Tests ⬜
 
-**Directorio:** `test/AvaloniaMcp.Tests/`
+**Directorio:** `test/Zafiro.Avalonia.Mcp.Tests/`
 
 **Cobertura mínima:**
 - **Protocol:** Serialización/deserialización de todos los modelos (NodeInfo, PropertyInfo, DiagnosticRequest/Response)
@@ -463,19 +465,19 @@ Revisar las descripciones de cada tool en `Server/Tools/*.cs` para que sean desc
 
 **Causa probable:** `click_by_query` usa un motor de búsqueda diferente (más restrictivo) que `get_interactables`. Debería compartir la misma lógica de matching.
 
-**Archivos:** `src/AvaloniaMcp.AppHost/Handlers/` — comparar búsqueda de `ClickByQueryHandler` vs `InteractablesHandler`.
+**Archivos:** `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/` — comparar búsqueda de `ClickByQueryHandler` vs `InteractablesHandler`.
 
 #### B2. `pseudo_class` falla al activar pseudo-clases ✅ (v1.3.0)
 
 **Síntoma:** `pseudo_class(nodeId, "pointerover", isActive=true)` → error de servidor. Listar pseudo-clases funciona (`pseudo_class(nodeId)` → `[]`).
 
-**Archivos:** `src/AvaloniaMcp.AppHost/Handlers/PseudoClassHandler.cs`
+**Archivos:** `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/PseudoClassHandler.cs`
 
 #### B3. `capture_animation` inestable ⚠️ Parcial (v1.3.0)
 
 **Síntoma:** Devuelve "Recorded 25 frames" pero el proceso se interrumpe. GIF resultante corrupto o no entregado.
 
-**Archivos:** `src/AvaloniaMcp.AppHost/Handlers/RecordingHandler.cs`, `GifEncoder.cs`
+**Archivos:** `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/RecordingHandler.cs`, `GifEncoder.cs`
 
 ---
 
@@ -508,8 +510,8 @@ get_datacontext(nodeId, depth?: int = 1)
 **Implementación:** Reflexión sobre el DataContext del control. Serializar propiedades públicas a 1 nivel (2 con `depth=2`). Para colecciones, solo `count`. Para commands (ReactiveCommand, ICommand), incluir `canExecute`.
 
 **Archivos nuevos:**
-- `src/AvaloniaMcp.AppHost/Handlers/DataContextHandler.cs`
-- `src/AvaloniaMcp.Server/Tools/DataContextTools.cs`
+- `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/DataContextHandler.cs`
+- `src/Zafiro.Avalonia.Mcp.Server/Tools/DataContextTools.cs`
 
 ### 5.2 `get_bindings(nodeId)` — Diagnosticar bindings ✅
 
@@ -545,7 +547,7 @@ get_bindings(nodeId)
 **Implementación:** Iterar `AvaloniaObject.GetSetValues()` o reflection sobre binding expressions. Para cada `BindingExpression` activa, extraer path, modo, estado y valor actual.
 
 **Archivos nuevos:**
-- `src/AvaloniaMcp.AppHost/Handlers/BindingHandler.cs`
+- `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/BindingHandler.cs`
 
 ### 5.3 `find_view_source(nodeId)` — Localizar el XAML ✅
 
@@ -651,12 +653,12 @@ diff_snapshot(snapshot_id) → { added: [...], removed: [...], changed: [...] }
 | **5.6** `diff_tree` | ✅ Implementado | `DiffTreeHandler` — snapshot/diff de texto visible, devuelve solo líneas añadidas/eliminadas |
 
 ### Archivos nuevos
-- `src/AvaloniaMcp.AppHost/Handlers/DataContextHandler.cs`
-- `src/AvaloniaMcp.AppHost/Handlers/BindingsHandler.cs`
-- `src/AvaloniaMcp.AppHost/Handlers/FindViewSourceHandler.cs`
-- `src/AvaloniaMcp.AppHost/Handlers/GetXamlHandler.cs`
-- `src/AvaloniaMcp.AppHost/Handlers/DiffTreeHandler.cs`
-- `src/AvaloniaMcp.Server/Tools/DataTools.cs`
+- `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/DataContextHandler.cs`
+- `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/BindingsHandler.cs`
+- `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/FindViewSourceHandler.cs`
+- `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/GetXamlHandler.cs`
+- `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/DiffTreeHandler.cs`
+- `src/Zafiro.Avalonia.Mcp.Server/Tools/DataTools.cs`
 
 ### Archivos modificados
 - `ClickByQueryHandler.cs` — reescrito completamente

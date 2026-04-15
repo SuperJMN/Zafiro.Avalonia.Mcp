@@ -1,8 +1,15 @@
 {
   "servers": {
-    "avalonia-mcp": {
+    "zafiro-avalonia-mcp": {
       "type": "stdio",
-      "command": "avalonia-mcp"
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/Zafiro.Avalonia.Mcp.Server/Zafiro.Avalonia.Mcp.Server.csproj",
+        "-f",
+        "net8.0"
+      ]
     }
   }
 }

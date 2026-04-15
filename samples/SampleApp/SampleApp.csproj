@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\AvaloniaMcp.AppHost\AvaloniaMcp.AppHost.csproj" />
+    <ProjectReference Include="..\..\src\Zafiro.Avalonia.Mcp.AppHost\Zafiro.Avalonia.Mcp.AppHost.csproj" />
   </ItemGroup>
 
   <ItemGroup>

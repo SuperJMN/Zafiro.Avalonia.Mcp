@@ -1,6 +1,6 @@
 ﻿using Avalonia;
 using System;
-using AvaloniaMcp.AppHost;
+using Zafiro.Avalonia.Mcp.AppHost;
 
 namespace SampleApp;
 
