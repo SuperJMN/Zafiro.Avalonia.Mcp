@@ -74,7 +74,6 @@ public sealed class InteractablesHandler : IRequestHandler
 
         if (visual is InputElement input)
         {
-            if (!input.IsEnabled) return false;
             if (input.Focusable) return true;
         }
 
