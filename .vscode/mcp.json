@@ -2,6 +2,11 @@
   "servers": {
     "zafiro-avalonia-mcp": {
       "type": "stdio",
+      "command": "dnx",
+      "args": ["Zafiro.Avalonia.Mcp.Tool", "--yes"]
+    },
+    "zafiro-avalonia-mcp-local": {
+      "type": "stdio",
       "command": "dotnet",
       "args": [
         "run",
