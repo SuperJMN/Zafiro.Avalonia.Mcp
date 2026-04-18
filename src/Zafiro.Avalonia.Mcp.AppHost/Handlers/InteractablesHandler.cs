@@ -112,7 +112,7 @@ public sealed class InteractablesHandler : IRequestHandler
         TextBox tb => tb.Text,
         TextBlock tb => tb.Text,
         HeaderedContentControl hcc => hcc.Header as string ?? GetContentText(hcc),
-        ContentControl cc => GetContentText(cc),
+        ContentControl cc => GetContentText(cc) ?? GetTextFromVisualChildren(cc),
         _ => GetAutomationName(visual) ?? GetTextFromVisualChildren(visual),
     };
 

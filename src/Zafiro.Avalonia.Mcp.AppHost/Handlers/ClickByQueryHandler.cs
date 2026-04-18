@@ -202,7 +202,7 @@ public sealed class ClickByQueryHandler : IRequestHandler
         TextBox tb => tb.Text,
         TextBlock tb => tb.Text,
         HeaderedContentControl hcc => hcc.Header as string ?? hcc.Content as string,
-        ContentControl cc => cc.Content as string,
+        ContentControl cc => cc.Content as string ?? GetAutomationName(cc) ?? GetTextFromVisualChildren(cc),
         _ => GetAutomationName(visual) ?? GetTextFromVisualChildren(visual),
     };
 
