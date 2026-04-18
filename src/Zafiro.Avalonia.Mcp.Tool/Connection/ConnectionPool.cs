@@ -31,7 +31,7 @@ public sealed class ConnectionPool : IDisposable
             {
                 var json = File.ReadAllText(file);
                 var info = ProtocolSerializer.Deserialize<DiscoveryInfo>(json);
-                if (info is not null && IsProcessRunning(info.Pid))
+                if (info is not null && IsProcessRunning(info.Pid) && IsPipeAvailable(info.PipeName))
                     apps.Add(info);
                 else if (info is not null)
                     try { File.Delete(file); } catch { }
@@ -40,6 +40,13 @@ public sealed class ConnectionPool : IDisposable
         }
 
         return apps;
+    }
+
+    private static bool IsPipeAvailable(string pipeName)
+    {
+        // On Linux, .NET named pipes are Unix domain sockets at /tmp/CoreFxPipe_<name>
+        var socketPath = Path.Combine(Path.GetTempPath(), $"CoreFxPipe_{pipeName}");
+        return File.Exists(socketPath);
     }
 
     private static bool IsProcessRunning(int pid)

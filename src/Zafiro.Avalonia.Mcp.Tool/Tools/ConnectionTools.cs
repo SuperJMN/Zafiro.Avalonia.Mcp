@@ -20,9 +20,16 @@ public sealed class ConnectionTools
 
         if (apps.Count == 1)
         {
-            var conn = await pool.Connect(apps[0].Pid);
-            await conn.SendAsync(ProtocolMethods.Ping);
-            result += $"\n\nAuto-connected to {apps[0].ProcessName} (PID {apps[0].Pid}).";
+            try
+            {
+                var conn = await pool.Connect(apps[0].Pid);
+                await conn.SendAsync(ProtocolMethods.Ping);
+                result += $"\n\nAuto-connected to {apps[0].ProcessName} (PID {apps[0].Pid}).";
+            }
+            catch (Exception ex)
+            {
+                result += $"\n\nFound app but could not connect: {ex.Message}\nUse connect_to_app to retry.";
+            }
         }
         else
         {
