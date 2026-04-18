@@ -37,6 +37,17 @@ public sealed class PropertyTools
         return result?.ToString() ?? "No result";
     }
 
+    [McpServerTool(Name = "get_prop_values"), Description("Get the possible/allowed values for a specific property on a UI element. Returns enum members for enum properties, true/false for booleans, and standard values for types that declare them via TypeConverter. Useful before calling set_prop to know what values are valid.")]
+    public static async Task<string> GetPropertyValues(
+        ConnectionPool pool,
+        [Description("Node ID of the element")] int nodeId,
+        [Description("Property name to query")] string propertyName)
+    {
+        var conn = pool.GetActive();
+        var result = await conn.SendAsync(ProtocolMethods.GetPropertyValues, new { nodeId, propertyName });
+        return result?.ToString() ?? "No result";
+    }
+
     [McpServerTool(Name = "get_styles"), Description("Get the applied styles and setters for a UI element. Shows which styles are active, their selectors, and the property values they set. Useful for debugging styling issues. Set includeDefaults=true to also see properties with default/unset values.")]
     public static async Task<string> GetStyles(
         ConnectionPool pool,

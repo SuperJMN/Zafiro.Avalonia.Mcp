@@ -13,6 +13,10 @@ public static class ProtocolMethods
     public const string GetProperties = "get_properties";
     public const string SetProperty = "set_property";
     public const string GetStyles = "get_styles";
+    public const string GetPropertyValues = "get_property_values";
+
+    // Snapshot
+    public const string GetSnapshot = "get_snapshot";
 
     // Input
     public const string Click = "click";
