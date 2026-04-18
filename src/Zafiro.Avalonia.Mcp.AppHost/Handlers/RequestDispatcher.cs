@@ -24,6 +24,10 @@ public sealed class RequestDispatcher
         Register(new PropertyHandler());
         Register(new SetPropertyHandler());
         Register(new StylesHandler());
+        Register(new PropertyValuesHandler());
+
+        // Snapshot
+        Register(new SnapshotHandler());
 
         // Input & Interaction
         Register(new InputHandler());

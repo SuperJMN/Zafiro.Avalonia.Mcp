@@ -44,7 +44,20 @@ public sealed class TreeTools
         return result?.ToString() ?? "No ancestors";
     }
 
-    [McpServerTool(Name = "get_screen_text"), Description("Get all visible text on screen in reading order (top-to-bottom, left-to-right). The cheapest way to read UI content — no screenshot required. Returns plain text that represents what a user would see. Use this FIRST to understand what's on screen before taking a screenshot.")]
+    [McpServerTool(Name = "get_snapshot"), Description("Get a compact spatial snapshot of the UI in a single call. Returns a flat list of all visible text and interactive controls in logical tree order (the order defined in XAML, matching the developer's intended flow). Each entry includes: nodeId (ready to use with click/text_input/etc.), role, text, current value, and absolute position (x, y, w, h) for spatial reasoning. Also reports the focused element and window size. Use this FIRST to understand the UI — it replaces a get_screen_text + get_interactables pair with one cheaper call.")]
+    public static async Task<string> GetSnapshot(
+        ConnectionPool pool,
+        [Description("Node ID to scope. Omit for the first window.")] int? nodeId = null,
+        [Description("When true (default), only returns elements within the visible viewport.")] bool visibleOnly = true)
+    {
+        var conn = pool.GetActive();
+        var parms = new Dictionary<string, object> { ["visibleOnly"] = visibleOnly };
+        if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
+        var result = await conn.SendAsync(ProtocolMethods.GetSnapshot, parms);
+        return result?.ToString() ?? "No snapshot";
+    }
+
+    [McpServerTool(Name = "get_screen_text"), Description("Get all visible text on screen in reading order (top-to-bottom, left-to-right). Returns plain text that represents what a user would see. Prefer get_snapshot when you also need nodeIds or positions.")]
     public static async Task<string> GetScreenText(
         ConnectionPool pool,
         [Description("Node ID to scope. Omit for the first window.")] int? nodeId = null,
@@ -58,7 +71,7 @@ public sealed class TreeTools
         return result?.ToString() ?? "No text found";
     }
 
-    [McpServerTool(Name = "get_interactables"), Description("Get all interactive controls visible on screen (buttons, textboxes, checkboxes, sliders, list items, etc.) with their text, role, and current value. Use this FIRST to understand what actions are available — much cheaper than screenshots. Returns a flat JSON array of {nodeId, role, text, value}. The nodeId can be used directly with click, text_input, toggle, select_item, and other interaction tools.")]
+    [McpServerTool(Name = "get_interactables"), Description("Get all interactive controls visible on screen (buttons, textboxes, checkboxes, sliders, list items, etc.) with their text, role, and current value. Returns a flat JSON array of {nodeId, role, text, value}. The nodeId can be used directly with click, text_input, toggle, select_item, and other interaction tools. Prefer get_snapshot when you also need spatial position context.")]
     public static async Task<string> GetInteractables(
         ConnectionPool pool,
         [Description("Node ID to scope the search. Omit to search all windows.")] int? nodeId = null)
