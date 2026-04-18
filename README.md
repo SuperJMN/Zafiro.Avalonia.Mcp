@@ -52,7 +52,7 @@ That's all. On startup the app writes a discovery file to `{TEMP}/zafiro-avaloni
 
 ## Step 2 — Configure your agent
 
-No installation is needed — the `dnx` command (new in .NET 10) downloads and caches the tool from NuGet on first use.
+No installation is needed. The `dnx` command (new in .NET 10) checks NuGet for the latest version **on every invocation** and downloads it automatically if needed. You always get the newest release without any manual update step.
 
 ---
 
@@ -168,6 +168,7 @@ Any client that supports stdio transport:
 |---|---|
 | `list_apps` returns empty | Ensure the app is running with `UseMcpDiagnostics()`. Check `{TEMP}/zafiro-avalonia-mcp/` for discovery files. |
 | `dnx` not found | Requires .NET 10 SDK. Run `dotnet --version`. Fall back to global install for .NET 8/9. |
-| Tool cached but outdated | `dnx` caches on first use. Force a version: `dnx Zafiro.Avalonia.Mcp.Tool@x.y.z --yes` |
+| New release not picked up yet | NuGet HTTP responses are briefly cached. Force an immediate check: `dnx --no-http-cache Zafiro.Avalonia.Mcp.Tool --yes` |
+| Want a specific version | Pin it explicitly: `dnx Zafiro.Avalonia.Mcp.Tool@1.2.3 --yes` |
 | `TypeLoadException` | Version mismatch — `AppHost` targets Avalonia 12.x, not compatible with Avalonia 11.x. |
 | Stale discovery files | If the app crashed, delete leftover `.json` files from `{TEMP}/zafiro-avalonia-mcp/`. |
