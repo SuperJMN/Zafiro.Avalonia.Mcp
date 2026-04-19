@@ -56,9 +56,11 @@ No installation is needed. The `dnx` command (new in .NET 10) checks NuGet for t
 
 ---
 
-### GitHub Copilot CLI
+### GitHub Copilot
 
-Edit **`~/.copilot/mcp.json`**:
+GitHub Copilot uses **two separate config files** depending on the surface:
+
+**Copilot CLI** (`~/.copilot/mcp.json`):
 
 ```json
 {
@@ -71,6 +73,22 @@ Edit **`~/.copilot/mcp.json`**:
   }
 }
 ```
+
+**Copilot coding agent / Copilot Chat** (`~/.copilot/mcp-config.json`):
+
+```json
+{
+  "mcpServers": {
+    "zafiro-avalonia-mcp": {
+      "type": "stdio",
+      "command": "dnx",
+      "args": ["Zafiro.Avalonia.Mcp.Tool", "--yes"]
+    }
+  }
+}
+```
+
+> If you see `spawn zafiro-avalonia-mcp ENOENT`, the config still has the old command name. Replace `"command": "zafiro-avalonia-mcp"` with `"command": "dnx"` and add `"args": ["Zafiro.Avalonia.Mcp.Tool", "--yes"]`.
 
 ---
 
@@ -166,6 +184,7 @@ Any client that supports stdio transport:
 
 | Issue | Solution |
 |---|---|
+| `spawn zafiro-avalonia-mcp ENOENT` | The config still uses the old command name. Replace `"command": "zafiro-avalonia-mcp"` with `"command": "dnx"` and add `"args": ["Zafiro.Avalonia.Mcp.Tool", "--yes"]` in all relevant config files (`~/.copilot/mcp-config.json`, `~/.copilot/mcp.json`, `.vscode/mcp.json`, etc.). |
 | `list_apps` returns empty | Ensure the app is running with `UseMcpDiagnostics()`. Check `{TEMP}/zafiro-avalonia-mcp/` for discovery files. |
 | `dnx` not found | Requires .NET 10 SDK. Run `dotnet --version`. Fall back to global install for .NET 8/9. |
 | New release not picked up yet | NuGet HTTP responses are briefly cached. Force an immediate check: `dnx --no-http-cache Zafiro.Avalonia.Mcp.Tool --yes` |
