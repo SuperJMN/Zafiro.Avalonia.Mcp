@@ -9,7 +9,11 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 [McpServerToolType]
 public sealed class CaptureTools
 {
-    [McpServerTool(Name = "screenshot"), Description("Capture a PNG screenshot of a specific UI element or the entire window. Returns the image as base64-encoded PNG with dimensions. Prefer get_screen_text or get_interactables when you only need text content or available actions — they are cheaper and faster.")]
+    [McpServerTool(Name = "screenshot"), Description("""
+        Capture a PNG screenshot of an element (or whole window if nodeId omitted). EXPENSIVE — prefer get_snapshot/get_screen_text/get_interactables when you only need text or actions. Use screenshots only for visual verification.
+        Returns: {width, height, base64} PNG.
+        Example: {"width":1280,"height":720,"base64":"iVBORw0KGgo..."}
+        """)]
     public static async Task<IReadOnlyList<ContentBlock>> Screenshot(
         ConnectionPool pool,
         [Description("Node ID to capture. Omit for the first window.")] int? nodeId = null)
@@ -32,7 +36,11 @@ public sealed class CaptureTools
         });
     }
 
-    [McpServerTool(Name = "start_recording"), Description("Start recording frames for an animated GIF. You must call stop_recording to finish and retrieve the GIF. For a simpler workflow, use capture_animation which handles start, wait, and stop in one call.")]
+    [McpServerTool(Name = "start_recording"), Description("""
+        Start recording frames for an animated GIF. Pair with stop_recording. For most cases prefer capture_animation which combines start+wait+stop atomically.
+        Returns: {recordingId, fps, maxDurationSec}.
+        Example: {"recordingId":"rec-1","fps":15,"maxDurationSec":10}
+        """)]
     public static async Task<string> StartRecording(
         ConnectionPool pool,
         [Description("Node ID to record. Omit for the first window.")] int? nodeId = null,
@@ -44,7 +52,11 @@ public sealed class CaptureTools
             new { nodeId, fps, maxDurationSec });
     }
 
-    [McpServerTool(Name = "stop_recording"), Description("Stop an active GIF recording and return the animated GIF. Returns the image as base64-encoded GIF with frame count and duration metadata. Must be called after start_recording.")]
+    [McpServerTool(Name = "stop_recording"), Description("""
+        Stop the active GIF recording started by start_recording and return the GIF.
+        Returns: {frames, durationMs, base64} GIF.
+        Example: {"frames":45,"durationMs":3000,"base64":"R0lGODlh..."}
+        """)]
     public static async Task<IReadOnlyList<ContentBlock>> StopRecording(ConnectionPool pool)
     {
         var conn = pool.GetActive();
@@ -67,7 +79,11 @@ public sealed class CaptureTools
         });
     }
 
-    [McpServerTool(Name = "capture_animation"), Description("Record a short animation and return as animated GIF in a single call (convenience wrapper: start_recording + wait + stop_recording). Use this to capture transitions, animations, or UI changes over a set duration.")]
+    [McpServerTool(Name = "capture_animation"), Description("""
+        Record a short animated GIF in a single call (start_recording + wait + stop_recording). Use for transitions, loaders, or visualizing a UI change over a fixed duration.
+        Returns: {frames, durationMs, base64} GIF.
+        Example: {"frames":45,"durationMs":3000,"base64":"R0lGODlh..."}
+        """)]
     public static async Task<IReadOnlyList<ContentBlock>> CaptureAnimation(
         ConnectionPool pool,
         [Description("Duration in seconds to record (1-10)")] int durationSec = 3,

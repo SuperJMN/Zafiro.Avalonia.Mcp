@@ -32,7 +32,7 @@
 | F3 | 3.2 | `click_and_wait` | ✅ Implementado |
 | F4 | 4.1 | Tests (Protocol, NodeRegistry, Handlers, Integración) | ⬜ Pendiente |
 | F4 | 4.2 | Documentación del protocolo en README | ⬜ Pendiente |
-| F4 | 4.3 | Optimizar tool descriptions para LLMs | ⬜ Pendiente |
+| F4 | 4.3 | Optimizar tool descriptions para LLMs | ✅ Completado |
 | F5 | B1 | Fix `click_by_query` — filtro de interactividad | ✅ Implementado (v1.3.0) |
 | F5 | B2 | Fix `pseudo_class` — `IPseudoClasses.Set()` | ✅ Implementado (v1.3.0) |
 | F5 | B3 | Fix `capture_animation` — LZW, GCE, off-UI-thread | ⚠️ Parcial (v1.3.0) — PNG round-trip por mejorar |
@@ -378,12 +378,12 @@ click_and_wait(nodeId: 12, wait_query: "BattleView", wait_condition: "visible")
 - Patrones recomendados ("primero `get_interactables`, luego `click`")
 - Anti-patrones ("no uses `get_tree` para entender la UI, usa `get_interactables`")
 
-### 4.3 MCP tool descriptions optimizadas ⬜
+### 4.3 MCP tool descriptions optimizadas ✅
 
-Revisar las descripciones de cada tool en `Server/Tools/*.cs` para que sean descriptivas para el modelo de lenguaje. Incluir en la descripción:
-- Cuándo usar este tool vs alternativas
-- Qué devuelve
-- Ejemplo de output compacto
+Todas las descripciones de los tools en `src/Zafiro.Avalonia.Mcp.Tool/Tools/*.cs` se reescribieron con un formato consistente de tres bloques:
+- Propósito + cuándo usar vs. alternativas
+- `Returns:` describiendo la forma del resultado
+- `Example:` con un output compacto (JSON o texto)
 
 ---
 

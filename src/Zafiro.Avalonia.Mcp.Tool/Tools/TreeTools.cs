@@ -9,7 +9,11 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 [McpServerToolType]
 public sealed class TreeTools
 {
-    [McpServerTool(Name = "get_tree"), Description("Get the visual or logical tree of the connected Avalonia app. Returns a hierarchical tree with enriched info per node: type, x:Name, text content, role, isEnabled, bounds, and children. For AI use cases, prefer get_interactables (flat list of actionable controls) or get_screen_text (readable content) instead — they are cheaper and easier to consume.")]
+    [McpServerTool(Name = "get_tree"), Description("""
+        Hierarchical visual/logical tree of the app. EXPENSIVE — prefer get_snapshot, get_interactables, or get_screen_text for most AI tasks; only use get_tree when you specifically need parent/child structure.
+        Returns: nested NodeInfo with {nodeId, type, name, text, role, isEnabled, bounds, children}.
+        Example: {"nodeId":1,"type":"Window","children":[{"nodeId":2,"type":"StackPanel","children":[{"nodeId":3,"type":"Button","text":"OK","role":"button"}]}]}
+        """)]
     public static async Task<string> GetTree(
         ConnectionPool pool,
         [Description("Node ID to start from. Omit for roots (windows).")] int? nodeId = null,
@@ -22,7 +26,11 @@ public sealed class TreeTools
         return await conn.InvokeAsync(ProtocolMethods.GetTree, parms, "No tree data");
     }
 
-    [McpServerTool(Name = "search"), Description("Search for elements by type name, x:Name, or text content (partial match). Returns enriched NodeInfo for each match including nodeId, type, name, text, role, isEnabled, and bounds. Use to find specific controls before interacting with them.")]
+    [McpServerTool(Name = "search"), Description("""
+        Find elements by type name, x:Name, or text content (partial, case-insensitive). Use to locate a specific control before interacting; for "click on the X button" prefer click_by_query (one call instead of search+click).
+        Returns: array of NodeInfo {nodeId, type, name, text, role, isEnabled, bounds}.
+        Example: [{"nodeId":42,"type":"Button","name":"SaveBtn","text":"Save","role":"button","isEnabled":true,"bounds":{"x":10,"y":20,"w":80,"h":30}}]
+        """)]
     public static async Task<string> Search(
         ConnectionPool pool,
         [Description("Type or x:Name to search for (partial match)")] string query,
@@ -32,7 +40,11 @@ public sealed class TreeTools
         return await conn.InvokeAsync(ProtocolMethods.Search, new { query, limit }, "No results");
     }
 
-    [McpServerTool(Name = "get_ancestors"), Description("Get the ancestor chain from a node up to the root window. Returns an ordered list of parent elements with their type, name, and bounds. Useful for understanding where a control sits in the visual hierarchy.")]
+    [McpServerTool(Name = "get_ancestors"), Description("""
+        Walk up the visual tree from a node to the root window. Useful when search returned a TextBlock but you actually need the enclosing ListBoxItem/Button to interact with.
+        Returns: ordered array (closest parent first) of {nodeId, type, name, bounds}.
+        Example: [{"nodeId":40,"type":"ListBoxItem"},{"nodeId":35,"type":"ListBox"},{"nodeId":1,"type":"Window"}]
+        """)]
     public static async Task<string> GetAncestors(
         ConnectionPool pool,
         [Description("Node ID to get ancestors for")] int nodeId)
@@ -41,7 +53,11 @@ public sealed class TreeTools
         return await conn.InvokeAsync(ProtocolMethods.GetAncestors, new { nodeId }, "No ancestors");
     }
 
-    [McpServerTool(Name = "get_snapshot"), Description("Get a compact spatial snapshot of the UI in a single call. Returns a flat list of all visible text and interactive controls in logical tree order (the order defined in XAML, matching the developer's intended flow). Each entry includes: nodeId (ready to use with click/text_input/etc.), role, text, current value, and absolute position (x, y, w, h) for spatial reasoning. Also reports the focused element and window size. Use this FIRST to understand the UI — it replaces a get_screen_text + get_interactables pair with one cheaper call.")]
+    [McpServerTool(Name = "get_snapshot"), Description("""
+        BEST FIRST CALL to understand the UI. Compact spatial flat list of all visible text + interactive controls in logical (XAML) order. Replaces get_screen_text + get_interactables with one cheaper call.
+        Returns: {window:{w,h}, focused:nodeId, items:[{nodeId, role, text, value, x, y, w, h}, ...]}.
+        Example: {"window":{"w":800,"h":600},"focused":12,"items":[{"nodeId":5,"role":"text","text":"Login"},{"nodeId":12,"role":"textbox","value":"user@x","x":50,"y":80,"w":200,"h":24},{"nodeId":15,"role":"button","text":"Sign in"}]}
+        """)]
     public static async Task<string> GetSnapshot(
         ConnectionPool pool,
         [Description("Node ID to scope. Omit for the first window.")] int? nodeId = null,
@@ -53,7 +69,11 @@ public sealed class TreeTools
         return await conn.InvokeAsync(ProtocolMethods.GetSnapshot, parms, "No snapshot");
     }
 
-    [McpServerTool(Name = "get_screen_text"), Description("Get all visible text on screen in reading order (top-to-bottom, left-to-right). Returns plain text that represents what a user would see. Prefer get_snapshot when you also need nodeIds or positions.")]
+    [McpServerTool(Name = "get_screen_text"), Description("""
+        All visible text on screen in reading order (top-to-bottom, left-to-right). Cheapest way to "read" the UI when you don't need nodeIds; otherwise prefer get_snapshot.
+        Returns: plain text string, one logical line per text element.
+        Example: "Welcome\nUsername\nPassword\nSign in\nForgot password?"
+        """)]
     public static async Task<string> GetScreenText(
         ConnectionPool pool,
         [Description("Node ID to scope. Omit for the first window.")] int? nodeId = null,
@@ -66,7 +86,11 @@ public sealed class TreeTools
         return await conn.InvokeAsync(ProtocolMethods.GetScreenText, parms, "No text found");
     }
 
-    [McpServerTool(Name = "get_interactables"), Description("Get all interactive controls visible on screen (buttons, textboxes, checkboxes, sliders, list items, etc.) with their text, role, and current value. Returns a flat JSON array of {nodeId, role, text, value}. The nodeId can be used directly with click, text_input, toggle, select_item, and other interaction tools. Prefer get_snapshot when you also need spatial position context.")]
+    [McpServerTool(Name = "get_interactables"), Description("""
+        Flat list of every actionable control visible on screen (buttons, textboxes, checkboxes, sliders, list items, etc.). Use to answer "what can I do here?". Prefer get_snapshot when you also need spatial coordinates.
+        Returns: array of {nodeId, role, text, value}; nodeId is ready for click/text_input/toggle/select_item.
+        Example: [{"nodeId":12,"role":"textbox","value":""},{"nodeId":13,"role":"checkbox","text":"Remember me","value":false},{"nodeId":15,"role":"button","text":"Sign in"}]
+        """)]
     public static async Task<string> GetInteractables(
         ConnectionPool pool,
         [Description("Node ID to scope the search. Omit to search all windows.")] int? nodeId = null)
@@ -77,7 +101,11 @@ public sealed class TreeTools
         return await conn.InvokeAsync(ProtocolMethods.GetInteractables, parms, "No interactables found");
     }
 
-    [McpServerTool(Name = "list_windows"), Description("List all open windows of the connected Avalonia app. Returns nodeId, title, and bounds for each window.")]
+    [McpServerTool(Name = "list_windows"), Description("""
+        List all open top-level windows. Useful when the app has dialogs or multiple windows and you need to scope subsequent calls.
+        Returns: array of {nodeId, title, bounds}.
+        Example: [{"nodeId":1,"title":"MainWindow","bounds":{"x":0,"y":0,"w":1280,"h":720}},{"nodeId":50,"title":"Settings","bounds":{"x":300,"y":200,"w":400,"h":300}}]
+        """)]
     public static async Task<string> ListWindows(ConnectionPool pool)
     {
         var conn = pool.GetActive();

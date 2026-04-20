@@ -9,7 +9,11 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 [McpServerToolType]
 public sealed class InteractionTools
 {
-    [McpServerTool(Name = "select_item"), Description("Select an item in a ListBox, ComboBox, TabControl, or any SelectingItemsControl by index or text content. More reliable than click for item selection — works even if the item is off-screen. Provide either index or text (case-insensitive match), not both. Returns the selected item info.")]
+    [McpServerTool(Name = "select_item"), Description("""
+        Select an item in a ListBox/ComboBox/TabControl/SelectingItemsControl by index or text (case-insensitive). MORE RELIABLE than click — works even if the item is virtualized off-screen. Provide either index OR text, not both.
+        Returns: {nodeId, index, text} of the selected item.
+        Example: {"nodeId":42,"index":2,"text":"Settings"}
+        """)]
     public static async Task<string> SelectItem(
         ConnectionPool pool,
         [Description("Node ID of the element")] int nodeId,
@@ -23,7 +27,11 @@ public sealed class InteractionTools
         return await conn.InvokeAsync(ProtocolMethods.SelectItem, parms);
     }
 
-    [McpServerTool(Name = "toggle"), Description("Toggle a CheckBox, RadioButton, ToggleButton, or ToggleSwitch. Omit state to flip the current value, or provide an explicit true/false to set a specific state. More reliable than click for toggling controls. Returns the new checked/unchecked state.")]
+    [McpServerTool(Name = "toggle"), Description("""
+        Toggle a CheckBox/RadioButton/ToggleButton/ToggleSwitch. Omit state to flip; pass true/false to set explicitly (idempotent). MORE RELIABLE than click for these controls.
+        Returns: {isChecked} after the operation.
+        Example: {"isChecked":true}
+        """)]
     public static async Task<string> Toggle(
         ConnectionPool pool,
         [Description("Node ID of the element")] int nodeId,
@@ -35,7 +43,11 @@ public sealed class InteractionTools
         return await conn.InvokeAsync(ProtocolMethods.Toggle, parms);
     }
 
-    [McpServerTool(Name = "set_value"), Description("Set the numeric value of a Slider, NumericUpDown, or ProgressBar. The value is automatically clamped to the control's Minimum/Maximum range. Returns the actual value after clamping.")]
+    [McpServerTool(Name = "set_value"), Description("""
+        Set the numeric Value of a Slider/NumericUpDown/ProgressBar. Auto-clamped to [Minimum, Maximum]. For text values use set_prop instead.
+        Returns: {value} actually applied after clamping.
+        Example: {"value":75}
+        """)]
     public static async Task<string> SetValue(
         ConnectionPool pool,
         [Description("Node ID of the element")] int nodeId,
@@ -45,7 +57,11 @@ public sealed class InteractionTools
         return await conn.InvokeAsync(ProtocolMethods.SetValue, new { nodeId, value });
     }
 
-    [McpServerTool(Name = "wait_for"), Description("Wait until a UI condition is met, then return. Eliminates the need for screenshot polling loops. Supported conditions: exists (element appears), not_exists (element removed), visible (element becomes visible), enabled (element becomes enabled), text_equals (exact text match), text_contains (partial text match), count_equals (number of matches equals value). Returns immediately if condition is already met.")]
+    [McpServerTool(Name = "wait_for"), Description("""
+        Block until a UI condition is met. ELIMINATES screenshot polling loops. Conditions: exists, not_exists, visible, enabled, text_equals, text_contains, count_equals (use 'value' to supply the comparand). Returns immediately if already met.
+        Returns: {met:true, elapsedMs} or {met:false, elapsedMs} on timeout.
+        Example: {"met":true,"elapsedMs":340}
+        """)]
     public static async Task<string> WaitFor(
         ConnectionPool pool,
         [Description("Search query — matches by type name, x:Name, or text content")] string query,
@@ -59,7 +75,11 @@ public sealed class InteractionTools
         return await conn.InvokeAsync(ProtocolMethods.WaitFor, parms);
     }
 
-    [McpServerTool(Name = "click_and_wait"), Description("Click a UI element and then wait for a condition to be met — combines click + wait_for in a single MCP call, reducing 3 round-trips (click, poll, confirm) to 1. Ideal for buttons that open dialogs, trigger navigation, or load content. Uses the same conditions as wait_for (exists, not_exists, visible, enabled, text_equals, text_contains, count_equals).")]
+    [McpServerTool(Name = "click_and_wait"), Description("""
+        Atomic click + wait_for in one call. Use for buttons that open dialogs, navigate, or load content (collapses 3 round-trips into 1). Same conditions as wait_for.
+        Returns: {clicked:nodeId, met:bool, elapsedMs}.
+        Example: {"clicked":15,"met":true,"elapsedMs":420}
+        """)]
     public static async Task<string> ClickAndWait(
         ConnectionPool pool,
         [Description("Node ID of the element to click")] int nodeId,
@@ -78,7 +98,11 @@ public sealed class InteractionTools
         return await conn.InvokeAsync(ProtocolMethods.ClickAndWait, parms);
     }
 
-    [McpServerTool(Name = "click_by_query"), Description("Atomic search-and-click: finds a visible, enabled control matching the query (by type, x:Name, or text content) and clicks it in a single operation. Eliminates the race condition where nodeIds become stale between separate search and click calls. Use 'role' to disambiguate (e.g., role='button'). Use 'occurrence' to target the Nth match (0-based). Returns the nodeId of the clicked element for follow-up operations.")]
+    [McpServerTool(Name = "click_by_query"), Description("""
+        Atomic find-visible-and-click. PREFERRED over search+click — eliminates the race where nodeIds become stale. Use 'role' to disambiguate (button/textbox/checkbox/radio/combobox/tab/listitem/menuitem/togglebutton) and 'occurrence' for the Nth match.
+        Returns: {nodeId} of the element that was actually clicked.
+        Example: {"nodeId":15}
+        """)]
     public static async Task<string> ClickByQuery(
         ConnectionPool pool,
         [Description("Search query — matches by type name, x:Name, or visible text content")] string query,
@@ -91,7 +115,11 @@ public sealed class InteractionTools
         return await conn.InvokeAsync(ProtocolMethods.ClickByQuery, parms);
     }
 
-    [McpServerTool(Name = "scroll"), Description("Scroll a ScrollViewer in a given direction (up, down, left, right). If the target element is not a ScrollViewer, the nearest ancestor ScrollViewer is used. Default scroll amount is 100 pixels per call.")]
+    [McpServerTool(Name = "scroll"), Description("""
+        Scroll a ScrollViewer (or the nearest ScrollViewer ancestor of nodeId) by 'amount' pixels in a direction. For "scroll until X is visible" prefer action='BringIntoView' on the target.
+        Returns: {offset:{x,y}} after the scroll.
+        Example: {"offset":{"x":0,"y":200}}
+        """)]
     public static async Task<string> Scroll(
         ConnectionPool pool,
         [Description("Node ID of the element")] int nodeId,
