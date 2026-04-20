@@ -19,8 +19,7 @@ public sealed class TreeTools
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object> { ["treeKind"] = treeKind, ["depth"] = depth };
         if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
-        var result = await conn.SendAsync(ProtocolMethods.GetTree, parms);
-        return result?.ToString() ?? "No tree data";
+        return await conn.InvokeAsync(ProtocolMethods.GetTree, parms, "No tree data");
     }
 
     [McpServerTool(Name = "search"), Description("Search for elements by type name, x:Name, or text content (partial match). Returns enriched NodeInfo for each match including nodeId, type, name, text, role, isEnabled, and bounds. Use to find specific controls before interacting with them.")]
@@ -30,8 +29,7 @@ public sealed class TreeTools
         [Description("Maximum results to return")] int limit = 20)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.Search, new { query, limit });
-        return result?.ToString() ?? "No results";
+        return await conn.InvokeAsync(ProtocolMethods.Search, new { query, limit }, "No results");
     }
 
     [McpServerTool(Name = "get_ancestors"), Description("Get the ancestor chain from a node up to the root window. Returns an ordered list of parent elements with their type, name, and bounds. Useful for understanding where a control sits in the visual hierarchy.")]
@@ -40,8 +38,7 @@ public sealed class TreeTools
         [Description("Node ID to get ancestors for")] int nodeId)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.GetAncestors, new { nodeId });
-        return result?.ToString() ?? "No ancestors";
+        return await conn.InvokeAsync(ProtocolMethods.GetAncestors, new { nodeId }, "No ancestors");
     }
 
     [McpServerTool(Name = "get_snapshot"), Description("Get a compact spatial snapshot of the UI in a single call. Returns a flat list of all visible text and interactive controls in logical tree order (the order defined in XAML, matching the developer's intended flow). Each entry includes: nodeId (ready to use with click/text_input/etc.), role, text, current value, and absolute position (x, y, w, h) for spatial reasoning. Also reports the focused element and window size. Use this FIRST to understand the UI — it replaces a get_screen_text + get_interactables pair with one cheaper call.")]
@@ -53,8 +50,7 @@ public sealed class TreeTools
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object> { ["visibleOnly"] = visibleOnly };
         if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
-        var result = await conn.SendAsync(ProtocolMethods.GetSnapshot, parms);
-        return result?.ToString() ?? "No snapshot";
+        return await conn.InvokeAsync(ProtocolMethods.GetSnapshot, parms, "No snapshot");
     }
 
     [McpServerTool(Name = "get_screen_text"), Description("Get all visible text on screen in reading order (top-to-bottom, left-to-right). Returns plain text that represents what a user would see. Prefer get_snapshot when you also need nodeIds or positions.")]
@@ -67,8 +63,7 @@ public sealed class TreeTools
         var parms = new Dictionary<string, object>();
         if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
         if (visibleOnly) parms["visibleOnly"] = true;
-        var result = await conn.SendAsync(ProtocolMethods.GetScreenText, parms);
-        return result?.ToString() ?? "No text found";
+        return await conn.InvokeAsync(ProtocolMethods.GetScreenText, parms, "No text found");
     }
 
     [McpServerTool(Name = "get_interactables"), Description("Get all interactive controls visible on screen (buttons, textboxes, checkboxes, sliders, list items, etc.) with their text, role, and current value. Returns a flat JSON array of {nodeId, role, text, value}. The nodeId can be used directly with click, text_input, toggle, select_item, and other interaction tools. Prefer get_snapshot when you also need spatial position context.")]
@@ -79,15 +74,13 @@ public sealed class TreeTools
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object>();
         if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
-        var result = await conn.SendAsync(ProtocolMethods.GetInteractables, parms);
-        return result?.ToString() ?? "No interactables found";
+        return await conn.InvokeAsync(ProtocolMethods.GetInteractables, parms, "No interactables found");
     }
 
     [McpServerTool(Name = "list_windows"), Description("List all open windows of the connected Avalonia app. Returns nodeId, title, and bounds for each window.")]
     public static async Task<string> ListWindows(ConnectionPool pool)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.ListWindows);
-        return result?.ToString() ?? "No windows";
+        return await conn.InvokeAsync(ProtocolMethods.ListWindows, empty: "No windows");
     }
 }

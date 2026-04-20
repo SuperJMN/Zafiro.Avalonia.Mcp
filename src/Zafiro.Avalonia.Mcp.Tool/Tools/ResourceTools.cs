@@ -18,16 +18,14 @@ public sealed class ResourceTools
         var parms = new Dictionary<string, object?> { ["onlySelf"] = onlySelf };
         if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
 
-        var result = await conn.SendAsync(ProtocolMethods.GetResources, parms);
-        return result?.ToString() ?? "No resources";
+        return await conn.InvokeAsync(ProtocolMethods.GetResources, parms, "No resources");
     }
 
     [McpServerTool(Name = "list_assets"), Description("List all embedded assets (images, fonts, XAML files, etc.) in the application. Returns avares:// URLs that can be opened with open_asset.")]
     public static async Task<string> ListAssets(ConnectionPool pool)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.ListAssets);
-        return result?.ToString() ?? "No assets";
+        return await conn.InvokeAsync(ProtocolMethods.ListAssets, empty: "No assets");
     }
 
     [McpServerTool(Name = "open_asset"), Description("Download an embedded asset by its avares:// URL. Use list_assets first to discover available asset URLs. Returns the asset content.")]
@@ -36,7 +34,6 @@ public sealed class ResourceTools
         [Description("Asset URL (avares://...)")] string assetUrl)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.OpenAsset, new { assetUrl });
-        return result?.ToString() ?? "No result";
+        return await conn.InvokeAsync(ProtocolMethods.OpenAsset, new { assetUrl });
     }
 }

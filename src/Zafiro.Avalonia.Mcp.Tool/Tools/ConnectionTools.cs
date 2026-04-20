@@ -44,13 +44,20 @@ public sealed class ConnectionTools
         ConnectionPool pool,
         [Description("Process ID of the app. Use 0 to connect to the first available app.")] int pid = 0)
     {
-        AppConnection conn;
-        if (pid == 0)
-            conn = await pool.ConnectFirst();
-        else
-            conn = await pool.Connect(pid);
-        
-        var result = await conn.SendAsync(ProtocolMethods.Ping);
-        return $"Connected to {conn.ProcessName} (PID {conn.Pid}). Ping: {result}";
+        try
+        {
+            AppConnection conn;
+            if (pid == 0)
+                conn = await pool.ConnectFirst();
+            else
+                conn = await pool.Connect(pid);
+
+            var result = await conn.SendAsync(ProtocolMethods.Ping);
+            return $"Connected to {conn.ProcessName} (PID {conn.Pid}). Ping: {result}";
+        }
+        catch (Exception ex)
+        {
+            return $"Error connecting: {ex.Message}";
+        }
     }
 }

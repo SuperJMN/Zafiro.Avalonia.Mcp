@@ -19,8 +19,7 @@ public sealed class PropertyTools
         if (propertyNames is not null)
             parms["propertyNames"] = propertyNames.Split(',', StringSplitOptions.TrimEntries);
 
-        var result = await conn.SendAsync(ProtocolMethods.GetProperties, parms);
-        return result?.ToString() ?? "No properties";
+        return await conn.InvokeAsync(ProtocolMethods.GetProperties, parms, "No properties");
     }
 
     [McpServerTool(Name = "set_prop"), Description("Set a property value on a UI element. Accepts string values that are parsed to the property's type. Use 'unset' as the value to clear a property back to its default. Set isXamlValue=true to parse complex XAML markup (e.g., brushes, transforms).")]
@@ -32,9 +31,8 @@ public sealed class PropertyTools
         [Description("Whether the value is XAML markup")] bool isXamlValue = false)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.SetProperty,
+        return await conn.InvokeAsync(ProtocolMethods.SetProperty,
             new { nodeId, propertyName, value, isXamlValue });
-        return result?.ToString() ?? "No result";
     }
 
     [McpServerTool(Name = "get_prop_values"), Description("Get the possible/allowed values for a specific property on a UI element. Returns enum members for enum properties, true/false for booleans, and standard values for types that declare them via TypeConverter. Useful before calling set_prop to know what values are valid.")]
@@ -44,8 +42,7 @@ public sealed class PropertyTools
         [Description("Property name to query")] string propertyName)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.GetPropertyValues, new { nodeId, propertyName });
-        return result?.ToString() ?? "No result";
+        return await conn.InvokeAsync(ProtocolMethods.GetPropertyValues, new { nodeId, propertyName });
     }
 
     [McpServerTool(Name = "get_styles"), Description("Get the applied styles and setters for a UI element. Shows which styles are active, their selectors, and the property values they set. Useful for debugging styling issues. Set includeDefaults=true to also see properties with default/unset values.")]
@@ -60,7 +57,6 @@ public sealed class PropertyTools
         if (propertyNames is not null)
             parms["propertyNames"] = propertyNames.Split(',', StringSplitOptions.TrimEntries);
 
-        var result = await conn.SendAsync(ProtocolMethods.GetStyles, parms);
-        return result?.ToString() ?? "No styles";
+        return await conn.InvokeAsync(ProtocolMethods.GetStyles, parms, "No styles");
     }
 }

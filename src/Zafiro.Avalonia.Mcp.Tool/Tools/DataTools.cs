@@ -14,8 +14,7 @@ public sealed class DataTools
         [Description("Node ID of the element")] int nodeId)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.GetDataContext, new { nodeId });
-        return result?.ToString() ?? "No data context";
+        return await conn.InvokeAsync(ProtocolMethods.GetDataContext, new { nodeId }, "No data context");
     }
 
     [McpServerTool(Name = "get_bindings"), Description("Get active data bindings on a UI element. Shows which properties have bindings, their paths, priorities, and current values. Use this to debug binding issues or understand how a view connects to its ViewModel.")]
@@ -24,8 +23,7 @@ public sealed class DataTools
         [Description("Node ID of the element")] int nodeId)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.GetBindings, new { nodeId });
-        return result?.ToString() ?? "No bindings";
+        return await conn.InvokeAsync(ProtocolMethods.GetBindings, new { nodeId }, "No bindings");
     }
 
     [McpServerTool(Name = "find_view_source"), Description("Find the AXAML source file (avares:// URL) for a runtime UI control. Maps from the live control back to its XAML definition. Returns null if no embedded AXAML is found.")]
@@ -34,8 +32,7 @@ public sealed class DataTools
         [Description("Node ID of the element")] int nodeId)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.FindViewSource, new { nodeId });
-        return result?.ToString() ?? "No source found";
+        return await conn.InvokeAsync(ProtocolMethods.FindViewSource, new { nodeId }, "No source found");
     }
 
     [McpServerTool(Name = "get_xaml"), Description("Get the AXAML source code for a runtime UI control. Combines find_view_source + open_asset in one call — finds the XAML file and returns its content. Use this to see how a view is defined in code.")]
@@ -44,8 +41,7 @@ public sealed class DataTools
         [Description("Node ID of the element")] int nodeId)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.GetXaml, new { nodeId });
-        return result?.ToString() ?? "No XAML found";
+        return await conn.InvokeAsync(ProtocolMethods.GetXaml, new { nodeId }, "No XAML found");
     }
 
     [McpServerTool(Name = "diff_tree"), Description("Efficient screen change detection. First call captures a snapshot of all visible text. Subsequent calls return only what changed (added/removed lines). Use after performing an action to see its effect without re-reading the full screen. Set action='snapshot' to explicitly capture, or 'diff' (default) to auto-snapshot and compare.")]
@@ -57,7 +53,6 @@ public sealed class DataTools
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object> { ["action"] = action };
         if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
-        var result = await conn.SendAsync(ProtocolMethods.DiffTree, parms);
-        return result?.ToString() ?? "No diff data";
+        return await conn.InvokeAsync(ProtocolMethods.DiffTree, parms, "No diff data");
     }
 }

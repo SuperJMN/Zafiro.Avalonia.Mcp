@@ -16,21 +16,20 @@ public sealed class CaptureTools
     {
         var conn = pool.GetActive();
         var parms = nodeId.HasValue ? new { nodeId = nodeId.Value } : null;
-        var result = await conn.SendAsync(ProtocolMethods.Screenshot, parms);
+        return await conn.InvokeRichAsync(ProtocolMethods.Screenshot, parms, result =>
+        {
+            var data = result.GetProperty("data").GetString();
+            var width = result.GetProperty("width").GetInt32();
+            var height = result.GetProperty("height").GetInt32();
 
-        if (result is null) return [new TextContentBlock { Text = "No screenshot data" }];
+            if (data is null) return [new TextContentBlock { Text = "Screenshot data was empty" }];
 
-        var data = result.Value.GetProperty("data").GetString();
-        var width = result.Value.GetProperty("width").GetInt32();
-        var height = result.Value.GetProperty("height").GetInt32();
-
-        if (data is null) return [new TextContentBlock { Text = "Screenshot data was empty" }];
-
-        return
-        [
-            new TextContentBlock { Text = $"Screenshot captured ({width}×{height})" },
-            ImageContentBlock.FromBytes(Convert.FromBase64String(data), "image/png")
-        ];
+            return
+            [
+                new TextContentBlock { Text = $"Screenshot captured ({width}×{height})" },
+                ImageContentBlock.FromBytes(Convert.FromBase64String(data), "image/png")
+            ];
+        });
     }
 
     [McpServerTool(Name = "start_recording"), Description("Start recording frames for an animated GIF. You must call stop_recording to finish and retrieve the GIF. For a simpler workflow, use capture_animation which handles start, wait, and stop in one call.")]
@@ -41,33 +40,31 @@ public sealed class CaptureTools
         [Description("Maximum recording duration in seconds (1-30, default 10)")] int maxDurationSec = 10)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.StartRecording,
+        return await conn.InvokeAsync(ProtocolMethods.StartRecording,
             new { nodeId, fps, maxDurationSec });
-        return result?.ToString() ?? "No result";
     }
 
     [McpServerTool(Name = "stop_recording"), Description("Stop an active GIF recording and return the animated GIF. Returns the image as base64-encoded GIF with frame count and duration metadata. Must be called after start_recording.")]
     public static async Task<IReadOnlyList<ContentBlock>> StopRecording(ConnectionPool pool)
     {
         var conn = pool.GetActive();
-        var result = await conn.SendAsync(ProtocolMethods.StopRecording);
+        return await conn.InvokeRichAsync(ProtocolMethods.StopRecording, null, result =>
+        {
+            if (result.TryGetProperty("error", out var errProp))
+                return [new TextContentBlock { Text = errProp.GetString() ?? "Unknown error" }];
 
-        if (result is null) return [new TextContentBlock { Text = "No recording data" }];
+            var data = result.GetProperty("data").GetString();
+            var frameCount = result.GetProperty("frameCount").GetInt32();
+            var durationMs = result.GetProperty("durationMs").GetInt32();
 
-        if (result.Value.TryGetProperty("error", out var errProp))
-            return [new TextContentBlock { Text = errProp.GetString() ?? "Unknown error" }];
+            if (data is null) return [new TextContentBlock { Text = "Recording data was empty" }];
 
-        var data = result.Value.GetProperty("data").GetString();
-        var frameCount = result.Value.GetProperty("frameCount").GetInt32();
-        var durationMs = result.Value.GetProperty("durationMs").GetInt32();
-
-        if (data is null) return [new TextContentBlock { Text = "Recording data was empty" }];
-
-        return
-        [
-            new TextContentBlock { Text = $"Recorded {frameCount} frames ({durationMs}ms)" },
-            ImageContentBlock.FromBytes(Convert.FromBase64String(data), "image/gif")
-        ];
+            return
+            [
+                new TextContentBlock { Text = $"Recorded {frameCount} frames ({durationMs}ms)" },
+                ImageContentBlock.FromBytes(Convert.FromBase64String(data), "image/gif")
+            ];
+        });
     }
 
     [McpServerTool(Name = "capture_animation"), Description("Record a short animation and return as animated GIF in a single call (convenience wrapper: start_recording + wait + stop_recording). Use this to capture transitions, animations, or UI changes over a set duration.")]
