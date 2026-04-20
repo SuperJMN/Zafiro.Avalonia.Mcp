@@ -9,7 +9,11 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 [McpServerToolType]
 public sealed class InputTools
 {
-    [McpServerTool(Name = "click"), Description("Click a UI element. Handles Button (invokes command/event), ToggleButton (toggles state), ListBoxItem (selects it), TabItem (switches tab), and MenuItem (invokes). Falls back to pointer simulation for other controls. For more reliable results, prefer select_item for list/tab selection, or toggle for checkboxes and toggle buttons.")]
+    [McpServerTool(Name = "click"), Description("""
+        Click a UI element by nodeId. Handles Button (invokes command), ToggleButton (toggles), ListBoxItem (selects), TabItem (switches), MenuItem (invokes); falls back to pointer simulation for anything else. For lists/tabs prefer select_item, for checkboxes prefer toggle, for "click the X button" prefer click_by_query.
+        Returns: confirmation string with the actual semantic invoked.
+        Example: "Clicked Button 'Save' (invoked Command)"
+        """)]
     public static async Task<string> Click(
         ConnectionPool pool,
         [Description("Node ID of the element to click")] int nodeId)
@@ -18,7 +22,11 @@ public sealed class InputTools
         return await conn.InvokeAsync(ProtocolMethods.Click, new { nodeId });
     }
 
-    [McpServerTool(Name = "tap"), Description("Tap a UI element (equivalent to a single-finger touch). Behaves like click — handles Button, ToggleButton, ListBoxItem, TabItem, and MenuItem semantics. Falls back to pointer simulation for other controls. Use this when simulating touch interactions.")]
+    [McpServerTool(Name = "tap"), Description("""
+        Single-finger touch on an element. Same semantics as click but raises tap/touch events instead of pointer events; use only when testing touch-specific behavior.
+        Returns: confirmation string.
+        Example: "Tapped Button 'Save'"
+        """)]
     public static async Task<string> Tap(
         ConnectionPool pool,
         [Description("Node ID of the element to tap")] int nodeId)
@@ -27,7 +35,11 @@ public sealed class InputTools
         return await conn.InvokeAsync(ProtocolMethods.Tap, new { nodeId });
     }
 
-    [McpServerTool(Name = "key_down"), Description("Send a key down event to a focused element. Use the modifiers parameter for key combinations like Ctrl+C, Shift+Tab, Alt+F4, etc. Returns the key event result.")]
+    [McpServerTool(Name = "key_down"), Description("""
+        Send a key down event to a focused element. Use for keyboard shortcuts (modifiers='ctrl+shift', key='S') or navigation keys. For typing text into a TextBox, use text_input instead.
+        Returns: confirmation string.
+        Example: "KeyDown sent: Ctrl+S"
+        """)]
     public static async Task<string> KeyDown(
         ConnectionPool pool,
         [Description("Node ID of the element")] int nodeId,
@@ -40,7 +52,11 @@ public sealed class InputTools
         return await conn.InvokeAsync(ProtocolMethods.KeyDown, parms);
     }
 
-    [McpServerTool(Name = "key_up"), Description("Send a key up event to a focused element. Pair with key_down for key press sequences. Use the modifiers parameter for combinations like Ctrl+C, Shift+Tab, etc.")]
+    [McpServerTool(Name = "key_up"), Description("""
+        Send a key up event. Pair with key_down to simulate held keys; for a simple keypress, key_down alone is usually enough since most controls react on key down.
+        Returns: confirmation string.
+        Example: "KeyUp sent: Shift"
+        """)]
     public static async Task<string> KeyUp(
         ConnectionPool pool,
         [Description("Node ID of the element")] int nodeId,
@@ -53,7 +69,11 @@ public sealed class InputTools
         return await conn.InvokeAsync(ProtocolMethods.KeyUp, parms);
     }
 
-    [McpServerTool(Name = "text_input"), Description("Enter text into a TextBox or similar text-editing control. If the target nodeId is a container (e.g., AutoCompleteBox), it automatically finds the child TextBox. Replaces any existing text. Set pressEnter to simulate pressing Enter after input (useful for search boxes or forms).")]
+    [McpServerTool(Name = "text_input"), Description("""
+        Replace the text of a TextBox (or container that hosts one, e.g. AutoCompleteBox). Set pressEnter=true for search boxes/forms that submit on Enter. For keyboard shortcuts use key_down instead.
+        Returns: confirmation string with the value set.
+        Example: "Set text to 'hello@example.com' on TextBox#12"
+        """)]
     public static async Task<string> TextInput(
         ConnectionPool pool,
         [Description("Node ID of the element")] int nodeId,
@@ -64,7 +84,11 @@ public sealed class InputTools
         return await conn.InvokeAsync(ProtocolMethods.TextInput, new { nodeId, text, pressEnter });
     }
 
-    [McpServerTool(Name = "action"), Description("Perform a UI action on an element: Focus (give keyboard focus), Enable/Disable (change IsEnabled), or BringIntoView (scroll element into viewport). Returns confirmation of the action performed.")]
+    [McpServerTool(Name = "action"), Description("""
+        Perform a non-input UI action on an element: Focus | Enable | Disable | BringIntoView. Use BringIntoView before interacting with off-screen items, Focus before sending key_down.
+        Returns: confirmation string.
+        Example: "Action 'BringIntoView' performed on ListBoxItem#42"
+        """)]
     public static async Task<string> Action(
         ConnectionPool pool,
         [Description("Node ID of the element")] int nodeId,
@@ -74,7 +98,12 @@ public sealed class InputTools
         return await conn.InvokeAsync(ProtocolMethods.Action, new { nodeId, action });
     }
 
-    [McpServerTool(Name = "pseudo_class"), Description("Get, set, or list pseudo-classes on a UI element (e.g., :pointerover, :pressed, :focus, :disabled). Useful for testing visual states without actual user input. Omit pseudoClass to list all active pseudo-classes on the element.")]
+    [McpServerTool(Name = "pseudo_class"), Description("""
+        Inspect or override pseudo-classes on an element (:pointerover, :pressed, :focus, :disabled, :checked, etc.). Use to verify visual states without real input. Omit pseudoClass to list active ones.
+        Returns: array of active pseudo-class names, or confirmation when setting.
+        Example listing: [":pointerover",":focus"]
+        Example set: "Activated ':pressed' on Button#15"
+        """)]
     public static async Task<string> PseudoClass(
         ConnectionPool pool,
         [Description("Node ID of the element")] int nodeId,

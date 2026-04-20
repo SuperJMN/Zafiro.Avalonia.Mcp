@@ -6,7 +6,11 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 [McpServerToolType]
 public sealed class InstructionTools
 {
-    [McpServerTool(Name = "instructions"), Description("Get usage instructions for the Avalonia MCP server. Returns a guide covering connection workflow, available tools, and tips. Use page='installation' for setup instructions.")]
+    [McpServerTool(Name = "instructions"), Description("""
+        Get usage instructions for the Avalonia MCP server: connection workflow, recommended tool order, and tips. Use page='installation' for setup, page='readme' (default) for the usage guide.
+        Returns: markdown text guide.
+        Example: "# Avalonia MCP — Quickstart\n1. Call list_apps...\n"
+        """)]
     public static string GetInstructions(string page = "readme")
     {
         return page.ToLowerInvariant() switch

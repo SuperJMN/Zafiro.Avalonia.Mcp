@@ -8,7 +8,11 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 [McpServerToolType]
 public sealed class ConnectionTools
 {
-    [McpServerTool(Name = "list_apps"), Description("List available Avalonia apps with MCP diagnostics enabled. Auto-connects if exactly one app is found. If multiple apps are discovered, use connect_to_app with the desired PID. The app must call .UseMcpDiagnostics() in its AppBuilder to be discoverable.")]
+    [McpServerTool(Name = "list_apps"), Description("""
+        List Avalonia apps that have UseMcpDiagnostics() enabled. AUTO-CONNECTS if exactly one app is found (saving a connect_to_app round-trip). Call this FIRST before any inspection/interaction tool.
+        Returns: array of {pid, processName, title, connected}.
+        Example: [{"pid":12345,"processName":"MyApp","title":"Main Window","connected":true}]
+        """)]
     public static async Task<string> ListApps(ConnectionPool pool)
     {
         var apps = pool.DiscoverApps();
@@ -39,7 +43,11 @@ public sealed class ConnectionTools
         return result;
     }
 
-    [McpServerTool(Name = "connect_to_app"), Description("Connect to a specific running Avalonia app by process ID. Use PID 0 to auto-connect to the first available app. Must be called before using any inspection or interaction tools (unless list_apps already auto-connected).")]
+    [McpServerTool(Name = "connect_to_app"), Description("""
+        Connect explicitly to an Avalonia app by PID. Use pid=0 for the first available app. Required only when list_apps did not auto-connect (i.e. multiple apps discovered).
+        Returns: {pid, processName, title}.
+        Example: {"pid":12345,"processName":"MyApp","title":"Main Window"}
+        """)]
     public static async Task<string> ConnectToApp(
         ConnectionPool pool,
         [Description("Process ID of the app. Use 0 to connect to the first available app.")] int pid = 0)
