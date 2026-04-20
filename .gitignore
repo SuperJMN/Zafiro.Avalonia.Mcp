@@ -6,3 +6,6 @@ nupkg/
 .vs/
 *.DotSettings.user
 TestResults/
+
+# Local secrets
+.env
