@@ -67,6 +67,9 @@ public sealed class RequestDispatcher
         Register(new DiffTreeHandler());
 
         // Phase 6 diagnostics
+        Register(new FindByDataContextHandler());
+
+        // Phase 6 diagnostics
         Register(new GetItemHandler());
         Register(new LayoutInfoHandler());
         Register(new ValidationErrorsHandler());

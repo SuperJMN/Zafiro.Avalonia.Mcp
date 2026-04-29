@@ -67,6 +67,9 @@ public static class ProtocolMethods
     public const string GetXaml = "get_xaml";
     public const string DiffTree = "diff_tree";
 
+    // Phase 6 diagnostics
+    public const string FindByDataContext = "find_by_datacontext";
+
     // Connection
     public const string ListWindows = "list_windows";
     public const string Ping = "ping";
