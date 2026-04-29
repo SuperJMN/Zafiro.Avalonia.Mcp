@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using ModelContextProtocol.Protocol;
 
@@ -9,6 +10,8 @@ internal static class AppConnectionExtensions
     /// Sends a request and returns the result as a string.
     /// Catches all exceptions and returns them as "Error: ..." text so the AI
     /// always sees the actual failure reason instead of the generic MCP error wrapper.
+    /// Structured <see cref="McpRemoteException"/> responses include the stable error code
+    /// and the recovery hint suggested by the AppHost handler.
     /// </summary>
     public static async Task<string> InvokeAsync(
         this AppConnection conn,
@@ -20,6 +23,10 @@ internal static class AppConnectionExtensions
         {
             var result = await conn.SendAsync(method, parameters);
             return result?.ToString() ?? empty;
+        }
+        catch (McpRemoteException ex)
+        {
+            return FormatRemoteError(ex);
         }
         catch (Exception ex)
         {
@@ -44,9 +51,24 @@ internal static class AppConnectionExtensions
                 return [new TextContentBlock { Text = "No result" }];
             return onSuccess(result.Value);
         }
+        catch (McpRemoteException ex)
+        {
+            return [new TextContentBlock { Text = FormatRemoteError(ex) }];
+        }
         catch (Exception ex)
         {
             return [new TextContentBlock { Text = $"Error: {ex.Message}" }];
         }
+    }
+
+    private static string FormatRemoteError(McpRemoteException ex)
+    {
+        var sb = new StringBuilder("Error");
+        if (ex.ErrorInfo?.Code is { Length: > 0 } code)
+            sb.Append(" [").Append(code).Append(']');
+        sb.Append(": ").Append(ex.Message);
+        if (ex.ErrorInfo?.Suggested is { Length: > 0 } hint)
+            sb.Append("\nHint: ").Append(hint);
+        return sb.ToString();
     }
 }

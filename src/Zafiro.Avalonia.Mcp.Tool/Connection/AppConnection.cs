@@ -65,7 +65,7 @@ public sealed class AppConnection : IDisposable
 
             var response = ProtocolSerializer.Deserialize<DiagnosticResponse>(responseLine);
             if (response?.Error is not null)
-                throw new InvalidOperationException(response.Error);
+                throw new McpRemoteException(response.Error, response.ErrorInfo);
 
             return response?.Result;
         }
