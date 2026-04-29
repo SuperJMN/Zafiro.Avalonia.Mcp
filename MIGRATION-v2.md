@@ -56,6 +56,8 @@ Sources of truth: commits `2dbb35b` (action tools) and `bf87161` (read tools).
 | `scroll` | `{ "nodeId": 35, "direction": "down", "amount": 200 }` | `{ "selector": "ListBox#Items", "direction": "down", "amount": 200 }` |
 | `select_item` | `{ "nodeId": 35, "index": 2 }` | `{ "selector": "ListBox#Items", "index": 2 }` |
 | `set_prop` | `{ "nodeId": 7, "propertyName": "Background", "value": "#FF0000", "isXamlValue": true }` | `{ "selector": "Border#Hero", "propertyName": "Background", "value": "#FF0000", "isXamlValue": true }` |
+| `get_prop_values` | `{ "nodeId": 7, "propertyName": "HorizontalAlignment" }` | `{ "selector": "Border#Hero", "propertyName": "HorizontalAlignment" }` |
+| `click_and_wait` | `{ "nodeId": 15, "waitQuery": "Saved", "waitCondition": "exists" }` | `{ "selector": "Button[Content=\"Save\"]", "waitQuery": "Saved", "waitCondition": "exists" }` |
 
 ### Read tools (commit `bf87161`)
 
@@ -69,6 +71,14 @@ Sources of truth: commits `2dbb35b` (action tools) and `bf87161` (read tools).
 | `find_view_source` | `{ "nodeId": 1 }` | `{ "selector": "Window:nth(0)" }` |
 | `get_xaml` | `{ "nodeId": 1 }` | `{ "selector": "Window:nth(0)" }` |
 | `screenshot` | `{ "nodeId": 42 }` *(or omitted for first window)* | `{ "selector": "#Hero" }` *(or omitted for first window)* |
+| `get_tree` | `{ "nodeId": 1, "depth": 10 }` *(or omitted)* | `{ "selector": "Window:nth(0)", "depth": 10 }` *(or omitted)* |
+| `get_snapshot` | `{ "nodeId": 1 }` *(or omitted for first window)* | `{ "selector": "#Hero" }` *(or omitted for first window)* |
+| `get_screen_text` | `{ "nodeId": 1 }` *(or omitted for first window)* | `{ "selector": "#Hero" }` *(or omitted for first window)* |
+| `get_interactables` | `{ "nodeId": 1 }` *(or omitted for all windows)* | `{ "selector": "Window:nth(0)" }` *(or omitted for all windows)* |
+| `get_resources` | `{ "nodeId": 1, "onlySelf": false }` *(or omitted for Application)* | `{ "selector": "Window:nth(0)", "onlySelf": false }` *(or omitted for Application)* |
+| `start_recording` | `{ "nodeId": 1, "fps": 15 }` *(or omitted for first window)* | `{ "selector": "Window:nth(0)", "fps": 15 }` *(or omitted for first window)* |
+| `capture_animation` | `{ "nodeId": 1, "durationSec": 3 }` *(or omitted for first window)* | `{ "selector": "Window:nth(0)", "durationSec": 3 }` *(or omitted for first window)* |
+| `diff_tree` | `{ "nodeId": 1, "action": "diff" }` *(or omitted for first window)* | `{ "selector": "Window:nth(0)", "action": "diff" }` *(or omitted for first window)* |
 
 ## New tools in v2
 
