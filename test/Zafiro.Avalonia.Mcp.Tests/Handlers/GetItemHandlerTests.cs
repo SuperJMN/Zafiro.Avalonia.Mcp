@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Avalonia.Controls;
-using Avalonia.Headless;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 using Xunit;
@@ -27,7 +27,7 @@ public class GetItemHandlerTests
         var lb = new ListBox { Items = { }, Width = 200, Height = 300 };
         foreach (var item in items) lb.Items.Add(item);
         var window = new Window { Content = lb, Width = 400, Height = 400 };
-        window.Show(new HeadlessWindowImpl());
+        window.Show();
         lb.UpdateLayout();
         listBox = lb;
         return window;
@@ -48,7 +48,7 @@ public class GetItemHandlerTests
             // Grab the listbox via registry to build the selector
             foreach (var w in NodeRegistry.GetWindows())
             {
-                var found = w.GetVisualDescendants().OfType<ListBox>().FirstOrDefault();
+                var found = w.FindDescendantOfType<ListBox>();
                 if (found != null) return found;
             }
             return null;
@@ -102,7 +102,7 @@ public class GetItemHandlerTests
             lb.Items.Add(new ItemVm { Name = "Beta", Value = 2 });
             lb.Items.Add(new ItemVm { Name = "Gamma", Value = 3 });
             var window = new Window { Content = lb, Width = 400, Height = 400 };
-            window.Show(new HeadlessWindowImpl());
+            window.Show();
             lb.UpdateLayout();
             capturedLb = lb;
         });

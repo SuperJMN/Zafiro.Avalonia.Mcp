@@ -7,11 +7,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>Zafiro.Avalonia.Mcp.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Zafiro.Avalonia.Mcp.Protocol\Zafiro.Avalonia.Mcp.Protocol.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.11.0" />
   </ItemGroup>
 
 </Project>
