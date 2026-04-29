@@ -9,17 +9,20 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 [McpServerToolType]
 public sealed class InputTools
 {
+    private const string SelectorDescription =
+        "Selector identifying the element. Examples: '#42' (nodeId), '#SaveBtn' (x:Name), 'Button[Content=\"Save\"]', 'ListBox >> ListBoxItem:nth(2)'.";
+
     [McpServerTool(Name = "click"), Description("""
-        Click a UI element by nodeId. Handles Button (invokes command), ToggleButton (toggles), ListBoxItem (selects), TabItem (switches), MenuItem (invokes); falls back to pointer simulation for anything else. For lists/tabs prefer select_item, for checkboxes prefer toggle, for "click the X button" prefer click_by_query.
+        Click a UI element by selector. Handles Button (invokes command), ToggleButton (toggles), ListBoxItem (selects), TabItem (switches), MenuItem (invokes); falls back to pointer simulation for anything else. For lists/tabs prefer select_item, for checkboxes prefer toggle, for "click the X button" prefer click_by_query.
         Returns: confirmation string with the actual semantic invoked.
         Example: "Clicked Button 'Save' (invoked Command)"
         """)]
     public static async Task<string> Click(
         ConnectionPool pool,
-        [Description("Node ID of the element to click")] int nodeId)
+        [Description(SelectorDescription)] string selector)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.Click, new { nodeId });
+        return await conn.InvokeAsync(ProtocolMethods.Click, new { selector });
     }
 
     [McpServerTool(Name = "tap"), Description("""
@@ -29,10 +32,10 @@ public sealed class InputTools
         """)]
     public static async Task<string> Tap(
         ConnectionPool pool,
-        [Description("Node ID of the element to tap")] int nodeId)
+        [Description(SelectorDescription)] string selector)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.Tap, new { nodeId });
+        return await conn.InvokeAsync(ProtocolMethods.Tap, new { selector });
     }
 
     [McpServerTool(Name = "key_down"), Description("""
@@ -42,12 +45,12 @@ public sealed class InputTools
         """)]
     public static async Task<string> KeyDown(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description(SelectorDescription)] string selector,
         [Description("Key name (e.g., Enter, Tab, Escape, A, B, Space)")] string key,
         [Description("Key modifiers (e.g., ctrl, shift, alt, ctrl+shift). Omit for none.")] string? modifiers = null)
     {
         var conn = pool.GetActive();
-        var parms = new Dictionary<string, object?> { ["nodeId"] = nodeId, ["key"] = key };
+        var parms = new Dictionary<string, object?> { ["selector"] = selector, ["key"] = key };
         if (modifiers is not null) parms["modifiers"] = modifiers;
         return await conn.InvokeAsync(ProtocolMethods.KeyDown, parms);
     }
@@ -59,12 +62,12 @@ public sealed class InputTools
         """)]
     public static async Task<string> KeyUp(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description(SelectorDescription)] string selector,
         [Description("Key name")] string key,
         [Description("Key modifiers (e.g., ctrl, shift, alt, ctrl+shift). Omit for none.")] string? modifiers = null)
     {
         var conn = pool.GetActive();
-        var parms = new Dictionary<string, object?> { ["nodeId"] = nodeId, ["key"] = key };
+        var parms = new Dictionary<string, object?> { ["selector"] = selector, ["key"] = key };
         if (modifiers is not null) parms["modifiers"] = modifiers;
         return await conn.InvokeAsync(ProtocolMethods.KeyUp, parms);
     }
@@ -76,12 +79,12 @@ public sealed class InputTools
         """)]
     public static async Task<string> TextInput(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description(SelectorDescription)] string selector,
         [Description("Text to enter")] string text,
         [Description("Whether to simulate pressing Enter after text input")] bool pressEnter = false)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.TextInput, new { nodeId, text, pressEnter });
+        return await conn.InvokeAsync(ProtocolMethods.TextInput, new { selector, text, pressEnter });
     }
 
     [McpServerTool(Name = "action"), Description("""
@@ -91,11 +94,11 @@ public sealed class InputTools
         """)]
     public static async Task<string> Action(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description(SelectorDescription)] string selector,
         [Description("Action to perform: Focus, Enable, Disable, BringIntoView")] string action)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.Action, new { nodeId, action });
+        return await conn.InvokeAsync(ProtocolMethods.Action, new { selector, action });
     }
 
     [McpServerTool(Name = "pseudo_class"), Description("""
@@ -106,12 +109,12 @@ public sealed class InputTools
         """)]
     public static async Task<string> PseudoClass(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description(SelectorDescription)] string selector,
         [Description("Pseudo-class name (e.g., pointerover, pressed, focus). Omit to list all.")] string? pseudoClass = null,
         [Description("Activate (true) or deactivate (false) the pseudo-class")] bool? isActive = null)
     {
         var conn = pool.GetActive();
-        var parms = new Dictionary<string, object?> { ["nodeId"] = nodeId };
+        var parms = new Dictionary<string, object?> { ["selector"] = selector };
         if (pseudoClass is not null) parms["pseudoClass"] = pseudoClass;
         if (isActive is not null) parms["isActive"] = isActive;
 
