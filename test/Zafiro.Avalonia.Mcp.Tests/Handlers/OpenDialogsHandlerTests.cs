@@ -20,7 +20,7 @@ public class OpenDialogsHandlerTests
     [Fact]
     public async Task Handle_ReturnsEmptyArray_WhenNoDialogsOpen()
     {
-        var result = await _handler.Handle(new DiagnosticRequest { Method = "get_open_dialogs" });
+        var result = await _handler.Handle(new DiagnosticRequest { Id = "test", Method = "get_open_dialogs" });
         var json = JsonSerializer.Serialize(result);
 
         // Result should be an empty collection or a list
@@ -47,7 +47,7 @@ public class OpenDialogsHandlerTests
 
         try
         {
-            var result = await _handler.Handle(new DiagnosticRequest { Method = "get_open_dialogs" });
+            var result = await _handler.Handle(new DiagnosticRequest { Id = "test", Method = "get_open_dialogs" });
             var json = JsonSerializer.Serialize(result);
             var doc = JsonDocument.Parse(json);
 

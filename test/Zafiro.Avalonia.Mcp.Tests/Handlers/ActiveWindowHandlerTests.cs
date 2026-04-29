@@ -30,7 +30,7 @@ public class ActiveWindowHandlerTests
 
         try
         {
-            var result = await _handler.Handle(new DiagnosticRequest { Method = "get_active_window" });
+            var result = await _handler.Handle(new DiagnosticRequest { Id = "test", Method = "get_active_window" });
             var json = JsonSerializer.Serialize(result);
 
             Assert.Contains("openWindows", json);
@@ -45,7 +45,7 @@ public class ActiveWindowHandlerTests
     [Fact]
     public async Task Handle_ReturnsActiveWindowField()
     {
-        var result = await _handler.Handle(new DiagnosticRequest { Method = "get_active_window" });
+        var result = await _handler.Handle(new DiagnosticRequest { Id = "test", Method = "get_active_window" });
         var json = JsonSerializer.Serialize(result);
 
         Assert.Contains("activeWindow", json);
@@ -67,7 +67,7 @@ public class ActiveWindowHandlerTests
 
         try
         {
-            var result = await _handler.Handle(new DiagnosticRequest { Method = "get_active_window" });
+            var result = await _handler.Handle(new DiagnosticRequest { Id = "test", Method = "get_active_window" });
             var json = JsonSerializer.Serialize(result);
 
             Assert.Contains("Window1", json);

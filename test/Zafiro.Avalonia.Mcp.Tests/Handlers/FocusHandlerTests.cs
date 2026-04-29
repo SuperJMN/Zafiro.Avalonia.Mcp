@@ -20,7 +20,7 @@ public class FocusHandlerTests
     [Fact]
     public async Task Handle_ReturnsNullFocused_WhenNoWindowsOpen()
     {
-        var result = await _handler.Handle(new DiagnosticRequest { Method = "get_focus" });
+        var result = await _handler.Handle(new DiagnosticRequest { Id = "test", Method = "get_focus" });
 
         var json = JsonSerializer.Serialize(result);
         Assert.Contains("focused", json);
@@ -42,7 +42,7 @@ public class FocusHandlerTests
 
         try
         {
-            var result = await _handler.Handle(new DiagnosticRequest { Method = "get_focus" });
+            var result = await _handler.Handle(new DiagnosticRequest { Id = "test", Method = "get_focus" });
             var json = JsonSerializer.Serialize(result);
 
             // In headless mode focus may not be available, but response must be well-formed
