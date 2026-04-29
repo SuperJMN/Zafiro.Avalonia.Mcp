@@ -65,6 +65,17 @@ public sealed class RequestDispatcher
         Register(new FindViewSourceHandler());
         Register(new GetXamlHandler());
         Register(new DiffTreeHandler());
+
+        // Phase 6 diagnostics
+        Register(new GetItemHandler());
+        Register(new LayoutInfoHandler());
+        Register(new ValidationErrorsHandler());
+        Register(new CommandInfoHandler());
+
+        // Phase 6.9 — global UI state
+        Register(new FocusHandler());
+        Register(new ActiveWindowHandler());
+        Register(new OpenDialogsHandler());
     }
 
     private void Register(IRequestHandler handler)

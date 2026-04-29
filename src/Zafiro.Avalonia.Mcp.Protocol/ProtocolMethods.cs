@@ -70,4 +70,15 @@ public static class ProtocolMethods
     // Connection
     public const string ListWindows = "list_windows";
     public const string Ping = "ping";
+
+    // Phase 6 diagnostics
+    public const string GetItem = "get_item";
+    public const string GetValidationErrors = "get_validation_errors";
+    public const string GetCommandInfo = "get_command_info";
+    public const string GetLayoutInfo = "get_layout_info";
+
+    // Phase 6.9 — global UI state
+    public const string GetFocus = "get_focus";
+    public const string GetActiveWindow = "get_active_window";
+    public const string GetOpenDialogs = "get_open_dialogs";
 }
