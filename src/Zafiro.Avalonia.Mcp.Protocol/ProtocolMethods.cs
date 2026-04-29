@@ -84,4 +84,9 @@ public static class ProtocolMethods
     public const string GetFocus = "get_focus";
     public const string GetActiveWindow = "get_active_window";
     public const string GetOpenDialogs = "get_open_dialogs";
+
+    // Phase 6.12 — event subscription / long-poll
+    public const string Subscribe = "subscribe";
+    public const string PollEvents = "poll_events";
+    public const string Unsubscribe = "unsubscribe";
 }

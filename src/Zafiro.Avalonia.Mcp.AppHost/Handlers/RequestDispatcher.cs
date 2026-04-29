@@ -79,6 +79,11 @@ public sealed class RequestDispatcher
         Register(new FocusHandler());
         Register(new ActiveWindowHandler());
         Register(new OpenDialogsHandler());
+
+        // Phase 6.12 — event subscription / long-poll
+        Register(new SubscribeHandler());
+        Register(new PollEventsHandler());
+        Register(new UnsubscribeHandler());
     }
 
     private void Register(IRequestHandler handler)

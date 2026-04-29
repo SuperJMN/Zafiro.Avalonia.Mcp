@@ -34,6 +34,9 @@ public sealed class AppConnection : IDisposable
     }
 
     public async Task<JsonElement?> SendAsync(string method, object? parameters = null, CancellationToken ct = default)
+        => await SendAsync(method, parameters, TimeSpan.FromSeconds(30), ct);
+
+    public async Task<JsonElement?> SendAsync(string method, object? parameters, TimeSpan timeout, CancellationToken ct = default)
     {
         if (_writer is null || _reader is null)
             throw new InvalidOperationException("Not connected");
@@ -53,10 +56,10 @@ public sealed class AppConnection : IDisposable
             var json = ProtocolSerializer.Serialize(request);
             await _writer.WriteLineAsync(json.AsMemory(), ct);
 
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(30));
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(timeout);
 
-            var responseLine = await _reader.ReadLineAsync(timeout.Token);
+            var responseLine = await _reader.ReadLineAsync(timeoutCts.Token);
             if (responseLine is null)
                 throw new IOException("Connection closed");
 
