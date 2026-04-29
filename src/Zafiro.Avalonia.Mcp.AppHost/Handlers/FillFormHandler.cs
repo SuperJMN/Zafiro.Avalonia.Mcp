@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
+using Zafiro.Avalonia.Mcp.Protocol.Selectors;
 
 namespace Zafiro.Avalonia.Mcp.AppHost.Handlers;
 
