@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Zafiro.Avalonia.Mcp.Protocol\Zafiro.Avalonia.Mcp.Protocol.csproj" />
     <ProjectReference Include="..\..\src\Zafiro.Avalonia.Mcp.AppHost\Zafiro.Avalonia.Mcp.AppHost.csproj" />
+    <ProjectReference Include="..\..\src\Zafiro.Avalonia.Mcp.Tool\Zafiro.Avalonia.Mcp.Tool.csproj" />
   </ItemGroup>
 
   <ItemGroup>

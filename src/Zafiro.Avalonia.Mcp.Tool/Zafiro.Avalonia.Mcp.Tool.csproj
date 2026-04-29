@@ -13,6 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Zafiro.Avalonia.Mcp.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="$(McpSdkVersion)" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.5" />
   </ItemGroup>

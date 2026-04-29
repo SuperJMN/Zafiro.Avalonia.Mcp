@@ -82,6 +82,9 @@ public sealed class RequestDispatcher
         Register(new ActiveWindowHandler());
         Register(new OpenDialogsHandler());
 
+        // Phase 6.11 — composite form filling
+        Register(new FillFormHandler());
+
         // Phase 6.12 — event subscription / long-poll
         Register(new SubscribeHandler());
         Register(new PollEventsHandler());
