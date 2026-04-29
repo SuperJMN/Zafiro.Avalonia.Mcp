@@ -33,6 +33,10 @@ Recent history follows Conventional Commits, for example `feat: add tap interact
 
 Pull requests should include a concise summary, linked issues, test results, and screenshots or short recordings when UI behavior changes. Call out compatibility impacts for Avalonia versions, target frameworks, protocol fields, or MCP tool names.
 
+## v2 Tool API
+
+As of v2.0.0 every read+action MCP tool takes a CSS-like `selector` string instead of a numeric `nodeId` (`#42`, `#SaveBtn`, `Button[Content="Save"]`, `ListBox >> ListBoxItem[dc.Id=7]`, `[dc:'x => x.IsValid']`). Tool names follow verb-first or `get_*`/`list_*` conventions — there is no `take_*` tool (`take_screenshot` is now `screenshot`). Errors surface as `DiagnosticError { code, message, suggested?, details? }` with the codes catalogued by `instructions(page='tools')`. See [`MIGRATION-v2.md`](MIGRATION-v2.md) for the full migration table.
+
 ## Security & Configuration Tips
 
 Do not commit `.env`, local secrets, or machine-specific MCP client settings. Discovery files are runtime artifacts under the temp directory and should not be versioned.

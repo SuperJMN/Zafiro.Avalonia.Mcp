@@ -12,6 +12,7 @@
 | **Fase 3** | La IA puede esperar y reaccionar | ✅ Completada |
 | **Fase 4** | Calidad y robustez | ⬜ Pendiente |
 | **Fase 5** | Inteligencia MVVM y puente XAML↔Runtime | ✅ Completada |
+| **Fase 6** | Selectors universales, errores estructurados, diagnósticos avanzados, eventos | ✅ Completada (v2.0.0) |
 
 ### Desglose por item
 
@@ -42,6 +43,20 @@
 | F5 | 5.4 | `get_xaml` — ver XAML fuente | ✅ Implementado (v1.3.0) |
 | F5 | 5.5 | `get_screen_text` `visibleOnly` — filtro viewport | ✅ Implementado (v1.3.0) |
 | F5 | 5.6 | `diff_tree` — snapshot/diff de cambios | ✅ Implementado (v1.3.0) |
+| F6 | 6.1 | Gramática de selectors CSS-like + parser | ✅ Implementado (v2.0.0) |
+| F6 | 6.2 | `SelectorEngine.Default` (resolver completo) | ✅ Implementado (v2.0.0) |
+| F6 | 6.3 | `DiagnosticError` con 8 códigos estables | ✅ Implementado (v2.0.0) |
+| F6 | 6.4 | Migrar handlers de acción a `selector` | ✅ Implementado (v2.0.0) |
+| F6 | 6.5 | Migrar handlers de lectura a `selector` | ✅ Implementado (v2.0.0) |
+| F6 | 6.6 | `get_focus`, `get_active_window`, `get_open_dialogs` | ✅ Implementado (v2.0.0) |
+| F6 | 6.7 | `get_command_info` — estado `ICommand.CanExecute` | ✅ Implementado (v2.0.0) |
+| F6 | 6.8 | `get_validation_errors` — `INotifyDataErrorInfo` walk | ✅ Implementado (v2.0.0) |
+| F6 | 6.9 | `get_layout_info` — caja de layout, márgenes, clipping | ✅ Implementado (v2.0.0) |
+| F6 | 6.10 | `find_by_datacontext` + `get_item` (virtualización) | ✅ Implementado (v2.0.0) |
+| F6 | 6.11 | `fill_form` — múltiples campos + submit + redacción | ✅ Implementado (v2.0.0) |
+| F6 | 6.12 | `subscribe` / `poll_events` / `unsubscribe` | ✅ Implementado (v2.0.0) |
+| F6 | 6.13 | Documentación v2 (README, ROADMAP, AGENTS) | ✅ Completado (v2.0.0) |
+| F6 | 6.14 | Release v2.0.0 + `MIGRATION-v2.md` | ✅ Completado (v2.0.0) |
 
 ---
 
@@ -671,3 +686,66 @@ diff_snapshot(snapshot_id) → { added: [...], removed: [...], changed: [...] }
 - `ProtocolMethods.cs` — 5 nuevas constantes
 - `TreeTools.cs` — parámetro visibleOnly en get_screen_text
 - `DataTools.cs` — 5 nuevas herramientas MCP
+
+---
+
+## Fase 6 — Selectors universales, errores estructurados, diagnósticos avanzados ✅
+
+Cinco grandes cambios, todos rompedores, agrupados en la release **v2.0.0**.
+
+### 6.1 / 6.2 Selectors CSS-like ✅
+
+Reemplazan el `nodeId` numérico (que forzaba 3 round-trips: snapshot → resolve → llamada) por una sola string declarativa que resuelve el árbol vivo.
+
+Gramática (ver `src/Zafiro.Avalonia.Mcp.Protocol/Selectors/`):
+
+- `#42` → nodeId existente
+- `#Name` → match por `x:Name`
+- `Type[Property=Value]`, `*=`, `^=`, `$=`, `~=` (case-insensitive)
+- `[dc.Path=Value]` → property path sobre el DataContext
+- `[dc:'predicate']` → predicado C# evaluado por Roslyn (200 ms timeout, sandbox)
+- `:nth(N)`, `:visible`, `:focused`, `:enabled`, `:checked` (pseudo-classes)
+- `>>` descendiente, `>` hijo directo, `,` alternativas
+
+Motor: `SelectorEngine.Default.Resolve(string|ParsedSelector, scope?) → IReadOnlyList<Visual>`.
+
+### 6.3 Errores estructurados ✅
+
+`DiagnosticError { code, message, suggested?, details? }`. Códigos estables: `NO_MATCH`, `AMBIGUOUS_SELECTOR`, `STALE_NODE`, `INVALID_PARAM`, `INVALID_SELECTOR`, `UNSUPPORTED_OPERATION`, `TIMEOUT`, `INTERNAL`. Cada error sugiere la recuperación (`Add :nth(N)…`, `Re-call get_snapshot…`).
+
+### 6.4 / 6.5 Migración a `selector` ✅
+
+- **Action handlers** (commit `2dbb35b`): `ActionHandler`, `InputHandler` (click/tap/key_down/key_up/text_input), `PseudoClassHandler`, `ScrollHandler`, `SelectionHandler`, `SetPropertyHandler`, `SetValueHandler`, `ToggleHandler`. Helper compartido `SelectorRequestHelper.ResolveSingle`.
+- **Read handlers** (commit `bf87161`): `AncestorsHandler`, `BindingsHandler`, `DataContextHandler`, `FindViewSourceHandler`, `GetXamlHandler`, `PropertyHandler`, `ScreenshotHandler` (selector opcional), `StylesHandler`.
+
+### 6.6–6.10 Nuevos diagnósticos ✅
+
+- `get_focus` — elemento con foco actual.
+- `get_active_window` + `get_open_dialogs` — estado de ventanas y diálogos.
+- `get_command_info` — `ICommand.CanExecute` para botones/menús.
+- `get_validation_errors` — recorre `INotifyDataErrorInfo` de todo el árbol.
+- `get_layout_info` — caja de layout, márgenes, alignment, clipping.
+- `find_by_datacontext` — equivalente a `[dc:'…']` como tool top-level.
+- `get_item` — resuelve hijos virtualizados por índice/text/dc.
+
+### 6.11 `fill_form` ✅
+
+Tool composite que aplica una lista de campos (`{ selector, value, secret? }`) y opcionalmente hace click en un selector `submit` final. Devuelve resultados por campo; si `secret:true`, el valor registrado se serializa como `"<value> (redacted)"`.
+
+### 6.12 Suscripciones a eventos ✅
+
+Long-poll: `subscribe`, `poll_events`, `unsubscribe`. Tipos: `property_changed`, `window_opened`, `window_closed`, `focus_changed`. Cola por suscripción acotada a 1000 eventos, poll por defecto 30 s (máx 60 s), TTL 5 min, máximo 32 suscripciones simultáneas (`SUBSCRIPTION_LIMIT`).
+
+### 6.13 Documentación v2 ✅
+
+`README.md` reescrito con sección "v2.0 highlights", cheat-sheet de selectors, ejemplo de `DiagnosticError`, convención de nombres y ejemplos basados en `selector` en lugar de `nodeId`. `AGENTS.md` añade un apartado "v2 Tool API". `ROADMAP.md` añade esta sección con todos los items en ✅.
+
+### 6.14 Release v2.0.0 ✅
+
+Documento `MIGRATION-v2.md` en la raíz del repo: rationale, tabla de renombres (`take_screenshot → screenshot`), tabla de migración por handler (`v1 nodeId:N` ↔ `v2 selector:"…"`), nuevos tools, nueva forma del error, gramática, y eliminados/deprecados (ninguno). El versionado lo dirige el tag `v2.0.0` vía GitVersion (estrategia Mainline + ConfiguredNextVersion); no hay `<Version>` en `.csproj` ni en `Directory.Build.props`, así que el bump se materializa con el tag — ver `MIGRATION-v2.md` para el comando exacto.
+
+### Higiene de naming
+
+`take_screenshot → screenshot`. La página `instructions(page='tools')` (51 tools) lista la superficie canónica + cheat-sheet de selectors + tabla de error codes + workflows recomendados. Esto resuelve el bug original (un agente IA alucinando `take_screenshot` que no existía).
+
+**Phase 6 shipped in v2.0.0.**
