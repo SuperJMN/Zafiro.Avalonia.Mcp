@@ -19,7 +19,7 @@ builder.Services
         options.ServerInfo = new()
         {
             Name = "zafiro-avalonia-mcp",
-            Version = "1.2.0"
+            Version = "2.1.0"
         };
     })
     .WithStdioServerTransport()

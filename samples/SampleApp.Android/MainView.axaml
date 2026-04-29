@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SampleApp.Android.MainView">
+  <ScrollViewer Padding="16">
+    <StackPanel Spacing="16">
+      <TextBlock Text="Zafiro MCP — Android Sample"
+                 FontSize="22" FontWeight="Bold" />
+
+      <TextBlock x:Name="StatusText"
+                 Text="Ready"
+                 Foreground="Gray" />
+
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button x:Name="ClickMeButton"
+                Content="Click Me"
+                Click="OnClickMe" />
+        <ToggleButton x:Name="ToggleBtn"
+                      Content="Toggle" />
+      </StackPanel>
+
+      <TextBox x:Name="InputBox"
+               PlaceholderText="Type something here..." />
+
+      <CheckBox x:Name="CheckOption"
+                Content="Check me"
+                IsChecked="True" />
+
+      <Slider x:Name="ValueSlider"
+              Minimum="0" Maximum="100" Value="50" />
+
+      <ListBox x:Name="ItemList" Height="200">
+        <ListBoxItem Content="Item 1" />
+        <ListBoxItem Content="Item 2" />
+        <ListBoxItem Content="Item 3" />
+        <ListBoxItem Content="Item 4" />
+      </ListBox>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

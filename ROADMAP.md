@@ -750,9 +750,11 @@ Documento `MIGRATION-v2.md` en la raíz del repo: rationale, tabla de renombres 
 
 **Phase 6 shipped in v2.0.0.**
 
-## Fase 7 — Transporte remoto: Android (ADB) y otros devices ⬜
+## Fase 7 — Transporte remoto: Android (ADB) y otros devices 🟡 (MVP en `feature/android-adb-mvp`)
 
 **Objetivo:** que un agente IA pueda probar end-to-end una app Avalonia corriendo en un dispositivo **Android** (físico o emulador) conectado al PC del agente vía **ADB**, usando exactamente la misma superficie de tools MCP que ya usa en desktop. Más adelante, generalizar el transporte para iOS (`idevice` / Mac), WSA, y conexiones remotas (SSH).
+
+**MVP entregado (v2.1.0):** transporte TCP loopback + tool `connect_adb` manual. El agente forwardea el puerto con `adb forward tcp:HOSTPORT tcp:DEVICEPORT` y llama `connect_adb port=HOSTPORT`. Auto-discovery, limpieza de forwards y `AdbDeviceProbe` quedan para fases siguientes.
 
 ### Estado actual (limitaciones de v2)
 
@@ -761,13 +763,12 @@ Documento `MIGRATION-v2.md` en la raíz del repo: rationale, tabla de renombres 
 - Transporte: `DiagnosticServer` usa `NamedPipeServerStream` (sockets Unix de filesystem en `/tmp/CoreFxPipe_<name>` en Linux/Android) y `AppConnection` usa `NamedPipeClientStream`. `adb forward` **no** puede mapear directamente un socket de filesystem dentro del sandbox del paquete a un puerto del host: solo puede `localabstract:`, `localreserved:`, `localfilesystem:` y rutas accesibles por `adb`, pero los CoreFxPipe del paquete viven dentro de `/data/data/<pkg>` que solo es accesible vía `run-as`.
 - No hay forma de listar qué apps Avalonia están corriendo en el device desde el PC.
 
-### 7.1 Multi-target Android para `AppHost` ⬜
+### 7.1 Multi-target Android para `AppHost` ✅ (no requerido)
 
-- Añadir `net8.0-android;net9.0-android` (o el TFM Android vigente) a `Zafiro.Avalonia.Mcp.AppHost.csproj`.
-- Compilación condicional para todo lo que no exista en Android (poco: el código es .NET puro + Avalonia + sockets).
-- Verificar `samples/` con un `SampleApp.Android` mínimo que llame `UseMcpDiagnostics()` en `App.OnFrameworkInitializationCompleted` o equivalente.
+- ~~Añadir `net8.0-android;net9.0-android`~~. **No necesario en MVP**: `AppHost` sigue en `net8.0;net10.0` puros. Las apps `net10.0-android` lo consumen vía .NET Standard fallback. `AndroidPaths` usa reflection (`Type.GetType("Android.App.Application, Mono.Android")`) para acceder a `ExternalCacheDir` sin dependencia de compilación.
+- `samples/SampleApp.Android` (`net10.0-android`) verifica el camino end-to-end: referencia el `AppHost` directamente, llama `UseMcpDiagnostics()` desde `AvaloniaAndroidApplication.CustomizeAppBuilder`, y compila a APK.
 
-### 7.2 Transporte abstracto + TCP loopback ⬜
+### 7.2 Transporte abstracto + TCP loopback ✅
 
 Introducir una abstracción `IDiagnosticTransport` con dos implementaciones:
 
@@ -776,14 +777,18 @@ Introducir una abstracción `IDiagnosticTransport` con dos implementaciones:
 
 `UseMcpDiagnostics(options => { options.Transport = TransportKind.Auto; })` con `Auto` = TCP en Android, NamedPipe en desktop. Permitir `TransportKind.Tcp` explícito en cualquier plataforma para casos remotos.
 
-### 7.3 Discovery cross-process ⬜
+**Implementado:** `IDiagnosticTransport` + `NamedPipeTransport` + `TcpLoopbackTransport`. `Endpoint` se publica en formato `tcp:127.0.0.1:NNN`. `OperatingSystem.IsAndroid()` resuelve `Auto`. Cubierto por `TcpLoopbackTransportTests`.
+
+### 7.3 Discovery cross-process ✅ (parcial)
 
 Extender `DiscoveryInfo` con `TransportKind`, `Endpoint` (string: `pipe:<name>` o `tcp:<port>`), `PackageId` (en Android), `Abi`, `OsVersion`. En Android, escribir el JSON en una ruta accesible por `adb`:
 
 - Opción A (preferida): cache externo del paquete (`Context.ExternalCacheDir` → `/sdcard/Android/data/<pkg>/cache/`), legible vía `adb shell ls/cat` sin `run-as`.
 - Opción B: el AppHost expone un endpoint TCP de discovery muy simple (ASCII, una línea JSON) que el tool consulta con `adb forward`.
 
-### 7.4 `AdbDeviceProbe` en el tool ⬜
+**Implementado en MVP:** `DiscoveryInfo` lleva los campos opcionales `transport`, `endpoint`, `packageId` (retro-compatibles, `WhenWritingNull`). `DiscoveryWriter` usa `AndroidPaths.ExternalCacheDir` cuando está disponible. **Pendiente:** `Abi`, `OsVersion`, y la auto-detección desde el host (cubre 7.4).
+
+### 7.4 `AdbDeviceProbe` en el tool ⬜ (post-MVP)
 
 Nuevo módulo en `Zafiro.Avalonia.Mcp.Tool` (o `…Tool.Adb`) que envuelve el binario `adb`:
 
@@ -792,7 +797,9 @@ Nuevo módulo en `Zafiro.Avalonia.Mcp.Tool` (o `…Tool.Adb`) que envuelve el bi
 - Para cada app encontrada: hacer `adb forward tcp:0 tcp:<devicePort>`, leer el puerto host asignado, y construir un `AppConnection` apuntado a `127.0.0.1:<hostPort>`.
 - `list_apps` integra los devices Android sin distinción para el agente (campo opcional `transport: "adb:<serial>"` en la respuesta).
 
-### 7.5 Limpieza de forwards y reconexión ⬜
+**MVP shortcut:** se proporciona el tool `connect_adb port=<HOSTPORT> [host=127.0.0.1] [label=...]` que crea un `DiscoveryInfo` sintético TCP y se conecta. El usuario corre `adb forward tcp:9999 tcp:<devicePortFromJson>` manualmente.
+
+### 7.5 Limpieza de forwards y reconexión ⬜ (post-MVP)
 
 `ConnectionPool` debe registrar los `adb forward` creados y liberarlos (`adb forward --remove tcp:HOSTPORT`) cuando la conexión se cierra o el device se desconecta. Reintento exponencial si el device se reconecta a USB/WiFi.
 
@@ -804,16 +811,16 @@ Auditar que toda la superficie de tools de input (`click`, `tap`, `text_input`, 
 
 `screenshot` ya usa `Visual.RenderTo(Bitmap)` que es portable, debería funcionar tal cual. Validar que `capture_animation` / `start_recording` no asumen un timer del thread UI desktop.
 
-### 7.8 Sample y CI ⬜
+### 7.8 Sample y CI 🟡
 
-- `samples/SampleApp.Android` mínimo, single-activity, con un par de pantallas y tools típicos (TextBox, Button, ListBox, NavigationView).
-- Documentar en README cómo lanzar el sample en un emulador y conectar el agente: `adb install`, `adb shell am start`, `dnx Zafiro.Avalonia.Mcp.Tool --yes` automáticamente lo descubre.
-- (Opcional) Job de CI con emulador Android headless que ejecute un smoke test end-to-end vía MCP.
+- ✅ `samples/SampleApp.Android` mínimo, single-activity, con TextBox/Button/CheckBox/Slider/ListBox cubriendo los tools de input típicos.
+- ✅ Documentado en README la sección "Android via ADB (preview)" con `adb forward` + `connect_adb`.
+- ⬜ (Opcional) Job de CI con emulador Android headless que ejecute un smoke test end-to-end vía MCP.
 
-### 7.9 Documentación ⬜
+### 7.9 Documentación ✅ (MVP)
 
-- Sección "Android via ADB" en `README.md` con prerequisitos (`adb` en PATH), troubleshooting (puertos ocupados, `adb forward` colgado, app sin `UseMcpDiagnostics`).
-- Apartado en `AGENTS.md` explicando que el agente no necesita saber si la app corre en desktop o Android — la API es idéntica, solo cambia el campo `transport` en `list_apps`.
+- ✅ Sección "Android via ADB (preview)" en `README.md` con prerequisitos, pasos, y referencia al endpoint `tcp:` en el discovery JSON.
+- ⬜ Apartado en `AGENTS.md` explicando que el agente no necesita saber si la app corre en desktop o Android — la API es idéntica.
 
 ### Out of scope (futuras fases)
 

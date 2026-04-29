@@ -9,6 +9,7 @@ This repository is a .NET solution for `Zafiro.Avalonia.Mcp`, an MCP bridge for 
 - `src/Zafiro.Avalonia.Mcp.Tool`: stdio MCP tool and client-side connection/tool wrappers.
 - `test/Zafiro.Avalonia.Mcp.Tests`: xUnit tests, including protocol and handler coverage.
 - `samples/SampleApp`: Avalonia sample app using the AppHost.
+- `samples/SampleApp.Android`: Avalonia.Android sample (TCP transport via `adb forward` + `connect_adb`).
 - `tools/`: helper scripts, such as `pipe_client.py`.
 
 ## Build, Test, and Development Commands
@@ -17,6 +18,7 @@ This repository is a .NET solution for `Zafiro.Avalonia.Mcp`, an MCP bridge for 
 - `dotnet build Zafiro.Avalonia.Mcp.slnx`: build all source, sample, and test projects.
 - `dotnet test test/Zafiro.Avalonia.Mcp.Tests/Zafiro.Avalonia.Mcp.Tests.csproj`: run the test suite.
 - `dotnet run --project samples/SampleApp/SampleApp.csproj`: run the sample Avalonia app for manual MCP diagnostics checks.
+- `dotnet build samples/SampleApp.Android/SampleApp.Android.csproj`: build the Android sample (requires the `android` workload).
 - `dotnet run --project src/Zafiro.Avalonia.Mcp.Tool/Zafiro.Avalonia.Mcp.Tool.csproj`: run the MCP tool from source.
 
 ## Coding Style & Naming Conventions
