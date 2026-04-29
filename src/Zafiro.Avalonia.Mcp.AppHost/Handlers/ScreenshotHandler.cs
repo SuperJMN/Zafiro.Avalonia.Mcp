@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
@@ -14,17 +15,18 @@ public sealed class ScreenshotHandler : IRequestHandler
 
     public async Task<object> Handle(DiagnosticRequest request)
     {
-        int? nodeId = null;
-        if (request.Params is JsonElement p && p.TryGetProperty("nodeId", out var nid))
-            nodeId = nid.GetInt32();
+        string? selector = null;
+        if (request.Params is JsonElement p && p.TryGetProperty("selector", out var s))
+            selector = s.GetString();
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
             Visual? target;
-            if (nodeId.HasValue)
+            if (!string.IsNullOrWhiteSpace(selector))
             {
-                target = NodeRegistry.Resolve(nodeId.Value);
-                if (target is null) return new { error = $"Node {nodeId} not found" };
+                var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
+                if (visual is null) return error!;
+                target = visual;
             }
             else
             {
@@ -32,23 +34,30 @@ public sealed class ScreenshotHandler : IRequestHandler
                 if (target is null) return new { error = "No windows available" };
             }
 
-            var bounds = target.Bounds;
-            var pixelSize = new PixelSize((int)Math.Max(bounds.Width, 1), (int)Math.Max(bounds.Height, 1));
-            var rtb = new RenderTargetBitmap(pixelSize);
-            rtb.Render(target);
-
-            using var ms = new MemoryStream();
-            rtb.Save(ms);
-            var base64 = Convert.ToBase64String(ms.ToArray());
-
-            return new
-            {
-                data = base64,
-                mimeType = "image/png",
-                width = pixelSize.Width,
-                height = pixelSize.Height,
-                sizeBytes = ms.Length
-            };
+            return Capture(target);
         });
+    }
+
+    internal static object Capture(Visual target)
+    {
+        var nodeId = NodeRegistry.GetOrRegister(target);
+        var bounds = target.Bounds;
+        var pixelSize = new PixelSize((int)Math.Max(bounds.Width, 1), (int)Math.Max(bounds.Height, 1));
+        var rtb = new RenderTargetBitmap(pixelSize);
+        rtb.Render(target);
+
+        using var ms = new MemoryStream();
+        rtb.Save(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+
+        return new
+        {
+            nodeId,
+            data = base64,
+            mimeType = "image/png",
+            width = pixelSize.Width,
+            height = pixelSize.Height,
+            sizeBytes = ms.Length
+        };
     }
 }

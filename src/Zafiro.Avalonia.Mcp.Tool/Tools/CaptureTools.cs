@@ -16,10 +16,10 @@ public sealed class CaptureTools
         """)]
     public static async Task<IReadOnlyList<ContentBlock>> Screenshot(
         ConnectionPool pool,
-        [Description("Node ID to capture. Omit for the first window.")] int? nodeId = null)
+        [Description("CSS-like selector identifying the element to capture. Omit for the first window.")] string? selector = null)
     {
         var conn = pool.GetActive();
-        var parms = nodeId.HasValue ? new { nodeId = nodeId.Value } : null;
+        var parms = selector is not null ? new { selector } : null;
         return await conn.InvokeRichAsync(ProtocolMethods.Screenshot, parms, result =>
         {
             var data = result.GetProperty("data").GetString();

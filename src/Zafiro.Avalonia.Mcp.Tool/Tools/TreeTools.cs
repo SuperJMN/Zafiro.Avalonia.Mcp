@@ -47,10 +47,10 @@ public sealed class TreeTools
         """)]
     public static async Task<string> GetAncestors(
         ConnectionPool pool,
-        [Description("Node ID to get ancestors for")] int nodeId)
+        [Description("CSS-like selector identifying the element to get ancestors for")] string selector)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.GetAncestors, new { nodeId }, "No ancestors");
+        return await conn.InvokeAsync(ProtocolMethods.GetAncestors, new { selector }, "No ancestors");
     }
 
     [McpServerTool(Name = "get_snapshot"), Description("""

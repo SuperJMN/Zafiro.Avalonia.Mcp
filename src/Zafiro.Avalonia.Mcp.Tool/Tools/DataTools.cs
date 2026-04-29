@@ -15,10 +15,10 @@ public sealed class DataTools
         """)]
     public static async Task<string> GetDataContext(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId)
+        [Description("CSS-like selector identifying the element")] string selector)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.GetDataContext, new { nodeId }, "No data context");
+        return await conn.InvokeAsync(ProtocolMethods.GetDataContext, new { selector }, "No data context");
     }
 
     [McpServerTool(Name = "get_bindings"), Description("""
@@ -28,10 +28,10 @@ public sealed class DataTools
         """)]
     public static async Task<string> GetBindings(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId)
+        [Description("CSS-like selector identifying the element")] string selector)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.GetBindings, new { nodeId }, "No bindings");
+        return await conn.InvokeAsync(ProtocolMethods.GetBindings, new { selector }, "No bindings");
     }
 
     [McpServerTool(Name = "find_view_source"), Description("""
@@ -41,10 +41,10 @@ public sealed class DataTools
         """)]
     public static async Task<string> FindViewSource(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId)
+        [Description("CSS-like selector identifying the element")] string selector)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.FindViewSource, new { nodeId }, "No source found");
+        return await conn.InvokeAsync(ProtocolMethods.FindViewSource, new { selector }, "No source found");
     }
 
     [McpServerTool(Name = "get_xaml"), Description("""
@@ -54,10 +54,10 @@ public sealed class DataTools
         """)]
     public static async Task<string> GetXaml(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId)
+        [Description("CSS-like selector identifying the element")] string selector)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.GetXaml, new { nodeId }, "No XAML found");
+        return await conn.InvokeAsync(ProtocolMethods.GetXaml, new { selector }, "No XAML found");
     }
 
     [McpServerTool(Name = "diff_tree"), Description("""

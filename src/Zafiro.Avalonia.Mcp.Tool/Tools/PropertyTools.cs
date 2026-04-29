@@ -15,11 +15,11 @@ public sealed class PropertyTools
         """)]
     public static async Task<string> GetProps(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description("CSS-like selector identifying the element")] string selector,
         [Description("Optional property names to filter (comma-separated)")] string? propertyNames = null)
     {
         var conn = pool.GetActive();
-        var parms = new Dictionary<string, object> { ["nodeId"] = nodeId };
+        var parms = new Dictionary<string, object> { ["selector"] = selector };
         if (propertyNames is not null)
             parms["propertyNames"] = propertyNames.Split(',', StringSplitOptions.TrimEntries);
 
@@ -33,14 +33,14 @@ public sealed class PropertyTools
         """)]
     public static async Task<string> SetProp(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description("CSS-like selector identifying the element")] string selector,
         [Description("Property name to set")] string propertyName,
         [Description("Value to set (use 'unset' to clear)")] string value,
         [Description("Whether the value is XAML markup")] bool isXamlValue = false)
     {
         var conn = pool.GetActive();
         return await conn.InvokeAsync(ProtocolMethods.SetProperty,
-            new { nodeId, propertyName, value, isXamlValue });
+            new { selector, propertyName, value, isXamlValue });
     }
 
     [McpServerTool(Name = "get_prop_values"), Description("""
@@ -64,12 +64,12 @@ public sealed class PropertyTools
         """)]
     public static async Task<string> GetStyles(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description("CSS-like selector identifying the element")] string selector,
         [Description("Include default/unset values")] bool includeDefaults = false,
         [Description("Optional property names to filter (comma-separated)")] string? propertyNames = null)
     {
         var conn = pool.GetActive();
-        var parms = new Dictionary<string, object> { ["nodeId"] = nodeId, ["includeDefaults"] = includeDefaults };
+        var parms = new Dictionary<string, object> { ["selector"] = selector, ["includeDefaults"] = includeDefaults };
         if (propertyNames is not null)
             parms["propertyNames"] = propertyNames.Split(',', StringSplitOptions.TrimEntries);
 
