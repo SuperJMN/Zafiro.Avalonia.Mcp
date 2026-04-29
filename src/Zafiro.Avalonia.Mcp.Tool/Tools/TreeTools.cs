@@ -16,13 +16,13 @@ public sealed class TreeTools
         """)]
     public static async Task<string> GetTree(
         ConnectionPool pool,
-        [Description("Node ID to start from. Omit for roots (windows).")] int? nodeId = null,
+        [Description("CSS-like selector to scope the tree to a single element. Omit for roots (windows).")] string? selector = null,
         [Description("Tree kind: Visual, Logical, or Merged")] string treeKind = "Visual",
         [Description("Maximum depth to traverse (1=direct children, -1=full)")] int depth = 10)
     {
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object> { ["treeKind"] = treeKind, ["depth"] = depth };
-        if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
+        if (selector is not null) parms["selector"] = selector;
         return await conn.InvokeAsync(ProtocolMethods.GetTree, parms, "No tree data");
     }
 
@@ -60,12 +60,12 @@ public sealed class TreeTools
         """)]
     public static async Task<string> GetSnapshot(
         ConnectionPool pool,
-        [Description("Node ID to scope. Omit for the first window.")] int? nodeId = null,
+        [Description("CSS-like selector to scope the snapshot to a single element. Omit for the first window.")] string? selector = null,
         [Description("When true (default), only returns elements within the visible viewport.")] bool visibleOnly = true)
     {
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object> { ["visibleOnly"] = visibleOnly };
-        if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
+        if (selector is not null) parms["selector"] = selector;
         return await conn.InvokeAsync(ProtocolMethods.GetSnapshot, parms, "No snapshot");
     }
 
@@ -76,12 +76,12 @@ public sealed class TreeTools
         """)]
     public static async Task<string> GetScreenText(
         ConnectionPool pool,
-        [Description("Node ID to scope. Omit for the first window.")] int? nodeId = null,
+        [Description("CSS-like selector to scope. Omit for the first window.")] string? selector = null,
         [Description("When true, only returns text that is within the visible viewport (not scrolled off-screen). Default: false.")] bool visibleOnly = false)
     {
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object>();
-        if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
+        if (selector is not null) parms["selector"] = selector;
         if (visibleOnly) parms["visibleOnly"] = true;
         return await conn.InvokeAsync(ProtocolMethods.GetScreenText, parms, "No text found");
     }
@@ -93,11 +93,11 @@ public sealed class TreeTools
         """)]
     public static async Task<string> GetInteractables(
         ConnectionPool pool,
-        [Description("Node ID to scope the search. Omit to search all windows.")] int? nodeId = null)
+        [Description("CSS-like selector to scope the search. Omit to search all windows.")] string? selector = null)
     {
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object>();
-        if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
+        if (selector is not null) parms["selector"] = selector;
         return await conn.InvokeAsync(ProtocolMethods.GetInteractables, parms, "No interactables found");
     }
 

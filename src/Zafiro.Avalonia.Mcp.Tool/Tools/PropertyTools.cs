@@ -50,11 +50,11 @@ public sealed class PropertyTools
         """)]
     public static async Task<string> GetPropertyValues(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description("CSS-like selector identifying the element")] string selector,
         [Description("Property name to query")] string propertyName)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.GetPropertyValues, new { nodeId, propertyName });
+        return await conn.InvokeAsync(ProtocolMethods.GetPropertyValues, new { selector, propertyName });
     }
 
     [McpServerTool(Name = "get_styles"), Description("""

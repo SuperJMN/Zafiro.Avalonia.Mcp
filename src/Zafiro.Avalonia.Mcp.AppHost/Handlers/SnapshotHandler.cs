@@ -7,6 +7,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
@@ -24,23 +25,23 @@ public sealed class SnapshotHandler : IRequestHandler
 
     public async Task<object> Handle(DiagnosticRequest request)
     {
-        int? nodeId = null;
+        string? selector = null;
         var visibleOnly = true;
 
         if (request.Params is JsonElement p)
         {
-            if (p.TryGetProperty("nodeId", out var nid)) nodeId = nid.GetInt32();
+            if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
             if (p.TryGetProperty("visibleOnly", out var vo)) visibleOnly = vo.GetBoolean();
         }
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
             Visual root;
-            if (nodeId.HasValue)
+            if (!string.IsNullOrWhiteSpace(selector))
             {
-                var resolved = NodeRegistry.Resolve(nodeId.Value);
-                if (resolved is null) return (object)new { error = $"Node {nodeId} not found" };
-                root = resolved;
+                var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
+                if (visual is null) return error!;
+                root = visual;
             }
             else
             {

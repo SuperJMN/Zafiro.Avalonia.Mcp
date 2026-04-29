@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
@@ -14,12 +15,12 @@ public sealed class ResourceHandler : IRequestHandler
 
     public async Task<object> Handle(DiagnosticRequest request)
     {
-        int? nodeId = null;
+        string? selector = null;
         var onlySelf = false;
 
         if (request.Params is JsonElement p)
         {
-            if (p.TryGetProperty("nodeId", out var nid)) nodeId = nid.GetInt32();
+            if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
             if (p.TryGetProperty("onlySelf", out var os)) onlySelf = os.GetBoolean();
         }
 
@@ -27,10 +28,11 @@ public sealed class ResourceHandler : IRequestHandler
         {
             IResourceDictionary? resources;
 
-            if (nodeId.HasValue)
+            if (!string.IsNullOrWhiteSpace(selector))
             {
-                var visual = NodeRegistry.Resolve(nodeId.Value);
-                if (visual is not StyledElement styled) return new { error = $"Node {nodeId} not found" };
+                var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
+                if (visual is null) return error!;
+                if (visual is not StyledElement styled) return new { error = "Element is not a StyledElement and has no resources" };
                 resources = styled.Resources;
             }
             else

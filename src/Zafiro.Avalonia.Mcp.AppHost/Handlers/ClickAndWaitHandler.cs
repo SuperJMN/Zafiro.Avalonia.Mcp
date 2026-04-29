@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
@@ -18,7 +19,7 @@ public sealed class ClickAndWaitHandler : IRequestHandler
 
     public async Task<object> Handle(DiagnosticRequest request)
     {
-        int nodeId = 0;
+        string? selector = null;
         var waitQuery = "";
         var waitCondition = "exists";
         string? waitValue = null;
@@ -26,7 +27,7 @@ public sealed class ClickAndWaitHandler : IRequestHandler
 
         if (request.Params is JsonElement p)
         {
-            if (p.TryGetProperty("nodeId", out var nid)) nodeId = nid.GetInt32();
+            if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
             if (p.TryGetProperty("waitQuery", out var q)) waitQuery = q.GetString() ?? "";
             if (p.TryGetProperty("waitCondition", out var c)) waitCondition = c.GetString() ?? "exists";
             if (p.TryGetProperty("waitValue", out var v)) waitValue = v.GetString();
@@ -40,8 +41,8 @@ public sealed class ClickAndWaitHandler : IRequestHandler
         // Perform click on UI thread
         var clickResult = await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
-            var visual = NodeRegistry.Resolve(nodeId);
-            if (visual is null) return new { error = $"Node {nodeId} not found" };
+            var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
+            if (visual is null) return error!;
 
             if (visual is ToggleButton toggle)
             {
@@ -97,13 +98,13 @@ public sealed class ClickAndWaitHandler : IRequestHandler
                     }
                 }
 
-                var selector = control.GetVisualAncestors().OfType<SelectingItemsControl>().FirstOrDefault();
-                if (selector is not null)
+                var selectingItemsControl = control.GetVisualAncestors().OfType<SelectingItemsControl>().FirstOrDefault();
+                if (selectingItemsControl is not null)
                 {
-                    var idx = selector.IndexFromContainer(control);
+                    var idx = selectingItemsControl.IndexFromContainer(control);
                     if (idx >= 0)
                     {
-                        selector.SelectedIndex = idx;
+                        selectingItemsControl.SelectedIndex = idx;
                         return new { success = true, method = "item_select", selectedIndex = idx };
                     }
                 }

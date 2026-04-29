@@ -9,18 +9,18 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 public sealed class ResourceTools
 {
     [McpServerTool(Name = "get_resources"), Description("""
-        Get resource dictionary entries (brushes, styles, templates, theme keys) from Application or a specific node. Omit nodeId for app-level. Set onlySelf=true to skip inherited resources.
+        Get resource dictionary entries (brushes, styles, templates, theme keys) from Application or a specific element. Omit selector for app-level. Set onlySelf=true to skip inherited resources.
         Returns: array of {key, type, value}.
         Example: [{"key":"PrimaryBrush","type":"SolidColorBrush","value":"#0066CC"}]
         """)]
     public static async Task<string> GetResources(
         ConnectionPool pool,
-        [Description("Node ID to scope resources to. Omit for Application resources.")] int? nodeId = null,
-        [Description("Only resources defined on the node itself")] bool onlySelf = false)
+        [Description("CSS-like selector to scope resources to. Omit for Application resources.")] string? selector = null,
+        [Description("Only resources defined on the element itself")] bool onlySelf = false)
     {
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object?> { ["onlySelf"] = onlySelf };
-        if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
+        if (selector is not null) parms["selector"] = selector;
 
         return await conn.InvokeAsync(ProtocolMethods.GetResources, parms, "No resources");
     }

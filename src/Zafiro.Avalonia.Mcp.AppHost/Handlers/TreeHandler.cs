@@ -5,6 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 using Zafiro.Avalonia.Mcp.Protocol.Models;
@@ -19,21 +20,21 @@ public sealed class TreeHandler : IRequestHandler
     {
         var treeKind = "Visual";
         var maxDepth = 10;
-        int? nodeId = null;
+        string? selector = null;
 
         if (request.Params is JsonElement p)
         {
             if (p.TryGetProperty("treeKind", out var tk)) treeKind = tk.GetString() ?? "Visual";
             if (p.TryGetProperty("depth", out var d)) maxDepth = d.GetInt32();
-            if (p.TryGetProperty("nodeId", out var nid)) nodeId = nid.GetInt32();
+            if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
         }
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
-            if (nodeId.HasValue)
+            if (!string.IsNullOrWhiteSpace(selector))
             {
-                var visual = NodeRegistry.Resolve(nodeId.Value);
-                if (visual is null) return new { error = $"Node {nodeId} not found" };
+                var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
+                if (visual is null) return error!;
                 return SerializeNode(visual, treeKind, maxDepth, 0);
             }
 

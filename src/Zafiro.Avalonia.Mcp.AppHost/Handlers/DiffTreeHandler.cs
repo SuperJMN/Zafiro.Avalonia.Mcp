@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
@@ -27,21 +28,22 @@ public sealed class DiffTreeHandler : IRequestHandler
     public async Task<object> Handle(DiagnosticRequest request)
     {
         string action = "diff"; // default: auto-snapshot + diff
-        int? nodeId = null;
+        string? selector = null;
 
         if (request.Params is JsonElement p)
         {
             if (p.TryGetProperty("action", out var a)) action = a.GetString() ?? "diff";
-            if (p.TryGetProperty("nodeId", out var nid)) nodeId = nid.GetInt32();
+            if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
         }
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
             Visual? root;
-            if (nodeId.HasValue)
+            if (!string.IsNullOrWhiteSpace(selector))
             {
-                root = NodeRegistry.Resolve(nodeId.Value);
-                if (root is null) return new { error = $"Node {nodeId} not found" };
+                var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
+                if (visual is null) return error!;
+                root = visual;
             }
             else
             {

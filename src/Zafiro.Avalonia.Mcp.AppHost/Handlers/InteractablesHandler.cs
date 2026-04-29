@@ -6,6 +6,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 using Zafiro.Avalonia.Mcp.Protocol.Models;
@@ -18,21 +19,21 @@ public sealed class InteractablesHandler : IRequestHandler
 
     public async Task<object> Handle(DiagnosticRequest request)
     {
-        int? nodeId = null;
+        string? selector = null;
 
         if (request.Params is JsonElement p)
         {
-            if (p.TryGetProperty("nodeId", out var nid)) nodeId = nid.GetInt32();
+            if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
         }
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
             IEnumerable<Visual> searchScope;
 
-            if (nodeId.HasValue)
+            if (!string.IsNullOrWhiteSpace(selector))
             {
-                var scope = NodeRegistry.Resolve(nodeId.Value);
-                if (scope is null) return new { error = $"Node {nodeId} not found" };
+                var (scope, error) = SelectorRequestHelper.ResolveSingle(selector);
+                if (scope is null) return error!;
                 searchScope = new[] { scope }.Concat(scope.GetVisualDescendants());
             }
             else

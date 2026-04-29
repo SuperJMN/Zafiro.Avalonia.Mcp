@@ -10,7 +10,7 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 public sealed class CaptureTools
 {
     [McpServerTool(Name = "screenshot"), Description("""
-        Capture a PNG screenshot of an element (or whole window if nodeId omitted). EXPENSIVE — prefer get_snapshot/get_screen_text/get_interactables when you only need text or actions. Use screenshots only for visual verification.
+        Capture a PNG screenshot of an element (or whole window if selector omitted). EXPENSIVE — prefer get_snapshot/get_screen_text/get_interactables when you only need text or actions. Use screenshots only for visual verification.
         Returns: {width, height, base64} PNG.
         Example: {"width":1280,"height":720,"base64":"iVBORw0KGgo..."}
         """)]
@@ -43,13 +43,14 @@ public sealed class CaptureTools
         """)]
     public static async Task<string> StartRecording(
         ConnectionPool pool,
-        [Description("Node ID to record. Omit for the first window.")] int? nodeId = null,
+        [Description("CSS-like selector to record. Omit for the first window.")] string? selector = null,
         [Description("Frames per second (1-30, default 15)")] int fps = 15,
         [Description("Maximum recording duration in seconds (1-30, default 10)")] int maxDurationSec = 10)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.StartRecording,
-            new { nodeId, fps, maxDurationSec });
+        var parms = new Dictionary<string, object> { ["fps"] = fps, ["maxDurationSec"] = maxDurationSec };
+        if (selector is not null) parms["selector"] = selector;
+        return await conn.InvokeAsync(ProtocolMethods.StartRecording, parms);
     }
 
     [McpServerTool(Name = "stop_recording"), Description("""
@@ -88,14 +89,15 @@ public sealed class CaptureTools
         ConnectionPool pool,
         [Description("Duration in seconds to record (1-10)")] int durationSec = 3,
         [Description("Frames per second")] int fps = 15,
-        [Description("Node ID to capture. Omit for the first window.")] int? nodeId = null)
+        [Description("CSS-like selector to capture. Omit for the first window.")] string? selector = null)
     {
         var conn = pool.GetActive();
 
         durationSec = Math.Clamp(durationSec, 1, 10);
 
-        await conn.SendAsync(ProtocolMethods.StartRecording,
-            new { nodeId, fps, maxDurationSec = durationSec });
+        var parms = new Dictionary<string, object> { ["fps"] = fps, ["maxDurationSec"] = durationSec };
+        if (selector is not null) parms["selector"] = selector;
+        await conn.SendAsync(ProtocolMethods.StartRecording, parms);
 
         await Task.Delay(TimeSpan.FromSeconds(durationSec + 0.5));
 

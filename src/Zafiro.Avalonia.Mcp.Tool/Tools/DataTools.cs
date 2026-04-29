@@ -67,12 +67,12 @@ public sealed class DataTools
         """)]
     public static async Task<string> DiffTree(
         ConnectionPool pool,
-        [Description("Node ID to scope. Omit for the first window.")] int? nodeId = null,
+        [Description("CSS-like selector to scope. Omit for the first window.")] string? selector = null,
         [Description("'snapshot' to capture, 'diff' to compare with last snapshot (default)")] string action = "diff")
     {
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object> { ["action"] = action };
-        if (nodeId.HasValue) parms["nodeId"] = nodeId.Value;
+        if (selector is not null) parms["selector"] = selector;
         return await conn.InvokeAsync(ProtocolMethods.DiffTree, parms, "No diff data");
     }
 }

@@ -82,7 +82,7 @@ public sealed class InteractionTools
         """)]
     public static async Task<string> ClickAndWait(
         ConnectionPool pool,
-        [Description("Node ID of the element to click")] int nodeId,
+        [Description("CSS-like selector identifying the element to click")] string selector,
         [Description("Search query for the wait condition")] string waitQuery,
         [Description("Condition to wait for after clicking")] string waitCondition,
         [Description("Value for the wait condition")] string? waitValue = null,
@@ -91,7 +91,7 @@ public sealed class InteractionTools
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object?>
         {
-            ["nodeId"] = nodeId, ["waitQuery"] = waitQuery, ["waitCondition"] = waitCondition,
+            ["selector"] = selector, ["waitQuery"] = waitQuery, ["waitCondition"] = waitCondition,
             ["timeoutMs"] = timeoutMs
         };
         if (waitValue is not null) parms["waitValue"] = waitValue;
@@ -116,7 +116,7 @@ public sealed class InteractionTools
     }
 
     [McpServerTool(Name = "scroll"), Description("""
-        Scroll a ScrollViewer (or the nearest ScrollViewer ancestor of nodeId) by 'amount' pixels in a direction. For "scroll until X is visible" prefer action='BringIntoView' on the target.
+        Scroll a ScrollViewer (or the nearest ScrollViewer ancestor of the selected element) by 'amount' pixels in a direction. For "scroll until X is visible" prefer action='BringIntoView' on the target.
         Returns: {offset:{x,y}} after the scroll.
         Example: {"offset":{"x":0,"y":200}}
         """)]

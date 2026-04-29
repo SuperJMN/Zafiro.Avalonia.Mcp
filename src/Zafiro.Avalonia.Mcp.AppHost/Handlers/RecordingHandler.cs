@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
@@ -16,13 +17,13 @@ public sealed class RecordingHandler : IRequestHandler
 
     public async Task<object> Handle(DiagnosticRequest request)
     {
-        int? nodeId = null;
+        string? selector = null;
         var fps = 15;
         var maxDurationSec = 10;
 
         if (request.Params is JsonElement p)
         {
-            if (p.TryGetProperty("nodeId", out var nid)) nodeId = nid.GetInt32();
+            if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
             if (p.TryGetProperty("fps", out var f)) fps = f.GetInt32();
             if (p.TryGetProperty("maxDurationSec", out var md)) maxDurationSec = md.GetInt32();
         }
@@ -33,10 +34,11 @@ public sealed class RecordingHandler : IRequestHandler
                 return new { error = "Recording already in progress. Stop it first." };
 
             Visual? target;
-            if (nodeId.HasValue)
+            if (!string.IsNullOrWhiteSpace(selector))
             {
-                target = NodeRegistry.Resolve(nodeId.Value);
-                if (target is null) return new { error = $"Node {nodeId} not found" };
+                var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
+                if (visual is null) return error!;
+                target = visual;
             }
             else
             {
