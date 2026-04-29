@@ -16,12 +16,12 @@ public sealed class InteractionTools
         """)]
     public static async Task<string> SelectItem(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description("CSS-like selector identifying the items host (ListBox, ComboBox, TabControl, etc.)")] string selector,
         [Description("Index of the item to select")] int? index = null,
         [Description("Text of the item to select (matched case-insensitively)")] string? text = null)
     {
         var conn = pool.GetActive();
-        var parms = new Dictionary<string, object?> { ["nodeId"] = nodeId };
+        var parms = new Dictionary<string, object?> { ["selector"] = selector };
         if (index is not null) parms["index"] = index;
         if (text is not null) parms["text"] = text;
         return await conn.InvokeAsync(ProtocolMethods.SelectItem, parms);
@@ -34,11 +34,11 @@ public sealed class InteractionTools
         """)]
     public static async Task<string> Toggle(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description("CSS-like selector identifying the toggle control")] string selector,
         [Description("Explicit state to set (true/false). Omit to toggle.")] bool? state = null)
     {
         var conn = pool.GetActive();
-        var parms = new Dictionary<string, object?> { ["nodeId"] = nodeId };
+        var parms = new Dictionary<string, object?> { ["selector"] = selector };
         if (state is not null) parms["state"] = state;
         return await conn.InvokeAsync(ProtocolMethods.Toggle, parms);
     }
@@ -50,11 +50,11 @@ public sealed class InteractionTools
         """)]
     public static async Task<string> SetValue(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description("CSS-like selector identifying the range control")] string selector,
         [Description("Value to set (clamped to control's min/max range)")] double value)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.SetValue, new { nodeId, value });
+        return await conn.InvokeAsync(ProtocolMethods.SetValue, new { selector, value });
     }
 
     [McpServerTool(Name = "wait_for"), Description("""
@@ -122,12 +122,12 @@ public sealed class InteractionTools
         """)]
     public static async Task<string> Scroll(
         ConnectionPool pool,
-        [Description("Node ID of the element")] int nodeId,
+        [Description("CSS-like selector identifying the element to scroll (or whose ancestor ScrollViewer to scroll)")] string selector,
         [Description("Scroll direction: up, down, left, right")] string direction,
         [Description("Scroll amount in pixels (default: 100)")] double? amount = null)
     {
         var conn = pool.GetActive();
-        var parms = new Dictionary<string, object?> { ["nodeId"] = nodeId, ["direction"] = direction };
+        var parms = new Dictionary<string, object?> { ["selector"] = selector, ["direction"] = direction };
         if (amount is not null) parms["amount"] = amount;
         return await conn.InvokeAsync(ProtocolMethods.Scroll, parms);
     }

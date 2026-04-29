@@ -2,6 +2,7 @@ using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
@@ -13,43 +14,46 @@ public sealed class PseudoClassHandler : IRequestHandler
 
     public async Task<object> Handle(DiagnosticRequest request)
     {
-        int nodeId = 0;
+        string? selector = null;
         string? pseudoClass = null;
         bool? isActive = null;
 
         if (request.Params is JsonElement p)
         {
-            if (p.TryGetProperty("nodeId", out var nid)) nodeId = nid.GetInt32();
+            if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
             if (p.TryGetProperty("pseudoClass", out var pc)) pseudoClass = pc.GetString();
             if (p.TryGetProperty("isActive", out var ia)) isActive = ia.GetBoolean();
         }
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
-            var visual = NodeRegistry.Resolve(nodeId);
-            if (visual is not StyledElement styled) return new { error = $"Node {nodeId} not found or not a StyledElement" };
-
-            // List pseudo-classes (classes starting with ':')
-            if (pseudoClass is null)
-            {
-                var classes = styled.Classes.Where(c => c.StartsWith(':')).ToList();
-                return new { nodeId, pseudoClasses = classes };
-            }
-
-            var fullName = pseudoClass.StartsWith(':') ? pseudoClass : $":{pseudoClass}";
-
-            // Set or unset pseudo-class
-            if (isActive.HasValue)
-            {
-                // Use IPseudoClasses to properly activate framework-managed pseudo-classes
-                // like :pointerover, :pressed, :focus, :disabled etc.
-                ((IPseudoClasses)styled.Classes).Set(fullName, isActive.Value);
-                return new { success = true, pseudoClass = fullName, isActive = isActive.Value };
-            }
-
-            // Query current state
-            var current = styled.Classes.Contains(fullName);
-            return new { pseudoClass = fullName, isActive = current };
+            var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
+            if (visual is null) return error!;
+            return PseudoClass(visual, pseudoClass, isActive);
         });
+    }
+
+    internal static object PseudoClass(Visual visual, string? pseudoClass, bool? isActive)
+    {
+        var nodeId = NodeRegistry.GetOrRegister(visual);
+        if (visual is not StyledElement styled)
+            return new { error = "selector did not resolve to a StyledElement", nodeId };
+
+        if (pseudoClass is null)
+        {
+            var classes = styled.Classes.Where(c => c.StartsWith(':')).ToList();
+            return new { nodeId, pseudoClasses = classes };
+        }
+
+        var fullName = pseudoClass.StartsWith(':') ? pseudoClass : $":{pseudoClass}";
+
+        if (isActive.HasValue)
+        {
+            ((IPseudoClasses)styled.Classes).Set(fullName, isActive.Value);
+            return new { success = true, nodeId, pseudoClass = fullName, isActive = isActive.Value };
+        }
+
+        var current = styled.Classes.Contains(fullName);
+        return new { nodeId, pseudoClass = fullName, isActive = current };
     }
 }
