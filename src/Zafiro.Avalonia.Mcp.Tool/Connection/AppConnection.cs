@@ -10,7 +10,7 @@ namespace Zafiro.Avalonia.Mcp.Tool.Connection;
 public sealed class AppConnection : IDisposable
 {
     private readonly DiscoveryInfo _info;
-    private NamedPipeClientStream? _pipe;
+    private Stream? _stream;
     private StreamReader? _reader;
     private StreamWriter? _writer;
     private int _requestId;
@@ -23,14 +23,13 @@ public sealed class AppConnection : IDisposable
 
     public int Pid => _info.Pid;
     public string ProcessName => _info.ProcessName;
-    public bool IsConnected => _pipe?.IsConnected ?? false;
+    public bool IsConnected => _stream is { CanRead: true, CanWrite: true };
 
     public async Task ConnectAsync(CancellationToken ct = default)
     {
-        _pipe = new NamedPipeClientStream(".", _info.PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-        await _pipe.ConnectAsync(5000, ct);
-        _reader = new StreamReader(_pipe, Encoding.UTF8);
-        _writer = new StreamWriter(_pipe, Encoding.UTF8) { AutoFlush = true };
+        _stream = await TransportClient.ConnectAsync(_info.Endpoint, _info.PipeName, TimeSpan.FromSeconds(5), ct);
+        _reader = new StreamReader(_stream, Encoding.UTF8);
+        _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
     }
 
     public async Task<JsonElement?> SendAsync(string method, object? parameters = null, CancellationToken ct = default)
@@ -79,7 +78,7 @@ public sealed class AppConnection : IDisposable
     {
         _writer?.Dispose();
         _reader?.Dispose();
-        _pipe?.Dispose();
+        _stream?.Dispose();
         _sendLock.Dispose();
     }
 }

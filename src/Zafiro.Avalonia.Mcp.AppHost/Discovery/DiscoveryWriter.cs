@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Text.Json;
+using Zafiro.Avalonia.Mcp.AppHost.Transport;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Models;
 
@@ -11,16 +11,21 @@ public static class DiscoveryWriter
 
     public static string PipeName => $"zafiro-avalonia-mcp-{Environment.ProcessId}";
 
+    /// <summary>
+    /// Discovery JSON directory. On desktop, lives under <see cref="Path.GetTempPath"/>.
+    /// On Android, lives under the package's external cache dir so it can be read via
+    /// <c>adb shell cat</c> without root or <c>run-as</c>.
+    /// </summary>
     public static string DiscoveryDirectory
     {
         get
         {
-            var tempPath = Path.GetTempPath();
-            return Path.Combine(tempPath, "zafiro-avalonia-mcp");
+            var basePath = AndroidPaths.ExternalCacheDir ?? Path.GetTempPath();
+            return Path.Combine(basePath, "zafiro-avalonia-mcp");
         }
     }
 
-    public static void Write()
+    public static void Write(IDiagnosticTransport transport)
     {
         var dir = DiscoveryDirectory;
         Directory.CreateDirectory(dir);
@@ -28,9 +33,12 @@ public static class DiscoveryWriter
         var info = new DiscoveryInfo
         {
             Pid = Environment.ProcessId,
-            PipeName = PipeName,
+            PipeName = transport.PipeName ?? PipeName,
             ProcessName = Process.GetCurrentProcess().ProcessName,
-            StartTime = DateTimeOffset.UtcNow
+            StartTime = DateTimeOffset.UtcNow,
+            Transport = transport.Kind,
+            Endpoint = transport.Endpoint,
+            PackageId = AndroidPaths.PackageId
         };
 
         _discoveryFilePath = Path.Combine(dir, $"{Environment.ProcessId}.json");

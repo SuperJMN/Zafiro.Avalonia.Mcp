@@ -24,6 +24,7 @@ builder.Services
     })
     .WithStdioServerTransport()
     .WithTools<ConnectionTools>()
+    .WithTools<AdbTools>()
     .WithTools<TreeTools>()
     .WithTools<PropertyTools>()
     .WithTools<InputTools>()

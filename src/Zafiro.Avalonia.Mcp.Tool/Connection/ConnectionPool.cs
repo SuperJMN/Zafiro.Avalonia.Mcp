@@ -31,7 +31,7 @@ public sealed class ConnectionPool : IDisposable
             {
                 var json = File.ReadAllText(file);
                 var info = ProtocolSerializer.Deserialize<DiscoveryInfo>(json);
-                if (info is not null && IsProcessRunning(info.Pid) && IsPipeAvailable(info.PipeName))
+                if (info is not null && IsProcessRunning(info.Pid) && IsEndpointAvailable(info))
                     apps.Add(info);
                 else if (info is not null)
                     try { File.Delete(file); } catch { }
@@ -40,6 +40,16 @@ public sealed class ConnectionPool : IDisposable
         }
 
         return apps;
+    }
+
+    private static bool IsEndpointAvailable(DiscoveryInfo info)
+    {
+        // TCP endpoints can't be probed cheaply without actually connecting; trust the process check.
+        if (string.Equals(info.Transport, "tcp", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var pipeName = info.PipeName;
+        return !string.IsNullOrEmpty(pipeName) && IsPipeAvailable(pipeName);
     }
 
     private static bool IsPipeAvailable(string pipeName)
@@ -81,6 +91,26 @@ public sealed class ConnectionPool : IDisposable
             throw new InvalidOperationException("No Avalonia apps with MCP diagnostics found. Make sure the app is running with .UseMcpDiagnostics().");
         
         return await Connect(apps[0].Pid);
+    }
+
+    /// <summary>
+    /// Manually register and activate a connection from a hand-crafted <see cref="DiscoveryInfo"/>.
+    /// Used by the <c>connect_adb</c> tool when the user has already wired <c>adb forward</c> and the
+    /// app does not show up in the local discovery directory.
+    /// </summary>
+    public async Task<AppConnection> ConnectExternal(DiscoveryInfo info)
+    {
+        if (_connections.TryGetValue(info.Pid, out var existing) && existing.IsConnected)
+        {
+            _activeConnection = existing;
+            return existing;
+        }
+
+        var connection = new AppConnection(info);
+        await connection.ConnectAsync();
+        _connections[info.Pid] = connection;
+        _activeConnection = connection;
+        return connection;
     }
 
     public AppConnection GetActive()

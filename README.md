@@ -259,3 +259,39 @@ Stable codes you can switch on:
 | Want a specific version | Pin it explicitly: `dnx Zafiro.Avalonia.Mcp.Tool@1.2.3 --yes` |
 | `TypeLoadException` | Version mismatch — `AppHost` targets Avalonia 12.x, not compatible with Avalonia 11.x. |
 | Stale discovery files | If the app crashed, delete leftover `.json` files from `{TEMP}/zafiro-avalonia-mcp/`. |
+
+## Android via ADB (preview)
+
+Avalonia.Android apps are supported through TCP loopback + `adb forward`. Same MCP tool surface as desktop — only the connection step changes.
+
+### App side
+
+`UseMcpDiagnostics()` auto-detects Android and switches to TCP. To force it explicitly:
+
+```csharp
+this.UseMcpDiagnostics(opts => opts.Transport = TransportKind.Tcp);
+```
+
+On Android the discovery JSON is written to `Context.ExternalCacheDir/zafiro-avalonia-mcp/<pid>.json` (readable via `adb shell cat` without `run-as`).
+
+### Agent side (manual MVP)
+
+```bash
+# 1. Find the device-side port
+adb shell cat /sdcard/Android/data/<your.package.id>/cache/zafiro-avalonia-mcp/*.json
+#    → look for "endpoint": "tcp:127.0.0.1:54321"
+
+# 2. Forward it to a local port of your choice
+adb forward tcp:9999 tcp:54321
+```
+
+Then in your agent, instead of `list_apps`, call:
+
+```
+connect_adb port=9999
+```
+
+(`host` defaults to `127.0.0.1`, `label` is optional.) After that, every other MCP tool (`get_snapshot`, `click_by_query`, `text_input`, `screenshot`, …) works exactly as on desktop.
+
+Out of scope for the MVP: auto-discovery of devices, automatic `adb forward` cleanup, TLS, non-loopback bindings. Tracked in [`ROADMAP.md`](ROADMAP.md) Fase 7.
+
