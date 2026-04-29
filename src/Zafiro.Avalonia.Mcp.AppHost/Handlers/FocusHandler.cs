@@ -17,13 +17,13 @@ public sealed class FocusHandler : IRequestHandler
     {
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
-            foreach (var window in NodeRegistry.GetWindows())
+            foreach (var root in NodeRegistry.GetRoots())
             {
-                var focused = window.FocusManager?.GetFocusedElement();
+                var focused = root.FocusManager?.GetFocusedElement();
                 if (focused is Visual visual)
                 {
                     var nodeId = NodeRegistry.GetOrRegister(visual);
-                    var windowNodeId = NodeRegistry.GetOrRegister(window);
+                    var windowNodeId = NodeRegistry.GetOrRegister(root);
                     return new
                     {
                         nodeId,

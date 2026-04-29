@@ -114,7 +114,7 @@ public sealed class WaitForHandler : IRequestHandler
     private static List<Visual> FindMatches(string query)
     {
         var results = new List<Visual>();
-        var visuals = NodeRegistry.GetWindows()
+        var visuals = NodeRegistry.GetRoots()
             .SelectMany(w => new[] { (Visual)w }.Concat(w.GetVisualDescendants()));
 
         foreach (var visual in visuals)

@@ -44,7 +44,7 @@ public sealed class ValidationErrorsHandler : IRequestHandler
         }
         else
         {
-            candidates = NodeRegistry.GetWindows()
+            candidates = NodeRegistry.GetRoots()
                 .SelectMany(w => new[] { (Control)w }.Concat(w.GetVisualDescendants().OfType<Control>()))
                 .Distinct();
             scope = "app";

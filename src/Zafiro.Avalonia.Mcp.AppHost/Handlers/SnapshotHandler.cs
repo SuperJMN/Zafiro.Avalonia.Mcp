@@ -45,7 +45,7 @@ public sealed class SnapshotHandler : IRequestHandler
             }
             else
             {
-                var window = NodeRegistry.GetWindows().FirstOrDefault();
+                var window = NodeRegistry.GetRoots().FirstOrDefault();
                 if (window is null) return (object)new { error = "No windows found" };
                 root = window;
             }

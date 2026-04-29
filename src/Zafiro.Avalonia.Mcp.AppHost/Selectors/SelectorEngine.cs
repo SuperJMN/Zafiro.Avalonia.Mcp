@@ -62,7 +62,7 @@ public sealed class SelectorEngine
         // Initial seed: descendants of scope OR descendants of all windows (and the windows themselves).
         IEnumerable<Visual> initial = scope is not null
             ? new[] { scope }.Concat(scope.GetVisualDescendants())
-            : NodeRegistry.GetWindows().SelectMany(w => new[] { (Visual)w }.Concat(w.GetVisualDescendants()));
+            : NodeRegistry.GetRoots().SelectMany(w => new[] { (Visual)w }.Concat(w.GetVisualDescendants()));
 
         IEnumerable<Visual> current = initial.Where(v => MatchesCompound(v, path.Steps[0].Compound));
 

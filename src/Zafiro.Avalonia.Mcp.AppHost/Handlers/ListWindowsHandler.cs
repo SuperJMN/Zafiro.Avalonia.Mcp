@@ -32,6 +32,20 @@ public sealed class ListWindowsHandler : IRequestHandler
                     });
                 }
             }
+            else
+            {
+                foreach (var root in NodeRegistry.GetRoots())
+                {
+                    windows.Add(new
+                    {
+                        title = (root as Window)?.Title ?? root.GetType().Name,
+                        type = root.GetType().Name,
+                        width = root.Bounds.Width,
+                        height = root.Bounds.Height,
+                        isActive = true
+                    });
+                }
+            }
 
             return windows;
         });

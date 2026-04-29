@@ -58,7 +58,7 @@ public sealed class ClickByQueryHandler : IRequestHandler
     {
         var results = new List<Visual>();
 
-        foreach (var window in NodeRegistry.GetWindows())
+        foreach (var window in NodeRegistry.GetRoots())
         {
             foreach (var visual in window.GetVisualDescendants())
             {

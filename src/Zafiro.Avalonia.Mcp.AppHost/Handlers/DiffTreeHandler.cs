@@ -47,7 +47,7 @@ public sealed class DiffTreeHandler : IRequestHandler
             }
             else
             {
-                root = NodeRegistry.GetWindows().FirstOrDefault();
+                root = NodeRegistry.GetRoots().FirstOrDefault();
                 if (root is null) return new { error = "No windows found" };
             }
 

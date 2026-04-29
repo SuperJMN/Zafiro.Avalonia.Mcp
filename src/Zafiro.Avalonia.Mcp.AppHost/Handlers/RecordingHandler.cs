@@ -42,7 +42,7 @@ public sealed class RecordingHandler : IRequestHandler
             }
             else
             {
-                target = NodeRegistry.GetWindows().FirstOrDefault();
+                target = NodeRegistry.GetRoots().FirstOrDefault();
                 if (target is null) return new { error = "No windows available" };
             }
 

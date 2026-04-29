@@ -39,7 +39,7 @@ public sealed class TreeHandler : IRequestHandler
             }
 
             var results = new List<NodeInfo>();
-            foreach (var window in NodeRegistry.GetWindows())
+            foreach (var window in NodeRegistry.GetRoots())
             {
                 results.Add(SerializeNode(window, treeKind, maxDepth, 0));
             }

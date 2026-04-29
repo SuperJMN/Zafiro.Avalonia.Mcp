@@ -63,9 +63,30 @@ public static class NodeRegistry
         return [];
     }
 
+    /// <summary>
+    /// Returns all root <see cref="TopLevel"/>s for the running app: <see cref="Window"/>s on desktop,
+    /// the single hosted view on Android/iOS/Browser. Use this whenever a handler only needs visual-tree
+    /// access (descendants, bounds, focus) and not <see cref="Window"/>-specific API.
+    /// </summary>
+    public static IEnumerable<TopLevel> GetRoots()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            foreach (var w in desktop.Windows) yield return w;
+            yield break;
+        }
+
+        if (Application.Current?.ApplicationLifetime is ISingleViewApplicationLifetime singleView
+            && singleView.MainView is { } mainView
+            && TopLevel.GetTopLevel(mainView) is { } topLevel)
+        {
+            yield return topLevel;
+        }
+    }
+
     public static Visual? FindByQuery(string query)
     {
-        foreach (var window in GetWindows())
+        foreach (var window in GetRoots())
         {
             // Search by name: #Name
             if (query.StartsWith('#'))

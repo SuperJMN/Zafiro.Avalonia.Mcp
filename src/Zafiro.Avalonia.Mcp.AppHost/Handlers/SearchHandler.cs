@@ -39,7 +39,7 @@ public sealed class SearchHandler : IRequestHandler
             }
             else
             {
-                searchScope = NodeRegistry.GetWindows()
+                searchScope = NodeRegistry.GetRoots()
                     .SelectMany(w => new[] { (Visual)w }.Concat(w.GetVisualDescendants()));
             }
 
