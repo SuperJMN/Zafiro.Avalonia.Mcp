@@ -22,8 +22,17 @@ public sealed class DiagnosticServer : IDisposable
 
     public void Start()
     {
-        _ = _transport.StartAsync(HandleConnection, _cts.Token);
-        DiscoveryWriter.Write(_transport);
+        try
+        {
+            _ = _transport.StartAsync(HandleConnection, _cts.Token);
+            DiscoveryWriter.Write(_transport);
+            McpLog.Info($"started transport={_transport.Kind} endpoint={_transport.Endpoint} discovery={DiscoveryWriter.LastWrittenPath ?? "<null>"}");
+        }
+        catch (Exception ex)
+        {
+            McpLog.Error($"Start failed: {ex}");
+            throw;
+        }
     }
 
     private async Task HandleConnection(Stream stream, CancellationToken ct)

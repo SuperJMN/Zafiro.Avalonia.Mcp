@@ -23,7 +23,10 @@ public static class DiagnosticExtensions
             _server.Start();
 
             AppDomain.CurrentDomain.ProcessExit += (_, _) => StopMcpDiagnostics();
-            Console.CancelKeyPress += (_, _) => StopMcpDiagnostics();
+            if (!OperatingSystem.IsAndroid() && !OperatingSystem.IsIOS() && !OperatingSystem.IsBrowser())
+            {
+                Console.CancelKeyPress += (_, _) => StopMcpDiagnostics();
+            }
         });
 
         return builder;

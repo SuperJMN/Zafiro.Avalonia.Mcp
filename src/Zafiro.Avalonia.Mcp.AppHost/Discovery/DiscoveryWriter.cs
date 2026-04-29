@@ -9,6 +9,8 @@ public static class DiscoveryWriter
 {
     private static string? _discoveryFilePath;
 
+    public static string? LastWrittenPath => _discoveryFilePath;
+
     public static string PipeName => $"zafiro-avalonia-mcp-{Environment.ProcessId}";
 
     /// <summary>
