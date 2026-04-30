@@ -176,11 +176,11 @@ Any client that supports stdio transport:
 
 ## Available tools
 
-> Tool naming convention: bare verbs (`click`, `screenshot`, `scroll`) or `get_*`/`list_*` prefixes. **No `take_*`** — `take_screenshot` was renamed to `screenshot` in v2.0. Call `instructions` with `page='tools'` to receive the full reflection-built catalogue (51 tools), the selector cheat-sheet, and the error-code table; that page is the canonical surface and updates itself when tools are added.
+> Tool naming convention: bare verbs (`click`, `screenshot`, `scroll`) or `get_*`/`list_*` prefixes. **No `take_*`** — `take_screenshot` was renamed to `screenshot` in v2.0. Call `instructions` with `page='tools'` to receive the full reflection-built catalogue (52 tools), the selector cheat-sheet, and the error-code table; that page is the canonical surface and updates itself when tools are added.
 
 | Category | Tools |
 |---|---|
-| **Connection** | `list_apps`, `connect_to_app` |
+| **Connection** | `list_apps`, `connect_to_app`, `connect_adb` |
 | **Inspection** | `get_snapshot`, `get_tree`, `get_screen_text`, `get_interactables`, `search`, `get_ancestors` |
 | **Diagnostics** *(new in v2)* | `get_focus`, `get_active_window`, `get_open_dialogs`, `get_command_info`, `get_validation_errors`, `get_layout_info`, `find_by_datacontext`, `get_item` |
 | **Properties** | `get_props`, `set_prop`, `get_prop_values`, `get_styles`, `get_resources` |
@@ -294,4 +294,3 @@ connect_adb port=9999
 (`host` defaults to `127.0.0.1`, `label` is optional.) After that, every other MCP tool (`get_snapshot`, `click_by_query`, `text_input`, `screenshot`, …) works exactly as on desktop.
 
 Out of scope for the MVP: auto-discovery of devices, automatic `adb forward` cleanup, TLS, non-loopback bindings. Tracked in [`ROADMAP.md`](ROADMAP.md) Fase 7.
-
