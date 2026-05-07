@@ -7,6 +7,7 @@ namespace Zafiro.Avalonia.Mcp.AppHost;
 public static class DiagnosticExtensions
 {
     private static DiagnosticServer? _server;
+    private static readonly object ServerLock = new();
 
     public static AppBuilder UseMcpDiagnostics(this AppBuilder builder)
         => UseMcpDiagnostics(builder, configure: null);
@@ -18,9 +19,17 @@ public static class DiagnosticExtensions
             var options = new McpDiagnosticsOptions();
             configure?.Invoke(options);
 
-            var transport = CreateTransport(options.Transport);
-            _server = new DiagnosticServer(transport);
-            _server.Start();
+            lock (ServerLock)
+            {
+                if (_server is not null)
+                {
+                    return;
+                }
+
+                var transport = CreateTransport(options.Transport);
+                _server = new DiagnosticServer(transport);
+                _server.Start();
+            }
 
             AppDomain.CurrentDomain.ProcessExit += (_, _) => StopMcpDiagnostics();
             if (!OperatingSystem.IsAndroid() && !OperatingSystem.IsIOS() && !OperatingSystem.IsBrowser())
@@ -51,7 +60,10 @@ public static class DiagnosticExtensions
 
     public static void StopMcpDiagnostics()
     {
-        _server?.Dispose();
-        _server = null;
+        lock (ServerLock)
+        {
+            _server?.Dispose();
+            _server = null;
+        }
     }
 }

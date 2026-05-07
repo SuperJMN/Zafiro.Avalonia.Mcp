@@ -85,7 +85,8 @@ Sources of truth: commits `2dbb35b` (action tools) and `bf87161` (read tools).
 - **Diagnostics** — `get_focus`, `get_active_window`, `get_open_dialogs`, `get_command_info` (ICommand `CanExecute`), `get_validation_errors` (walks `INotifyDataErrorInfo`), `get_layout_info` (layout box, margins, alignment, clipping), `find_by_datacontext` (top-level Roslyn predicate over the tree), `get_item` (virtualised `ItemsControl` child by index/text/dc).
 - **Composite** — `fill_form`: takes `fields: [{ selector, value, secret? }, …]` and an optional `submit` selector to click at the end. Returns per-field outcomes; when `secret:true` the recorded `applied` reads `"<value> (redacted)"`.
 - **Events** — `subscribe`, `poll_events`, `unsubscribe`. Kinds: `property_changed`, `window_opened`, `window_closed`, `focus_changed`. Long-poll up to 60 s (default 30 s), 1000-event bounded queue per subscription, 5-minute TTL, 32 concurrent subscriptions cap (`SUBSCRIPTION_LIMIT` error code on overflow).
-- **Catalogue** — `instructions(page='tools')` now returns a reflection-built tool catalogue (52 tools) plus the selector cheat-sheet, error-code table and recommended call orders. The default `instructions(page='readme')` is unchanged.
+- **AXAML preview** — `preview_axaml` launches a single desktop AXAML document in an isolated preview process and connects MCP to it automatically. Pass `axamlPath` plus exactly one of `projectPath` or `assemblyPath`; then use normal tools (`get_snapshot`, `screenshot`, `get_datacontext`, selectors). `close_preview` terminates previews launched by the tool.
+- **Catalogue** — `instructions(page='tools')` now returns a reflection-built tool catalogue plus the selector cheat-sheet, error-code table and recommended call orders. The default `instructions(page='readme')` is unchanged.
 
 ## Error response shape
 

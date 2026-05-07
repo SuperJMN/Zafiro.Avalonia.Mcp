@@ -1,9 +1,16 @@
 using Zafiro.Avalonia.Mcp.Tool.Connection;
+using Zafiro.Avalonia.Mcp.Tool.Preview;
 using Zafiro.Avalonia.Mcp.Tool.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
+
+if (args is [PreviewHostCommand.CommandName, ..])
+{
+    Environment.ExitCode = await PreviewHostCommand.Run(args[1..]);
+    return;
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -12,6 +19,9 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
 
 builder.Services.AddSingleton<ConnectionPool>();
+builder.Services.AddSingleton<PreviewProcessManager>();
+builder.Services.AddSingleton<IProcessRunner, DotnetProcessRunner>();
+builder.Services.AddSingleton<PreviewTargetResolver>();
 
 builder.Services
     .AddMcpServer(options =>
@@ -23,14 +33,6 @@ builder.Services
         };
     })
     .WithStdioServerTransport()
-    .WithTools<ConnectionTools>()
-    .WithTools<AdbTools>()
-    .WithTools<TreeTools>()
-    .WithTools<PropertyTools>()
-    .WithTools<InputTools>()
-    .WithTools<InteractionTools>()
-    .WithTools<CaptureTools>()
-    .WithTools<ResourceTools>()
-    .WithTools<InstructionTools>();
+    .WithRegisteredTools();
 
 await builder.Build().RunAsync();

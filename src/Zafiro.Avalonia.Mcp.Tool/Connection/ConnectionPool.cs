@@ -125,6 +125,26 @@ public sealed class ConnectionPool : IDisposable
         return conn;
     }
 
+    public void Disconnect(int pid)
+    {
+        if (_connections.TryRemove(pid, out var connection))
+        {
+            if (ReferenceEquals(_activeConnection, connection))
+            {
+                _activeConnection = null;
+            }
+
+            connection.Dispose();
+            return;
+        }
+
+        var active = _activeConnection;
+        if (active?.Pid == pid)
+        {
+            _activeConnection = null;
+        }
+    }
+
     public void Dispose()
     {
         foreach (var conn in _connections.Values)

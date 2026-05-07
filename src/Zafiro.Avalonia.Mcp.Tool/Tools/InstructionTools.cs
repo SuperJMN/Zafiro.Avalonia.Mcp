@@ -34,6 +34,15 @@ public sealed class InstructionTools
         2. Use 'connect_to_app' with a PID to connect
         3. Use inspection/interaction tools
 
+        AXAML preview workflow (desktop-only):
+        1. Use 'preview_axaml' with axamlPath and exactly one of projectPath or assemblyPath
+        2. The tool launches an isolated preview window and connects to it automatically
+        3. Use normal tools: get_snapshot, screenshot, get_datacontext, click, wait_for, ...
+        4. Use 'close_preview' when finished
+
+        Example:
+          preview_axaml axamlPath="src/MyApp/Views/EditView.axaml" projectPath="src/MyApp/MyApp.csproj" width=390 height=844
+
         Connection workflow (Android via ADB):
         Avalonia.Android apps do NOT appear in 'list_apps' — discovery files live on the
         device, not on the host. Use this flow instead (requires `adb` on PATH):
@@ -73,6 +82,10 @@ public sealed class InstructionTools
         - start_recording + stop_recording: Record animated GIF
         - capture_animation: One-shot record for N seconds
 
+        Preview:
+        - preview_axaml: Launch one AXAML file in an isolated MCP-connected preview window
+        - close_preview: Terminate previews launched by preview_axaml
+
         Resources:
         - get_resources: Inspect resource dictionaries
         - list_assets: List embedded assets (avares://)
@@ -103,6 +116,20 @@ public sealed class InstructionTools
                    .LogToTrace();
 
         3. Run your app. It will create a discovery file and named pipe.
+
+        AXAML preview:
+
+        Agents can preview a single desktop AXAML document without navigating the
+        real app:
+
+          preview_axaml axamlPath="Views/EditView.axaml" projectPath="MyApp.csproj"
+          → get_snapshot / screenshot / get_datacontext / ...
+          → close_preview
+
+        projectPath mode builds/evaluates the app by default. assemblyPath mode
+        uses an existing output assembly. The preview host reuses the app's
+        BuildAvaloniaApp method or Application subclass, then adds MCP diagnostics
+        inside the isolated preview process.
 
         MCP Server setup (for AI agent integration):
 

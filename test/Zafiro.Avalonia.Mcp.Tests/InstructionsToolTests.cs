@@ -1,4 +1,5 @@
 using Xunit;
+using ModelContextProtocol.Server;
 using Zafiro.Avalonia.Mcp.Tool.Tools;
 
 namespace Zafiro.Avalonia.Mcp.Tests;
@@ -18,6 +19,14 @@ public class InstructionsToolTests
     {
         var body = InstructionTools.GetInstructions("tools");
         Assert.Contains("zafiro-avalonia-mcp-screenshot", body);
+    }
+
+    [Fact]
+    public void Tools_Page_Lists_Preview_Tools()
+    {
+        var body = InstructionTools.GetInstructions("tools");
+        Assert.Contains("zafiro-avalonia-mcp-preview_axaml", body);
+        Assert.Contains("zafiro-avalonia-mcp-close_preview", body);
     }
 
     [Fact]
@@ -68,5 +77,23 @@ public class InstructionsToolTests
         Assert.Contains("get_snapshot", names);
         Assert.Contains("wait_for", names);
         Assert.Contains("instructions", names);
+        Assert.Contains("preview_axaml", names);
+        Assert.Contains("close_preview", names);
+    }
+
+    [Fact]
+    public void Registered_Tool_Types_Cover_Catalogue_Tool_Types()
+    {
+        var advertisedTypes = typeof(ToolsCatalogue).Assembly
+            .GetTypes()
+            .Where(t => t.GetCustomAttributes(typeof(McpServerToolTypeAttribute), inherit: false).Length > 0)
+            .OrderBy(t => t.FullName, StringComparer.Ordinal)
+            .ToArray();
+
+        var registeredTypes = ToolRegistration.RegisteredToolTypes
+            .OrderBy(t => t.FullName, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(advertisedTypes, registeredTypes);
     }
 }

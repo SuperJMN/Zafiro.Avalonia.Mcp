@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Zafiro.Avalonia.Mcp.AppHost\Zafiro.Avalonia.Mcp.AppHost.csproj" />
     <ProjectReference Include="..\Zafiro.Avalonia.Mcp.Protocol\Zafiro.Avalonia.Mcp.Protocol.csproj" />
   </ItemGroup>
 
@@ -18,6 +19,8 @@
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="$(McpSdkVersion)" />
+    <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.5" />
   </ItemGroup>
 

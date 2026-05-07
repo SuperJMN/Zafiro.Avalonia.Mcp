@@ -11,6 +11,7 @@ MCP (Model Context Protocol) bridge that lets AI agents **inspect, interact with
 > 3. **New diagnostics**: `get_focus`, `get_active_window`, `get_open_dialogs`, `get_command_info`, `get_validation_errors`, `get_layout_info`, `find_by_datacontext`, `get_item`.
 > 4. **Composite tool** `fill_form` — apply a list of fields + optional submit in one call, with `secret:true` redaction.
 > 5. **Event subscriptions** — `subscribe` + `poll_events` + `unsubscribe` (kinds: `property_changed`, `window_opened`, `window_closed`, `focus_changed`).
+> 6. **AXAML preview** — `preview_axaml` launches one view in an isolated MCP-connected desktop preview process; `close_preview` cleans it up.
 >
 > Plus: tool-naming hygiene (`take_screenshot` → `screenshot`), and `instructions(page='tools')` returns the full tool catalogue + selector cheat-sheet so agents stop hallucinating tool names.
 
@@ -174,13 +175,31 @@ Any client that supports stdio transport:
 3. Call `connect_to_app` to connect.
 4. Start inspecting with `get_snapshot`, `get_screen_text`, then act with selector-based tools — e.g. `click` with `selector: "Button[Content=\"Save\"]"`.
 
+## Preview one AXAML file
+
+For layout work, an agent can open a single desktop AXAML document without navigating the real app:
+
+```jsonc
+{
+  "axamlPath": "src/MyApp/Views/EditProjectView.axaml",
+  "projectPath": "src/MyApp/MyApp.csproj",
+  "width": 390,
+  "height": 844
+}
+```
+
+Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assemblyPath`. In `projectPath` mode the tool builds/evaluates the app by default, launches a hidden preview host process, loads the AXAML in design mode, connects MCP to that preview, and returns `{ pid, title, axamlPath, connected }`.
+
+After that, use the normal tools against the preview: `get_snapshot`, `screenshot`, `get_datacontext`, selectors, `wait_for`, and so on. Finish with `close_preview` to terminate the process. Preview is desktop-only; Android still uses the `connect_adb` flow.
+
 ## Available tools
 
-> Tool naming convention: bare verbs (`click`, `screenshot`, `scroll`) or `get_*`/`list_*` prefixes. **No `take_*`** — `take_screenshot` was renamed to `screenshot` in v2.0. Call `instructions` with `page='tools'` to receive the full reflection-built catalogue (52 tools), the selector cheat-sheet, and the error-code table; that page is the canonical surface and updates itself when tools are added.
+> Tool naming convention: bare verbs (`click`, `screenshot`, `scroll`) or `get_*`/`list_*` prefixes. **No `take_*`** — `take_screenshot` was renamed to `screenshot` in v2.0. Call `instructions` with `page='tools'` to receive the full reflection-built catalogue, the selector cheat-sheet, and the error-code table; that page is the canonical surface and updates itself when tools are added.
 
 | Category | Tools |
 |---|---|
 | **Connection** | `list_apps`, `connect_to_app`, `connect_adb` |
+| **Preview** | `preview_axaml`, `close_preview` |
 | **Inspection** | `get_snapshot`, `get_tree`, `get_screen_text`, `get_interactables`, `search`, `get_ancestors` |
 | **Diagnostics** *(new in v2)* | `get_focus`, `get_active_window`, `get_open_dialogs`, `get_command_info`, `get_validation_errors`, `get_layout_info`, `find_by_datacontext`, `get_item` |
 | **Properties** | `get_props`, `set_prop`, `get_prop_values`, `get_styles`, `get_resources` |
@@ -259,6 +278,8 @@ Stable codes you can switch on:
 | Want a specific version | Pin it explicitly: `dnx Zafiro.Avalonia.Mcp.Tool@1.2.3 --yes` |
 | `TypeLoadException` | Version mismatch — `AppHost` targets Avalonia 12.x, not compatible with Avalonia 11.x. |
 | Stale discovery files | If the app crashed, delete leftover `.json` files from `{TEMP}/zafiro-avalonia-mcp/`. |
+| `preview_axaml` asks for `entryType` | The target assembly has multiple possible Avalonia entry points. Pass the full type name of `Program` with `BuildAvaloniaApp` or the `Application` subclass. |
+| `preview_axaml` cannot find the target assembly | In project mode the tool uses MSBuild `TargetPath`; build the requested configuration/framework or leave `build=true`. In assembly mode pass the built app `.dll`. |
 
 ## Android via ADB (preview)
 
