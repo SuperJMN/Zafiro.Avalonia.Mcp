@@ -14,6 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Preview\PreviewHost.template.cs" />
+    <EmbeddedResource Include="Preview\PreviewHost.template.cs" LogicalName="Zafiro.Avalonia.Mcp.Tool.Preview.PreviewHost.template.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Zafiro.Avalonia.Mcp.Tests" />
   </ItemGroup>
 

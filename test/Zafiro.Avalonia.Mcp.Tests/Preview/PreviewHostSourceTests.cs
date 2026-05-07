@@ -6,26 +6,19 @@ namespace Zafiro.Avalonia.Mcp.Tests.Preview;
 public sealed class PreviewHostSourceTests
 {
     [Fact]
-    public void GeneratedHostSource_PreservesDesignDataContextLoading()
+    public void GeneratedHostSource_IsLoadedFromEmbeddedTemplate()
     {
-        Assert.Contains("designMode: true", PreviewHostSource.Code);
-        Assert.Contains("Design.GetDataContext", PreviewHostSource.Code);
-        Assert.Contains("control.DataContext = designDataContext", PreviewHostSource.Code);
+        Assert.Contains(PreviewHostSource.ResourceName, typeof(PreviewHostSource).Assembly.GetManifestResourceNames());
     }
 
     [Fact]
-    public void GeneratedHostSource_SeparatesAppAssemblyFromXamlAssembly()
+    public void GeneratedHostSource_MatchesEmbeddedTemplateContent()
     {
-        Assert.Contains("options.XamlAssemblyPath", PreviewHostSource.Code);
-        Assert.Contains("Load(options.AxamlPath, xamlAssembly)", PreviewHostSource.Code);
-        Assert.Contains("\"xaml-assembly\"", PreviewHostSource.Code);
-    }
+        using var stream = typeof(PreviewHostSource).Assembly.GetManifestResourceStream(PreviewHostSource.ResourceName);
+        Assert.NotNull(stream);
 
-    [Fact]
-    public void GeneratedHostSource_FallsBackToCopiedNativeRuntimeAssets()
-    {
-        Assert.Contains("FindNativeLibraryInAppBase", PreviewHostSource.Code);
-        Assert.Contains("runtimes", PreviewHostSource.Code);
+        using var reader = new StreamReader(stream);
+        Assert.Equal(reader.ReadToEnd(), PreviewHostSource.Code);
     }
 }
 
