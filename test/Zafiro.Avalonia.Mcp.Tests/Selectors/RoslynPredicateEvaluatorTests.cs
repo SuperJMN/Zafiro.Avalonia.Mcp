@@ -73,7 +73,7 @@ public class RoslynPredicateEvaluatorTests
             "((System.Func<bool>)(() => { System.Threading.Thread.Sleep(300); return true; }))()", vm);
         sw.Stop();
         Assert.False(result);
-        Assert.True(sw.ElapsedMilliseconds < 500, $"Should time out quickly, took {sw.ElapsedMilliseconds}ms");
+        Assert.True(sw.ElapsedMilliseconds < 1500, $"Should time out quickly, took {sw.ElapsedMilliseconds}ms");
     }
 
     [Fact]

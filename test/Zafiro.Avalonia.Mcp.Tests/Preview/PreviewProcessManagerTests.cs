@@ -20,7 +20,7 @@ public sealed class PreviewProcessManagerTests
     [Fact]
     public async Task WaitForConnection_ReportsCapturedOutput_WhenPreviewHostExitsBeforeDiscovery()
     {
-        using var script = new TempDotnetScript("""
+        using var app = new TempDotnetConsoleApp("""
             Console.WriteLine("preview-output");
             Console.Error.WriteLine("preview-error");
             return 37;
@@ -35,8 +35,7 @@ public sealed class PreviewProcessManagerTests
             },
             EnableRaisingEvents = true,
         };
-        process.StartInfo.ArgumentList.Add("run");
-        process.StartInfo.ArgumentList.Add(script.Path);
+        process.StartInfo.ArgumentList.Add(app.AssemblyPath);
 
         Assert.True(process.Start());
         var output = PreviewProcessOutput.Capture(process.StandardOutput, process.StandardError);
@@ -87,19 +86,66 @@ public sealed class PreviewProcessManagerTests
             TargetFramework: null,
             Configuration: "Debug");
 
-    private sealed class TempDotnetScript : IDisposable
+    private sealed class TempDotnetConsoleApp : IDisposable
     {
         private readonly string root;
 
-        public TempDotnetScript(string source)
+        public TempDotnetConsoleApp(string source)
         {
             root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "avalonia-mcp-preview-process-tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
-            Path = System.IO.Path.Combine(root, "ExitWithOutput.cs");
-            File.WriteAllText(Path, source);
+            var projectPath = System.IO.Path.Combine(root, "ExitWithOutput.csproj");
+            var programPath = System.IO.Path.Combine(root, "Program.cs");
+            File.WriteAllText(projectPath, """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <OutputType>Exe</OutputType>
+                    <TargetFramework>net10.0</TargetFramework>
+                    <Nullable>enable</Nullable>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                  </PropertyGroup>
+                </Project>
+                """);
+            File.WriteAllText(programPath, source);
+            Build(projectPath);
+            AssemblyPath = System.IO.Path.Combine(root, "bin", "Debug", "net10.0", "ExitWithOutput.dll");
         }
 
-        public string Path { get; }
+        public string AssemblyPath { get; }
+
+        private static void Build(string projectPath)
+        {
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo("dotnet")
+                {
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                },
+            };
+            process.StartInfo.ArgumentList.Add("build");
+            process.StartInfo.ArgumentList.Add(projectPath);
+            process.StartInfo.ArgumentList.Add("-v");
+            process.StartInfo.ArgumentList.Add("quiet");
+
+            if (!process.Start())
+            {
+                throw new InvalidOperationException("Failed to start test fixture build.");
+            }
+
+            if (!process.WaitForExit(TimeSpan.FromSeconds(30)))
+            {
+                process.Kill(entireProcessTree: true);
+                throw new TimeoutException("Timed out building test fixture process.");
+            }
+
+            if (process.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to build test fixture process. stdout: {process.StandardOutput.ReadToEnd()} stderr: {process.StandardError.ReadToEnd()}");
+            }
+        }
 
         public void Dispose()
         {
