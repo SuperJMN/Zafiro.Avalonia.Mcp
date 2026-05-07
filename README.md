@@ -194,6 +194,19 @@ After that, use the normal tools against the preview: `get_snapshot`, `screensho
 
 `preview_axaml` uses runtime XAML loading, so it can differ from the compiled AXAML path used by the normal app. See [AXAML preview runtime loader limitations](docs/axaml-preview-loader-limitations.md) for known differences around compiled bindings, design-time data, resource lookup, custom controls, and generated code assumptions.
 
+The preview host executes the target app's real `BuildAvaloniaApp` path before it creates the isolated preview window. That keeps app styles, resources, fonts, ReactiveUI setup, platform options, and other framework configuration available, but it also means app startup code can run in the preview process. Guard production-only work such as service startup, file writes, network calls, timers, database migrations, telemetry, and background sync. The preview process sets `ZAFIRO_AVALONIA_MCP_PREVIEW=1`; apps can branch on that value inside `BuildAvaloniaApp`, `App.Initialize`, or service composition to skip side effects while keeping UI resources loaded.
+
+```csharp
+var isPreview = Environment.GetEnvironmentVariable("ZAFIRO_AVALONIA_MCP_PREVIEW") == "1";
+var builder = AppBuilder.Configure<App>()
+    .UsePlatformDetect();
+
+if (!isPreview)
+{
+    StartProductionServices();
+}
+```
+
 When the preview host needs copied native assets from `runtimes/<rid>/native`, it resolves them by runtime identifier instead of directory enumeration order. The exact current RID is tried first, then compatible RIDs from the same OS family and architecture, then the same OS family, and finally any remaining copied RID as a deterministic compatibility fallback. Library file names are matched using the target RID's platform convention (`.dll`, `.dylib`, or `.so`).
 
 ## Available tools
@@ -285,6 +298,7 @@ Stable codes you can switch on:
 | `preview_axaml` asks for `entryType` | The target assembly has multiple possible Avalonia entry points. Pass the full type name of `Program` with `BuildAvaloniaApp` or the `Application` subclass. |
 | `preview_axaml` cannot find the target assembly | In project mode the tool uses MSBuild `TargetPath`; build the requested configuration/framework or leave `build=true`. In assembly mode pass the built app `.dll`. |
 | `preview_axaml` reports a type or resource resolution failure | Rebuild the target app, confirm the AXAML `x:Class` namespace and assembly, check `avares://` resource paths, and compare with [runtime loader limitations](docs/axaml-preview-loader-limitations.md). |
+| `preview_axaml` starts real app services | The preview host runs `BuildAvaloniaApp`. Check `ZAFIRO_AVALONIA_MCP_PREVIEW=1` and skip production-only startup work while keeping UI setup and resources available. |
 
 ## Android via ADB (preview)
 
