@@ -38,8 +38,11 @@ internal static class PreviewHostSource
                 var options = Parse(args);
                 InstallAssemblyResolver(options.AssemblyPath);
 
-                var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(options.AssemblyPath);
-                var builder = PreviewAppBuilderFactory.Create(assembly, options.EntryType)
+                var appAssembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(options.AssemblyPath);
+                var xamlAssembly = SamePath(options.AssemblyPath, options.XamlAssemblyPath)
+                    ? appAssembly
+                    : AssemblyLoadContext.Default.LoadFromAssemblyPath(options.XamlAssemblyPath);
+                var builder = PreviewAppBuilderFactory.Create(appAssembly, options.EntryType)
                     .UseMcpDiagnostics();
 
                 builder.SetupWithClassicDesktopLifetime([], lifetime =>
@@ -57,7 +60,7 @@ internal static class PreviewHostSource
                     window.Close();
                 }
 
-                var previewWindow = CreatePreviewWindow(options, assembly, lifetime);
+                var previewWindow = CreatePreviewWindow(options, xamlAssembly, lifetime);
                 lifetime.MainWindow = previewWindow;
                 previewWindow.Show();
 
@@ -66,10 +69,10 @@ internal static class PreviewHostSource
 
             private static Window CreatePreviewWindow(
                 PreviewHostOptions options,
-                Assembly assembly,
+                Assembly xamlAssembly,
                 IClassicDesktopStyleApplicationLifetime lifetime)
             {
-                var root = PreviewAxamlLoader.Load(options.AxamlPath, assembly);
+                var root = PreviewAxamlLoader.Load(options.AxamlPath, xamlAssembly);
                 var title = $"AXAML Preview - {Path.GetFileName(options.AxamlPath)}";
 
                 if (root is Window loadedWindow)
@@ -117,11 +120,19 @@ internal static class PreviewHostSource
                 }
 
                 var assemblyPath = RequiredFullPath(values, "assembly");
+                var xamlAssemblyPath = values.TryGetValue("xaml-assembly", out var explicitXamlAssemblyPath)
+                    ? Path.GetFullPath(explicitXamlAssemblyPath)
+                    : assemblyPath;
                 var axamlPath = RequiredFullPath(values, "axaml");
 
                 if (!File.Exists(assemblyPath))
                 {
                     throw new FileNotFoundException("Assembly file does not exist.", assemblyPath);
+                }
+
+                if (!File.Exists(xamlAssemblyPath))
+                {
+                    throw new FileNotFoundException("AXAML local assembly file does not exist.", xamlAssemblyPath);
                 }
 
                 if (!File.Exists(axamlPath))
@@ -132,10 +143,14 @@ internal static class PreviewHostSource
                 return new PreviewHostOptions(
                     axamlPath,
                     assemblyPath,
+                    xamlAssemblyPath,
                     values.GetValueOrDefault("entry-type"),
                     ParsePositiveInt(values, "width", 1024),
                     ParsePositiveInt(values, "height", 768));
             }
+
+            private static bool SamePath(string left, string right)
+                => string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), StringComparison.OrdinalIgnoreCase);
 
             private static int ParsePositiveInt(Dictionary<string, string> values, string key, int defaultValue)
             {
@@ -170,8 +185,53 @@ internal static class PreviewHostSource
                 AssemblyLoadContext.Default.ResolvingUnmanagedDll += (_, libraryName) =>
                 {
                     var path = resolver.ResolveUnmanagedDllToPath(libraryName);
+                    path ??= FindNativeLibraryInAppBase(libraryName);
                     return path is null ? IntPtr.Zero : NativeLibrary.Load(path);
                 };
+            }
+
+            private static string? FindNativeLibraryInAppBase(string libraryName)
+            {
+                var runtimesDirectory = Path.Combine(AppContext.BaseDirectory, "runtimes");
+                if (!Directory.Exists(runtimesDirectory))
+                {
+                    return null;
+                }
+
+                foreach (var nativeDirectory in Directory.EnumerateDirectories(runtimesDirectory, "native", SearchOption.AllDirectories))
+                {
+                    var direct = Path.Combine(nativeDirectory, libraryName);
+                    if (File.Exists(direct))
+                    {
+                        return direct;
+                    }
+
+                    var platformName = NativeLibraryName(libraryName);
+                    var platformPath = Path.Combine(nativeDirectory, platformName);
+                    if (File.Exists(platformPath))
+                    {
+                        return platformPath;
+                    }
+                }
+
+                return null;
+            }
+
+            private static string NativeLibraryName(string libraryName)
+            {
+                if (OperatingSystem.IsWindows())
+                {
+                    return libraryName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ? libraryName : $"{libraryName}.dll";
+                }
+
+                if (OperatingSystem.IsMacOS())
+                {
+                    var name = libraryName.StartsWith("lib", StringComparison.Ordinal) ? libraryName : $"lib{libraryName}";
+                    return name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase) ? name : $"{name}.dylib";
+                }
+
+                var linuxName = libraryName.StartsWith("lib", StringComparison.Ordinal) ? libraryName : $"lib{libraryName}";
+                return linuxName.EndsWith(".so", StringComparison.OrdinalIgnoreCase) ? linuxName : $"{linuxName}.so";
             }
         }
 
@@ -311,6 +371,7 @@ internal static class PreviewHostSource
         internal sealed record PreviewHostOptions(
             string AxamlPath,
             string AssemblyPath,
+            string XamlAssemblyPath,
             string? EntryType,
             int Width,
             int Height);

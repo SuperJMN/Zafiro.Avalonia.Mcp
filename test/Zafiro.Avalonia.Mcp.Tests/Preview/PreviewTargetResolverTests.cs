@@ -97,6 +97,39 @@ public sealed class PreviewTargetResolverTests
         Assert.Contains(runner.Calls, call => call.Arguments.FirstOrDefault() == "build");
     }
 
+    [Fact]
+    public async Task Resolve_WhenAxamlClassLivesInReferencedOutputAssembly_UsesThatAssemblyAsXamlLocalAssembly()
+    {
+        using var temp = new TempAxamlFile(
+            """
+            <UserControl xmlns="https://github.com/avaloniaui"
+                         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                         x:Class="Zafiro.Avalonia.Mcp.Tests.Preview.PreviewDesignData" />
+            """);
+        var resolver = new PreviewTargetResolver(new FakeProcessRunner());
+        var targetAssemblyPath = typeof(PreviewTargetResolver).Assembly.Location;
+
+        var target = await resolver.Resolve(
+            new PreviewAxamlRequest(temp.Path, AssemblyPath: targetAssemblyPath),
+            CancellationToken.None);
+
+        Assert.Equal(typeof(PreviewDesignData).Assembly.Location, target.XamlAssemblyPath);
+    }
+
+    [Fact]
+    public async Task Resolve_WhenAxamlHasNoClass_UsesTargetAssemblyAsXamlLocalAssembly()
+    {
+        using var temp = new TempAxamlFile("""<UserControl xmlns="https://github.com/avaloniaui" />""");
+        var resolver = new PreviewTargetResolver(new FakeProcessRunner());
+        var targetAssemblyPath = typeof(PreviewTargetResolver).Assembly.Location;
+
+        var target = await resolver.Resolve(
+            new PreviewAxamlRequest(temp.Path, AssemblyPath: targetAssemblyPath),
+            CancellationToken.None);
+
+        Assert.Equal(targetAssemblyPath, target.XamlAssemblyPath);
+    }
+
     private sealed class FakeProcessRunner : IProcessRunner
     {
         private readonly Func<string, IReadOnlyList<string>, string?, ProcessRunResult> handler;
@@ -154,6 +187,32 @@ public sealed class PreviewTargetResolverTests
             try
             {
                 System.IO.Directory.Delete(Directory, recursive: true);
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private sealed class TempAxamlFile : IDisposable
+    {
+        private readonly string root;
+
+        public TempAxamlFile(string content)
+        {
+            root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "avalonia-mcp-preview-target-tests", Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(root);
+            Path = System.IO.Path.Combine(root, "View.axaml");
+            File.WriteAllText(Path, content);
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            try
+            {
+                System.IO.Directory.Delete(root, recursive: true);
             }
             catch
             {

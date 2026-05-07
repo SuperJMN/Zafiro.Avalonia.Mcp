@@ -1,4 +1,7 @@
 using System.Text.Json;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
+using System.Xml.Linq;
 
 namespace Zafiro.Avalonia.Mcp.Tool.Preview;
 
@@ -33,7 +36,8 @@ public sealed class PreviewTargetResolver
         if (hasAssembly)
         {
             var assemblyPath = ResolveExistingFile(request.AssemblyPath!, "Assembly file does not exist");
-            return new PreviewTarget(axamlPath, assemblyPath, null, request.EntryType, request.TargetFramework, configuration);
+            var xamlAssemblyPath = ResolveXamlAssemblyPath(axamlPath, assemblyPath);
+            return new PreviewTarget(axamlPath, assemblyPath, xamlAssemblyPath, null, request.EntryType, request.TargetFramework, configuration);
         }
 
         var projectPath = ResolveExistingFile(request.ProjectPath!, "Project file does not exist");
@@ -59,7 +63,74 @@ public sealed class PreviewTargetResolver
                 $"Target assembly was not found at evaluated TargetPath '{targetPath}'. Build the project or pass build=true.");
         }
 
-        return new PreviewTarget(axamlPath, targetPath, projectPath, request.EntryType, targetFramework, configuration);
+        var resolvedXamlAssemblyPath = ResolveXamlAssemblyPath(axamlPath, targetPath);
+        return new PreviewTarget(axamlPath, targetPath, resolvedXamlAssemblyPath, projectPath, request.EntryType, targetFramework, configuration);
+    }
+
+    internal static string ResolveXamlAssemblyPath(string axamlPath, string targetAssemblyPath)
+    {
+        var xClass = TryReadXClass(axamlPath);
+        if (string.IsNullOrWhiteSpace(xClass))
+        {
+            return targetAssemblyPath;
+        }
+
+        var targetDirectory = Path.GetDirectoryName(targetAssemblyPath);
+        if (string.IsNullOrWhiteSpace(targetDirectory))
+        {
+            return targetAssemblyPath;
+        }
+
+        var candidateAssemblies = Directory
+            .EnumerateFiles(targetDirectory, "*.dll")
+            .Prepend(targetAssemblyPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        return candidateAssemblies.FirstOrDefault(path => AssemblyContainsType(path, xClass)) ?? targetAssemblyPath;
+    }
+
+    private static string? TryReadXClass(string axamlPath)
+    {
+        try
+        {
+            var document = XDocument.Load(axamlPath, LoadOptions.None);
+            return document.Root?.Attribute(XName.Get("Class", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value.Trim();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool AssemblyContainsType(string assemblyPath, string fullTypeName)
+    {
+        try
+        {
+            using var stream = File.OpenRead(assemblyPath);
+            using var reader = new PEReader(stream);
+            if (!reader.HasMetadata)
+            {
+                return false;
+            }
+
+            var metadata = reader.GetMetadataReader();
+            foreach (var handle in metadata.TypeDefinitions)
+            {
+                var type = metadata.GetTypeDefinition(handle);
+                var name = metadata.GetString(type.Name);
+                var ns = metadata.GetString(type.Namespace);
+                var candidate = string.IsNullOrWhiteSpace(ns) ? name : $"{ns}.{name}";
+                if (string.Equals(candidate, fullTypeName, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return false;
     }
 
     private async Task<string?> ResolveDefaultTargetFramework(

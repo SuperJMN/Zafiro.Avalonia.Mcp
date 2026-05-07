@@ -268,6 +268,8 @@ internal sealed class PreviewHostProjectBuilder
         startInfo.ArgumentList.Add(hostAssemblyPath);
         startInfo.ArgumentList.Add("--assembly");
         startInfo.ArgumentList.Add(target.AssemblyPath);
+        startInfo.ArgumentList.Add("--xaml-assembly");
+        startInfo.ArgumentList.Add(target.XamlAssemblyPath);
         startInfo.ArgumentList.Add("--axaml");
         startInfo.ArgumentList.Add(target.AxamlPath);
         startInfo.ArgumentList.Add("--width");

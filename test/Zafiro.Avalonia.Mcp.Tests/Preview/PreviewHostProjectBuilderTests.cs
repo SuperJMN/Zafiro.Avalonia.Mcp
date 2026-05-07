@@ -39,6 +39,7 @@ public sealed class PreviewHostProjectBuilderTests
         var target = new PreviewTarget(
             temp.AxamlPath,
             temp.TargetAssemblyPath,
+            temp.TargetAssemblyPath,
             temp.TargetProjectPath,
             EntryType: null,
             TargetFramework: "net10.0",
@@ -58,6 +59,7 @@ public sealed class PreviewHostProjectBuilderTests
         Assert.Contains(launch.StartInfo.ArgumentList, argument => argument.EndsWith("Zafiro.Avalonia.Mcp.PreviewHost.dll", StringComparison.Ordinal));
         Assert.Contains(launch.StartInfo.ArgumentList, argument => argument == "--assembly");
         Assert.Contains(launch.StartInfo.ArgumentList, argument => argument == temp.TargetAssemblyPath);
+        Assert.Contains(launch.StartInfo.ArgumentList, argument => argument == "--xaml-assembly");
     }
 
     private sealed class FixedPreviewHostDependencyResolver : IPreviewHostDependencyResolver

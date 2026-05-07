@@ -20,6 +20,7 @@ public sealed class PreviewProcessManagerTests
             new PreviewTarget(
                 AxamlPath: "/tmp/Preview.axaml",
                 AssemblyPath: "/tmp/Preview.dll",
+                XamlAssemblyPath: "/tmp/Preview.dll",
                 ProjectPath: null,
                 EntryType: null,
                 TargetFramework: null,

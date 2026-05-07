@@ -14,6 +14,7 @@ internal sealed record PreviewAxamlRequest(
 internal sealed record PreviewTarget(
     string AxamlPath,
     string AssemblyPath,
+    string XamlAssemblyPath,
     string? ProjectPath,
     string? EntryType,
     string? TargetFramework,
