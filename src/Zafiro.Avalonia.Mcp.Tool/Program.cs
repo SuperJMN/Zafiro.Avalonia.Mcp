@@ -6,12 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 
-if (args is [PreviewHostCommand.CommandName, ..])
-{
-    Environment.ExitCode = await PreviewHostCommand.Run(args[1..]);
-    return;
-}
-
 var builder = Host.CreateApplicationBuilder(args);
 
 // Stdio transport uses stdout for JSON-RPC — keep it clean

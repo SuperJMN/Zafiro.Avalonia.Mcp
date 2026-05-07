@@ -43,7 +43,7 @@ public sealed class PreviewTools
                 height,
                 build), cancellationToken);
 
-            preview = previews.Launch(target, Math.Max(1, width), Math.Max(1, height));
+            preview = await previews.Launch(target, Math.Max(1, width), Math.Max(1, height), cancellationToken);
             try
             {
                 await previews.WaitForConnection(preview, pool, cancellationToken);

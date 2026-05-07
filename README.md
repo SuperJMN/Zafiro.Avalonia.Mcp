@@ -188,7 +188,7 @@ For layout work, an agent can open a single desktop AXAML document without navig
 }
 ```
 
-Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assemblyPath`. In `projectPath` mode the tool builds/evaluates the app by default, launches a hidden preview host process, loads the AXAML in design mode, connects MCP to that preview, and returns `{ pid, title, axamlPath, connected }`.
+Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assemblyPath`. In `projectPath` mode the tool builds/evaluates the app by default, launches a hidden preview host process, loads the AXAML in design mode, connects MCP to that preview, and returns `{ pid, title, axamlPath, connected }`. The global dotnet tool does not embed Avalonia desktop binaries; the temporary preview host is built from the target app output and restores only the runtime XAML loader when that DLL is not already present.
 
 After that, use the normal tools against the preview: `get_snapshot`, `screenshot`, `get_datacontext`, selectors, `wait_for`, and so on. Finish with `close_preview` to terminate the process. Preview is desktop-only; Android still uses the `connect_adb` flow.
 

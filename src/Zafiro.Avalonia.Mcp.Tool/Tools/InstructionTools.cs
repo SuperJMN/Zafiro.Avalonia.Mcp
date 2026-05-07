@@ -127,9 +127,10 @@ public sealed class InstructionTools
           → close_preview
 
         projectPath mode builds/evaluates the app by default. assemblyPath mode
-        uses an existing output assembly. The preview host reuses the app's
-        BuildAvaloniaApp method or Application subclass, then adds MCP diagnostics
-        inside the isolated preview process.
+        uses an existing output assembly. The dotnet tool package does not embed
+        Avalonia desktop binaries; the preview host is built from the target app
+        output, reuses the app's BuildAvaloniaApp method or Application subclass,
+        then adds MCP diagnostics inside the isolated preview process.
 
         MCP Server setup (for AI agent integration):
 

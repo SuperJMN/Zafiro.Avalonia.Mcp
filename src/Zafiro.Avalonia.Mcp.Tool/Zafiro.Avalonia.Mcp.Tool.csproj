@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Description>MCP server tool for Avalonia app inspection, interaction and video capture</Description>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>zafiro-avalonia-mcp</ToolCommandName>
@@ -10,7 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Zafiro.Avalonia.Mcp.AppHost\Zafiro.Avalonia.Mcp.AppHost.csproj" />
     <ProjectReference Include="..\Zafiro.Avalonia.Mcp.Protocol\Zafiro.Avalonia.Mcp.Protocol.csproj" />
   </ItemGroup>
 
@@ -20,9 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="$(McpSdkVersion)" />
-    <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
-    <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="$(AvaloniaVersion)" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
   </ItemGroup>
 
   <Target Name="RemoveSymbolsFromToolPackage" BeforeTargets="PackTool">

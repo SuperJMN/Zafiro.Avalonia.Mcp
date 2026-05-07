@@ -7,29 +7,42 @@ namespace Zafiro.Avalonia.Mcp.Tool.Preview;
 
 public sealed class PreviewProcessManager : IDisposable
 {
+    private readonly PreviewHostProjectBuilder hostBuilder;
     private readonly TimeSpan discoveryTimeout;
     private readonly TimeSpan pollInterval;
     private readonly ConcurrentDictionary<int, PreviewProcess> processes = new();
 
     public PreviewProcessManager()
-        : this(TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(150))
+        : this(new PreviewHostProjectBuilder(new DotnetProcessRunner()), TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(150))
     {
     }
 
     internal PreviewProcessManager(TimeSpan discoveryTimeout, TimeSpan pollInterval)
+        : this(new PreviewHostProjectBuilder(new DotnetProcessRunner()), discoveryTimeout, pollInterval)
     {
+    }
+
+    internal PreviewProcessManager(
+        PreviewHostProjectBuilder hostBuilder,
+        TimeSpan discoveryTimeout,
+        TimeSpan pollInterval)
+    {
+        this.hostBuilder = hostBuilder;
         this.discoveryTimeout = discoveryTimeout;
         this.pollInterval = pollInterval;
     }
 
-    internal PreviewProcess Launch(PreviewTarget target, int width, int height)
+    internal async Task<PreviewProcess> Launch(
+        PreviewTarget target,
+        int width,
+        int height,
+        CancellationToken cancellationToken)
     {
-        var options = new PreviewHostOptions(target.AxamlPath, target.AssemblyPath, target.EntryType, width, height);
-        var startInfo = PreviewHostCommand.CreateStartInfo(options);
+        var launch = await hostBuilder.Build(target, width, height, cancellationToken);
 
         var process = new Process
         {
-            StartInfo = startInfo,
+            StartInfo = launch.StartInfo,
             EnableRaisingEvents = true,
         };
 
