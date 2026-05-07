@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Zafiro.Avalonia.Mcp.AppHost;
+using Zafiro.Avalonia.Mcp.Tool.Preview;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Zafiro.Avalonia.Mcp.Tests")]
 
@@ -180,53 +181,9 @@ internal static class PreviewHost
         AssemblyLoadContext.Default.ResolvingUnmanagedDll += (_, libraryName) =>
         {
             var path = resolver.ResolveUnmanagedDllToPath(libraryName);
-            path ??= FindNativeLibraryInAppBase(libraryName);
+            path ??= PreviewNativeAssetResolver.FindNativeLibraryInAppBase(libraryName);
             return path is null ? IntPtr.Zero : NativeLibrary.Load(path);
         };
-    }
-
-    private static string? FindNativeLibraryInAppBase(string libraryName)
-    {
-        var runtimesDirectory = Path.Combine(AppContext.BaseDirectory, "runtimes");
-        if (!Directory.Exists(runtimesDirectory))
-        {
-            return null;
-        }
-
-        foreach (var nativeDirectory in Directory.EnumerateDirectories(runtimesDirectory, "native", SearchOption.AllDirectories))
-        {
-            var direct = Path.Combine(nativeDirectory, libraryName);
-            if (File.Exists(direct))
-            {
-                return direct;
-            }
-
-            var platformName = NativeLibraryName(libraryName);
-            var platformPath = Path.Combine(nativeDirectory, platformName);
-            if (File.Exists(platformPath))
-            {
-                return platformPath;
-            }
-        }
-
-        return null;
-    }
-
-    private static string NativeLibraryName(string libraryName)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return libraryName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ? libraryName : $"{libraryName}.dll";
-        }
-
-        if (OperatingSystem.IsMacOS())
-        {
-            var name = libraryName.StartsWith("lib", StringComparison.Ordinal) ? libraryName : $"lib{libraryName}";
-            return name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase) ? name : $"{name}.dylib";
-        }
-
-        var linuxName = libraryName.StartsWith("lib", StringComparison.Ordinal) ? libraryName : $"lib{libraryName}";
-        return linuxName.EndsWith(".so", StringComparison.OrdinalIgnoreCase) ? linuxName : $"{linuxName}.so";
     }
 }
 

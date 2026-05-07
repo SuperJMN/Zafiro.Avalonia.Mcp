@@ -19,3 +19,21 @@ internal static class PreviewHostSource
         return reader.ReadToEnd();
     }
 }
+
+internal static class PreviewNativeAssetResolverSource
+{
+    internal const string ResourceName = "Zafiro.Avalonia.Mcp.Tool.Preview.PreviewNativeAssetResolver.cs";
+
+    private static readonly Lazy<string> Source = new(LoadSource);
+
+    public static string Code => Source.Value;
+
+    private static string LoadSource()
+    {
+        var assembly = typeof(PreviewNativeAssetResolverSource).Assembly;
+        using var stream = assembly.GetManifestResourceStream(ResourceName)
+            ?? throw new InvalidOperationException($"Embedded preview native asset resolver source '{ResourceName}' was not found.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+}

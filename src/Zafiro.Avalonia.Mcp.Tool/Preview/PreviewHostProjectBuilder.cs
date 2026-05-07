@@ -41,10 +41,12 @@ internal sealed class PreviewHostProjectBuilder
 
         var projectPath = Path.Combine(hostDirectory, $"{HostAssemblyName}.csproj");
         var programPath = Path.Combine(hostDirectory, "Program.cs");
+        var nativeResolverPath = Path.Combine(hostDirectory, "PreviewNativeAssetResolver.cs");
         var dependency = dependencyResolver.Resolve();
 
         await File.WriteAllTextAsync(projectPath, CreateProject(target, targetFramework, dependency), cancellationToken);
         await File.WriteAllTextAsync(programPath, PreviewHostSource.Code, cancellationToken);
+        await File.WriteAllTextAsync(nativeResolverPath, PreviewNativeAssetResolverSource.Code, cancellationToken);
 
         var result = await processRunner.Run(
             "dotnet",
