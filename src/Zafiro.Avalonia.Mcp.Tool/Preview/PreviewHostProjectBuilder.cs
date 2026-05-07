@@ -8,6 +8,7 @@ namespace Zafiro.Avalonia.Mcp.Tool.Preview;
 internal sealed class PreviewHostProjectBuilder
 {
     private const string HostAssemblyName = "Zafiro.Avalonia.Mcp.PreviewHost";
+    internal const string PreviewEnvironmentVariable = "ZAFIRO_AVALONIA_MCP_PREVIEW";
     private readonly IProcessRunner processRunner;
     private readonly string hostRoot;
     private readonly IPreviewHostDependencyResolver dependencyResolver;
@@ -278,6 +279,7 @@ internal sealed class PreviewHostProjectBuilder
         startInfo.ArgumentList.Add(width.ToString());
         startInfo.ArgumentList.Add("--height");
         startInfo.ArgumentList.Add(height.ToString());
+        startInfo.Environment[PreviewEnvironmentVariable] = "1";
 
         if (!string.IsNullOrWhiteSpace(target.EntryType))
         {

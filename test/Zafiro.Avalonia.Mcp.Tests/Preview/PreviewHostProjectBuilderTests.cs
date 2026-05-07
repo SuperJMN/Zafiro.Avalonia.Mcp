@@ -60,6 +60,7 @@ public sealed class PreviewHostProjectBuilderTests
         Assert.Equal(PreviewNativeAssetResolverSource.Code, nativeResolverText);
         Assert.Contains(runner.Calls, call => call.FileName == "dotnet" && call.Arguments.Contains("build"));
         Assert.Equal("dotnet", launch.StartInfo.FileName);
+        Assert.Equal("1", launch.StartInfo.Environment["ZAFIRO_AVALONIA_MCP_PREVIEW"]);
         Assert.Contains(launch.StartInfo.ArgumentList, argument => argument.EndsWith("Zafiro.Avalonia.Mcp.PreviewHost.dll", StringComparison.Ordinal));
         Assert.Contains(launch.StartInfo.ArgumentList, argument => argument == "--assembly");
         Assert.Contains(launch.StartInfo.ArgumentList, argument => argument == temp.TargetAssemblyPath);
