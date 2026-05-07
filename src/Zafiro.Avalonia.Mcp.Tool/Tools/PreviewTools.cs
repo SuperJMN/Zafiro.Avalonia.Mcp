@@ -65,11 +65,11 @@ public sealed class PreviewTools
         }
         catch (PreviewValidationException ex)
         {
-            return SerializeError(ex.Code, ex.Message, ex.Suggested);
+            return PreviewErrorSerializer.Serialize(ex.Code, ex.Message, ex.Suggested, ex.Details);
         }
         catch (Exception ex)
         {
-            return SerializeError("INTERNAL", ex.Message);
+            return PreviewErrorSerializer.Serialize("INTERNAL", ex.Message);
         }
     }
 
@@ -86,8 +86,11 @@ public sealed class PreviewTools
         var closed = previews.Close(pid, pool);
         return JsonSerializer.Serialize(new { closed });
     }
+}
 
-    private static string SerializeError(string code, string message, string? suggested = null)
+internal static class PreviewErrorSerializer
+{
+    public static string Serialize(string code, string message, string? suggested = null, object? details = null)
         => JsonSerializer.Serialize(new
         {
             error = new
@@ -95,6 +98,7 @@ public sealed class PreviewTools
                 code,
                 message,
                 suggested,
+                details,
             },
         });
 }

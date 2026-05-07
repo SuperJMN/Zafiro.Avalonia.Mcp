@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Tool.Connection;
 
@@ -51,10 +52,9 @@ public sealed class PreviewProcessManager : IDisposable
             throw new PreviewValidationException("INTERNAL", "Failed to start the AXAML preview host process.");
         }
 
-        _ = Drain(process.StandardOutput);
-        _ = Drain(process.StandardError);
+        var output = PreviewProcessOutput.Capture(process.StandardOutput, process.StandardError);
 
-        var previewProcess = new PreviewProcess(process.Id, process, target);
+        var previewProcess = new PreviewProcess(process.Id, process, target, output);
         processes[process.Id] = previewProcess;
 
         return previewProcess;
@@ -74,9 +74,15 @@ public sealed class PreviewProcessManager : IDisposable
             {
                 if (previewProcess.Process.HasExited)
                 {
+                    await previewProcess.Output.WaitForDrain(TimeSpan.FromMilliseconds(500), cancellationToken);
+                    var output = previewProcess.Output.Snapshot();
                     throw new PreviewValidationException(
                         "INTERNAL",
-                        $"Preview host exited before publishing MCP discovery. Exit code: {previewProcess.Process.ExitCode}.");
+                        $"Preview host exited before publishing MCP discovery. Exit code: {previewProcess.Process.ExitCode}.",
+                        details: new PreviewHostExitDetails(
+                            previewProcess.Process.ExitCode,
+                            output.StandardOutput,
+                            output.StandardError));
                 }
 
                 var app = pool.DiscoverApps().FirstOrDefault(x => x.Pid == previewProcess.Pid);
@@ -139,19 +145,6 @@ public sealed class PreviewProcessManager : IDisposable
         processes.Clear();
     }
 
-    private static async Task Drain(StreamReader reader)
-    {
-        try
-        {
-            while (await reader.ReadLineAsync() is not null)
-            {
-            }
-        }
-        catch
-        {
-        }
-    }
-
     private static void CloseProcess(Process process)
     {
         try
@@ -193,4 +186,119 @@ public sealed class PreviewProcessManager : IDisposable
     }
 }
 
-internal sealed record PreviewProcess(int Pid, Process Process, PreviewTarget Target);
+internal sealed record PreviewProcess(int Pid, Process Process, PreviewTarget Target, PreviewProcessOutput Output);
+
+internal sealed class PreviewProcessOutput
+{
+    private const int DefaultMaxCharacters = 8192;
+    private readonly Task standardOutputTask;
+    private readonly Task standardErrorTask;
+    private readonly BoundedTextBuffer standardOutput;
+    private readonly BoundedTextBuffer standardError;
+
+    private PreviewProcessOutput(
+        Task standardOutputTask,
+        Task standardErrorTask,
+        BoundedTextBuffer standardOutput,
+        BoundedTextBuffer standardError)
+    {
+        this.standardOutputTask = standardOutputTask;
+        this.standardErrorTask = standardErrorTask;
+        this.standardOutput = standardOutput;
+        this.standardError = standardError;
+    }
+
+    public static PreviewProcessOutput Empty { get; } = new(
+        Task.CompletedTask,
+        Task.CompletedTask,
+        new BoundedTextBuffer(DefaultMaxCharacters),
+        new BoundedTextBuffer(DefaultMaxCharacters));
+
+    public static PreviewProcessOutput Capture(
+        StreamReader standardOutputReader,
+        StreamReader standardErrorReader,
+        int maxCharacters = DefaultMaxCharacters)
+    {
+        var standardOutput = new BoundedTextBuffer(maxCharacters);
+        var standardError = new BoundedTextBuffer(maxCharacters);
+        return new PreviewProcessOutput(
+            Drain(standardOutputReader, standardOutput),
+            Drain(standardErrorReader, standardError),
+            standardOutput,
+            standardError);
+    }
+
+    public async Task WaitForDrain(TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        linked.CancelAfter(timeout);
+
+        try
+        {
+            await Task.WhenAll(standardOutputTask, standardErrorTask).WaitAsync(linked.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    public PreviewProcessOutputSnapshot Snapshot() => new(standardOutput.ToString(), standardError.ToString());
+
+    private static async Task Drain(StreamReader reader, BoundedTextBuffer buffer)
+    {
+        var chars = new char[1024];
+        try
+        {
+            int read;
+            while ((read = await reader.ReadAsync(chars, 0, chars.Length)) > 0)
+            {
+                buffer.Append(chars.AsSpan(0, read));
+            }
+        }
+        catch
+        {
+        }
+    }
+}
+
+internal sealed record PreviewProcessOutputSnapshot(string StandardOutput, string StandardError);
+
+internal sealed class BoundedTextBuffer
+{
+    private readonly int maxCharacters;
+    private readonly StringBuilder builder = new();
+
+    public BoundedTextBuffer(int maxCharacters)
+    {
+        this.maxCharacters = Math.Max(1, maxCharacters);
+    }
+
+    public void Append(ReadOnlySpan<char> value)
+    {
+        lock (builder)
+        {
+            if (value.Length >= maxCharacters)
+            {
+                builder.Clear();
+                builder.Append(value[^maxCharacters..]);
+                return;
+            }
+
+            var overflow = builder.Length + value.Length - maxCharacters;
+            if (overflow > 0)
+            {
+                builder.Remove(0, overflow);
+            }
+
+            builder.Append(value);
+        }
+    }
+
+    public override string ToString()
+    {
+        lock (builder)
+        {
+            return builder.ToString();
+        }
+    }
+}
