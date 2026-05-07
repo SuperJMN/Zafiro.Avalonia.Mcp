@@ -192,6 +192,8 @@ Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assem
 
 After that, use the normal tools against the preview: `get_snapshot`, `screenshot`, `get_datacontext`, selectors, `wait_for`, and so on. Finish with `close_preview` to terminate the process. Preview is desktop-only; Android still uses the `connect_adb` flow.
 
+`preview_axaml` uses runtime XAML loading, so it can differ from the compiled AXAML path used by the normal app. See [AXAML preview runtime loader limitations](docs/axaml-preview-loader-limitations.md) for known differences around compiled bindings, design-time data, resource lookup, custom controls, and generated code assumptions.
+
 When the preview host needs copied native assets from `runtimes/<rid>/native`, it resolves them by runtime identifier instead of directory enumeration order. The exact current RID is tried first, then compatible RIDs from the same OS family and architecture, then the same OS family, and finally any remaining copied RID as a deterministic compatibility fallback. Library file names are matched using the target RID's platform convention (`.dll`, `.dylib`, or `.so`).
 
 ## Available tools
@@ -282,6 +284,7 @@ Stable codes you can switch on:
 | Stale discovery files | If the app crashed, delete leftover `.json` files from `{TEMP}/zafiro-avalonia-mcp/`. |
 | `preview_axaml` asks for `entryType` | The target assembly has multiple possible Avalonia entry points. Pass the full type name of `Program` with `BuildAvaloniaApp` or the `Application` subclass. |
 | `preview_axaml` cannot find the target assembly | In project mode the tool uses MSBuild `TargetPath`; build the requested configuration/framework or leave `build=true`. In assembly mode pass the built app `.dll`. |
+| `preview_axaml` reports a type or resource resolution failure | Rebuild the target app, confirm the AXAML `x:Class` namespace and assembly, check `avares://` resource paths, and compare with [runtime loader limitations](docs/axaml-preview-loader-limitations.md). |
 
 ## Android via ADB (preview)
 
