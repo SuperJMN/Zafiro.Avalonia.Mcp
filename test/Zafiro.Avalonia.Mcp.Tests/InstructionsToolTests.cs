@@ -30,6 +30,24 @@ public class InstructionsToolTests
     }
 
     [Fact]
+    public void Tools_Page_Documents_Preview_SideEffects_And_EnvironmentFlag()
+    {
+        var body = InstructionTools.GetInstructions("tools");
+
+        Assert.Contains("BuildAvaloniaApp", body);
+        Assert.Contains("ZAFIRO_AVALONIA_MCP_PREVIEW=1", body);
+        Assert.Contains("startup side effects", body);
+        Assert.Contains("file writes", body);
+        Assert.Contains("network requests", body);
+        Assert.Contains("timers", body);
+        Assert.Contains("database migrations or writes", body);
+        Assert.Contains("telemetry", body);
+        Assert.Contains("background sync", body);
+        Assert.Contains("startup risks", body);
+        Assert.Contains("UI/resource setup", body);
+    }
+
+    [Fact]
     public void Tools_Page_HallucinationTable_Maps_TakeScreenshot_To_Screenshot()
     {
         var body = InstructionTools.GetInstructions("tools");

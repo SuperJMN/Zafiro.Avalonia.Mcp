@@ -214,7 +214,14 @@ internal static class ToolsCatalogue
         }
         sb.AppendLine();
 
-        sb.AppendLine("## 5. Recommended call order");
+        sb.AppendLine("## 5. Preview startup side effects");
+        sb.AppendLine();
+        sb.AppendLine("`preview_axaml` launches a real preview host and executes the target app's real `BuildAvaloniaApp` method when that entry point is used. That preserves UI setup, styles, resources, fonts, service registration needed by controls, and design-time resource wiring, but it can also trigger startup side effects.");
+        sb.AppendLine();
+        sb.AppendLine("The preview process defines `ZAFIRO_AVALONIA_MCP_PREVIEW=1`. App startup code should check that flag to skip non-UI work such as service calls, file writes, network requests, timers, database migrations or writes, telemetry, background sync, and other startup risks while still keeping UI/resource setup active.");
+        sb.AppendLine();
+
+        sb.AppendLine("## 6. Recommended call order");
         sb.AppendLine();
         sb.AppendLine("- **\"Preview this AXAML\"** → `preview_axaml` with `axamlPath` + `projectPath`, then use normal tools (`get_snapshot`, `screenshot`, `get_datacontext`); finish with `close_preview`.");
         sb.AppendLine("- **\"What's on screen?\"** → `get_snapshot` (cheapest), then `get_screen_text` if you only need text.");
