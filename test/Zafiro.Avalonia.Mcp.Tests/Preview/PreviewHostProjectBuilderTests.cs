@@ -48,6 +48,7 @@ public sealed class PreviewHostProjectBuilderTests
         var launch = await builder.Build(target, width: 320, height: 240, CancellationToken.None);
         var projectText = File.ReadAllText(launch.ProjectPath);
         var programText = File.ReadAllText(Path.Combine(Path.GetDirectoryName(launch.ProjectPath)!, "Program.cs"));
+        var nativeResolverText = File.ReadAllText(Path.Combine(Path.GetDirectoryName(launch.ProjectPath)!, "PreviewNativeAssetResolver.cs"));
 
         Assert.Contains($"<HintPath>{temp.TargetAssemblyPath}</HintPath>", projectText);
         Assert.Contains($"<ProjectReference Include=\"{temp.AppHostProjectPath}\"", projectText);
@@ -56,6 +57,7 @@ public sealed class PreviewHostProjectBuilderTests
         Assert.Contains("Version=\"12.0.2\"", projectText);
         Assert.Contains("ExcludeAssets=\"all\"", projectText);
         Assert.Equal(PreviewHostSource.Code, programText);
+        Assert.Equal(PreviewNativeAssetResolverSource.Code, nativeResolverText);
         Assert.Contains(runner.Calls, call => call.FileName == "dotnet" && call.Arguments.Contains("build"));
         Assert.Equal("dotnet", launch.StartInfo.FileName);
         Assert.Contains(launch.StartInfo.ArgumentList, argument => argument.EndsWith("Zafiro.Avalonia.Mcp.PreviewHost.dll", StringComparison.Ordinal));

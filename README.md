@@ -192,6 +192,8 @@ Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assem
 
 After that, use the normal tools against the preview: `get_snapshot`, `screenshot`, `get_datacontext`, selectors, `wait_for`, and so on. Finish with `close_preview` to terminate the process. Preview is desktop-only; Android still uses the `connect_adb` flow.
 
+When the preview host needs copied native assets from `runtimes/<rid>/native`, it resolves them by runtime identifier instead of directory enumeration order. The exact current RID is tried first, then compatible RIDs from the same OS family and architecture, then the same OS family, and finally any remaining copied RID as a deterministic compatibility fallback. Library file names are matched using the target RID's platform convention (`.dll`, `.dylib`, or `.so`).
+
 ## Available tools
 
 > Tool naming convention: bare verbs (`click`, `screenshot`, `scroll`) or `get_*`/`list_*` prefixes. **No `take_*`** — `take_screenshot` was renamed to `screenshot` in v2.0. Call `instructions` with `page='tools'` to receive the full reflection-built catalogue, the selector cheat-sheet, and the error-code table; that page is the canonical surface and updates itself when tools are added.

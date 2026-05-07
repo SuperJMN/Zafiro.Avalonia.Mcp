@@ -9,6 +9,7 @@ public sealed class PreviewHostSourceTests
     public void GeneratedHostSource_IsLoadedFromEmbeddedTemplate()
     {
         Assert.Contains(PreviewHostSource.ResourceName, typeof(PreviewHostSource).Assembly.GetManifestResourceNames());
+        Assert.Contains(PreviewNativeAssetResolverSource.ResourceName, typeof(PreviewHostSource).Assembly.GetManifestResourceNames());
     }
 
     [Fact]
@@ -19,6 +20,16 @@ public sealed class PreviewHostSourceTests
 
         using var reader = new StreamReader(stream);
         Assert.Equal(reader.ReadToEnd(), PreviewHostSource.Code);
+    }
+
+    [Fact]
+    public void GeneratedNativeAssetResolverSource_MatchesEmbeddedContent()
+    {
+        using var stream = typeof(PreviewHostSource).Assembly.GetManifestResourceStream(PreviewNativeAssetResolverSource.ResourceName);
+        Assert.NotNull(stream);
+
+        using var reader = new StreamReader(stream);
+        Assert.Equal(reader.ReadToEnd(), PreviewNativeAssetResolverSource.Code);
     }
 }
 

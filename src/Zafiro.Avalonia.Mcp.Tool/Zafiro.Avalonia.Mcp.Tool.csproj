@@ -16,6 +16,7 @@
   <ItemGroup>
     <Compile Remove="Preview\PreviewHost.template.cs" />
     <EmbeddedResource Include="Preview\PreviewHost.template.cs" LogicalName="Zafiro.Avalonia.Mcp.Tool.Preview.PreviewHost.template.cs" />
+    <EmbeddedResource Include="Preview\PreviewNativeAssetResolver.cs" LogicalName="Zafiro.Avalonia.Mcp.Tool.Preview.PreviewNativeAssetResolver.cs" />
   </ItemGroup>
 
   <ItemGroup>
