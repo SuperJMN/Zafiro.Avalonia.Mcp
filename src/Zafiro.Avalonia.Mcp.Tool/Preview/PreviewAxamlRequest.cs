@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Zafiro.Avalonia.Mcp.Tool.Preview;
 
 internal sealed record PreviewAxamlRequest(
@@ -22,12 +24,19 @@ internal sealed record PreviewTarget(
 
 internal sealed class PreviewValidationException : Exception
 {
-    public PreviewValidationException(string code, string message, string? suggested = null) : base(message)
+    public PreviewValidationException(string code, string message, string? suggested = null, object? details = null) : base(message)
     {
         Code = code;
         Suggested = suggested;
+        Details = details;
     }
 
     public string Code { get; }
     public string? Suggested { get; }
+    public object? Details { get; }
 }
+
+internal sealed record PreviewHostExitDetails(
+    [property: JsonPropertyName("exitCode")] int ExitCode,
+    [property: JsonPropertyName("standardOutput")] string StandardOutput,
+    [property: JsonPropertyName("standardError")] string StandardError);

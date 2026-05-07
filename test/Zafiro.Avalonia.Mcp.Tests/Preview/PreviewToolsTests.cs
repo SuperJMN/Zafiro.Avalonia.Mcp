@@ -55,6 +55,23 @@ public sealed class PreviewToolsTests
         }
     }
 
+    [Fact]
+    public void PreviewErrorSerializer_WritesMachineReadableDetails()
+    {
+        var result = PreviewErrorSerializer.Serialize(
+            "INTERNAL",
+            "Preview host exited.",
+            details: new PreviewHostExitDetails(37, "stdout", "stderr"));
+
+        using var document = JsonDocument.Parse(result);
+        var error = document.RootElement.GetProperty("error");
+        Assert.Equal("INTERNAL", error.GetProperty("code").GetString());
+        var details = error.GetProperty("details");
+        Assert.Equal(37, details.GetProperty("exitCode").GetInt32());
+        Assert.Equal("stdout", details.GetProperty("standardOutput").GetString());
+        Assert.Equal("stderr", details.GetProperty("standardError").GetString());
+    }
+
     private sealed class NoOpProcessRunner : IProcessRunner
     {
         public Task<ProcessRunResult> Run(
