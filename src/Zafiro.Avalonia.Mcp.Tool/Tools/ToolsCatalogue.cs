@@ -220,6 +220,8 @@ internal static class ToolsCatalogue
         sb.AppendLine();
         sb.AppendLine("The preview process defines `ZAFIRO_AVALONIA_MCP_PREVIEW=1`. App startup code should check that flag to skip non-UI work such as service calls, file writes, network requests, timers, database migrations or writes, telemetry, background sync, and other startup risks while still keeping UI/resource setup active.");
         sb.AppendLine();
+        sb.AppendLine("On Linux, the preview launcher recovers missing graphical session variables such as `DISPLAY`, `WAYLAND_DISPLAY`, and `XDG_RUNTIME_DIR` from same-user ancestor processes before starting the host.");
+        sb.AppendLine();
 
         sb.AppendLine("## 6. Recommended call order");
         sb.AppendLine();

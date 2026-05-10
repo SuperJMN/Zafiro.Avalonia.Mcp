@@ -279,6 +279,8 @@ internal sealed class PreviewHostProjectBuilder
         startInfo.ArgumentList.Add(width.ToString());
         startInfo.ArgumentList.Add("--height");
         startInfo.ArgumentList.Add(height.ToString());
+
+        PreviewGraphicalEnvironment.Apply(startInfo.Environment);
         startInfo.Environment[PreviewEnvironmentVariable] = "1";
 
         if (!string.IsNullOrWhiteSpace(target.EntryType))

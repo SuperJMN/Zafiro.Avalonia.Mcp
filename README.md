@@ -192,6 +192,8 @@ Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assem
 
 After that, use the normal tools against the preview: `get_snapshot`, `screenshot`, `get_datacontext`, selectors, `wait_for`, and so on. Finish with `close_preview` to terminate the process. Preview is desktop-only; Android still uses the `connect_adb` flow.
 
+On Linux, agent hosts sometimes start the MCP tool without `DISPLAY`, `WAYLAND_DISPLAY`, or `XDG_RUNTIME_DIR` even though the parent graphical session has them. The preview launcher recovers missing graphical session variables from same-user ancestor processes before starting the temporary host.
+
 `preview_axaml` uses runtime XAML loading, so it can differ from the compiled AXAML path used by the normal app. See [AXAML preview runtime loader limitations](docs/axaml-preview-loader-limitations.md) for known differences around compiled bindings, design-time data, resource lookup, custom controls, and generated code assumptions.
 
 The preview host executes the target app's real `BuildAvaloniaApp` path before it creates the isolated preview window. That keeps app styles, resources, fonts, ReactiveUI setup, platform options, and other framework configuration available, but it also means app startup code can run in the preview process. Guard production-only work such as service startup, file writes, network calls, timers, database migrations, telemetry, and background sync. The preview process sets `ZAFIRO_AVALONIA_MCP_PREVIEW=1`; apps can branch on that value inside `BuildAvaloniaApp`, `App.Initialize`, or service composition to skip side effects while keeping UI resources loaded.

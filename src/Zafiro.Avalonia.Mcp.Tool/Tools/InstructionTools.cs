@@ -131,6 +131,8 @@ public sealed class InstructionTools
         Avalonia desktop binaries; the preview host is built from the target app
         output, reuses the app's BuildAvaloniaApp method or Application subclass,
         then adds MCP diagnostics inside the isolated preview process.
+        On Linux, the preview launcher recovers missing graphical session
+        variables from same-user ancestor processes before starting the host.
 
         MCP Server setup (for AI agent integration):
 
