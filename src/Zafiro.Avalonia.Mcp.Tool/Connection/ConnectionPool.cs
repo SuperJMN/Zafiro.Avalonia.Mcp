@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Models;
 
@@ -54,10 +55,24 @@ public sealed class ConnectionPool : IDisposable
 
     private static bool IsPipeAvailable(string pipeName)
     {
-        // On Linux, .NET named pipes are Unix domain sockets at /tmp/CoreFxPipe_<name>
+        if (OperatingSystem.IsWindows())
+            return IsWindowsPipeAvailable(pipeName);
+
+        // On Unix, .NET named pipes are Unix domain sockets at /tmp/CoreFxPipe_<name>.
         var socketPath = Path.Combine(Path.GetTempPath(), $"CoreFxPipe_{pipeName}");
         return File.Exists(socketPath);
     }
+
+    private static bool IsWindowsPipeAvailable(string pipeName)
+    {
+        // Windows named pipes live under \\.\pipe and are not filesystem entries.
+        // WaitNamedPipe probes the pipe namespace without consuming a connection.
+        return WaitNamedPipe($@"\\.\pipe\{pipeName}", 0);
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool WaitNamedPipe(string namedPipeName, int timeout);
 
     private static bool IsProcessRunning(int pid)
     {
