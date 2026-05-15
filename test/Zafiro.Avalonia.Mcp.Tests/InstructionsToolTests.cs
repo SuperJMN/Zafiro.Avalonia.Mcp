@@ -45,6 +45,9 @@ public class InstructionsToolTests
         Assert.Contains("background sync", body);
         Assert.Contains("startup risks", body);
         Assert.Contains("UI/resource setup", body);
+        Assert.Contains("DISPLAY_UNAVAILABLE", body);
+        Assert.Contains("PREVIEW_HOST_EXITED", body);
+        Assert.Contains("get_snapshot", body);
     }
 
     [Fact]
@@ -73,6 +76,8 @@ public class InstructionsToolTests
         var body = InstructionTools.GetInstructions("tools");
         Assert.Contains("NO_MATCH", body);
         Assert.Contains("STALE_NODE", body);
+        Assert.Contains("DISPLAY_UNAVAILABLE", body);
+        Assert.Contains("PREVIEW_HOST_EXITED", body);
     }
 
     [Fact]

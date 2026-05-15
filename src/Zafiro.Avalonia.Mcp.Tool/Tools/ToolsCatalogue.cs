@@ -220,7 +220,9 @@ internal static class ToolsCatalogue
         sb.AppendLine();
         sb.AppendLine("The preview process defines `ZAFIRO_AVALONIA_MCP_PREVIEW=1`. App startup code should check that flag to skip non-UI work such as service calls, file writes, network requests, timers, database migrations or writes, telemetry, background sync, and other startup risks while still keeping UI/resource setup active.");
         sb.AppendLine();
-        sb.AppendLine("On Linux, the preview launcher recovers missing graphical session variables such as `DISPLAY`, `WAYLAND_DISPLAY`, and `XDG_RUNTIME_DIR` from same-user ancestor processes before starting the host.");
+        sb.AppendLine("On Linux, the preview launcher recovers missing graphical session variables such as `DISPLAY`, `WAYLAND_DISPLAY`, and `XDG_RUNTIME_DIR` from same-user ancestor processes before starting the host. If no graphical display is available after recovery, `preview_axaml` fails before launch with `DISPLAY_UNAVAILABLE` and includes non-sensitive environment hints.");
+        sb.AppendLine();
+        sb.AppendLine("`preview_axaml` reports `connected=true` only after the preview process answers `get_snapshot`, so an AXAML/app startup crash is returned as `PREVIEW_HOST_EXITED` with captured stdout/stderr instead of surfacing later as a generic `Connection closed`.");
         sb.AppendLine();
 
         sb.AppendLine("## 6. Recommended call order");
@@ -269,6 +271,9 @@ internal static class ToolsCatalogue
             [DiagnosticErrorCodes.UnsupportedOperation]= "The control does not support this operation — pick a more specific tool (e.g. `toggle` for CheckBox).",
             [DiagnosticErrorCodes.Timeout]             = "The condition was not met within the timeout — increase `timeoutMs` or verify the precondition.",
             [DiagnosticErrorCodes.Internal]            = "Internal server error — retry once; if it persists, capture the error message and report it.",
+            [DiagnosticErrorCodes.BuildFailed]         = "`preview_axaml` could not build/evaluate the target or generated preview host — inspect the build output.",
+            [DiagnosticErrorCodes.DisplayUnavailable]  = "`preview_axaml` needs a desktop graphical session — run the MCP server with DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR available.",
+            [DiagnosticErrorCodes.PreviewHostExited]   = "The generated AXAML preview host exited — inspect the captured stdout/stderr and preview host project path in the details.",
         };
 
         var fields = typeof(DiagnosticErrorCodes)

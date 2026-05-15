@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
+using Zafiro.Avalonia.Mcp.Protocol.Messages;
 using Zafiro.Avalonia.Mcp.Tool.Connection;
 using Zafiro.Avalonia.Mcp.Tool.Preview;
 
@@ -69,7 +70,7 @@ public sealed class PreviewTools
         }
         catch (Exception ex)
         {
-            return PreviewErrorSerializer.Serialize("INTERNAL", ex.Message);
+            return PreviewErrorSerializer.Serialize(DiagnosticErrorCodes.Internal, ex.Message);
         }
     }
 

@@ -30,7 +30,7 @@ internal static class AppConnectionExtensions
         }
         catch (Exception ex)
         {
-            return $"Error: {ex.Message}";
+            return await FormatLocalError(conn, ex);
         }
     }
 
@@ -57,7 +57,7 @@ internal static class AppConnectionExtensions
         }
         catch (Exception ex)
         {
-            return [new TextContentBlock { Text = $"Error: {ex.Message}" }];
+            return [new TextContentBlock { Text = await FormatLocalError(conn, ex) }];
         }
     }
 
@@ -70,5 +70,22 @@ internal static class AppConnectionExtensions
         if (ex.ErrorInfo?.Suggested is { Length: > 0 } hint)
             sb.Append("\nHint: ").Append(hint);
         return sb.ToString();
+    }
+
+    private static async Task<string> FormatLocalError(AppConnection conn, Exception ex)
+    {
+        var message = $"Error: {ex.Message}";
+        string? details = null;
+        try
+        {
+            details = await conn.GetConnectionFailureDetails(CancellationToken.None);
+        }
+        catch
+        {
+        }
+
+        return string.IsNullOrWhiteSpace(details)
+            ? message
+            : $"{message}\n{details}";
     }
 }

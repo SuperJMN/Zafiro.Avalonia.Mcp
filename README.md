@@ -188,11 +188,11 @@ For layout work, an agent can open a single desktop AXAML document without navig
 }
 ```
 
-Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assemblyPath`. In `projectPath` mode the tool builds/evaluates the app by default, launches a hidden preview host process, loads the AXAML in design mode, connects MCP to that preview, and returns `{ pid, title, axamlPath, connected }`. The global dotnet tool does not embed Avalonia desktop binaries; the temporary preview host is built from the target app output and restores only the runtime XAML loader when that DLL is not already present.
+Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assemblyPath`. In `projectPath` mode the tool builds/evaluates the app by default, launches a hidden preview host process, loads the AXAML in design mode, connects MCP to that preview, waits until the preview answers `get_snapshot`, and returns `{ pid, title, axamlPath, connected }`. The global dotnet tool does not embed Avalonia desktop binaries; the temporary preview host is built from the target app output and restores only the runtime XAML loader when that DLL is not already present.
 
 After that, use the normal tools against the preview: `get_snapshot`, `screenshot`, `get_datacontext`, selectors, `wait_for`, and so on. Finish with `close_preview` to terminate the process. Preview is desktop-only; Android still uses the `connect_adb` flow.
 
-On Linux, agent hosts sometimes start the MCP tool without `DISPLAY`, `WAYLAND_DISPLAY`, or `XDG_RUNTIME_DIR` even though the parent graphical session has them. The preview launcher recovers missing graphical session variables from same-user ancestor processes before starting the temporary host.
+On Linux, agent hosts sometimes start the MCP tool without `DISPLAY`, `WAYLAND_DISPLAY`, or `XDG_RUNTIME_DIR` even though the parent graphical session has them. The preview launcher recovers missing graphical session variables from same-user ancestor processes before starting the temporary host. If no display is available after recovery, `preview_axaml` fails before launch with `DISPLAY_UNAVAILABLE` and includes non-sensitive environment hints.
 
 `preview_axaml` uses runtime XAML loading, so it can differ from the compiled AXAML path used by the normal app. See [AXAML preview runtime loader limitations](docs/axaml-preview-loader-limitations.md) for known differences around compiled bindings, design-time data, resource lookup, custom controls, and generated code assumptions.
 
@@ -285,6 +285,9 @@ Stable codes you can switch on:
 | `UNSUPPORTED_OPERATION` | The control does not support this operation. Pick a more specific tool. |
 | `TIMEOUT` | A condition was not met within the timeout. |
 | `INTERNAL` | Internal server error. Retry once; report if it persists. |
+| `BUILD_FAILED` | `preview_axaml` could not build/evaluate the target project or generated preview host. |
+| `DISPLAY_UNAVAILABLE` | `preview_axaml` could not access a graphical desktop display. |
+| `PREVIEW_HOST_EXITED` | The generated preview host exited before it was ready; inspect returned stdout/stderr. |
 
 ## Troubleshooting
 
@@ -299,6 +302,8 @@ Stable codes you can switch on:
 | Stale discovery files | If the app crashed, delete leftover `.json` files from `{TEMP}/zafiro-avalonia-mcp/`. |
 | `preview_axaml` asks for `entryType` | The target assembly has multiple possible Avalonia entry points. Pass the full type name of `Program` with `BuildAvaloniaApp` or the `Application` subclass. |
 | `preview_axaml` cannot find the target assembly | In project mode the tool uses MSBuild `TargetPath`; build the requested configuration/framework or leave `build=true`. In assembly mode pass the built app `.dll`. |
+| `preview_axaml` reports `DISPLAY_UNAVAILABLE` | The MCP server process has no usable desktop display. Run it from the graphical session or pass `DISPLAY`/`WAYLAND_DISPLAY` and `XDG_RUNTIME_DIR` into that process. |
+| `preview_axaml` reports `PREVIEW_HOST_EXITED` | The generated preview host crashed or closed before it was ready. Inspect the returned stdout/stderr and preview host project path to distinguish AXAML load, app startup, resource, and environment failures. |
 | `preview_axaml` reports a type or resource resolution failure | Rebuild the target app, confirm the AXAML `x:Class` namespace and assembly, check `avares://` resource paths, and compare with [runtime loader limitations](docs/axaml-preview-loader-limitations.md). |
 | `preview_axaml` starts real app services | The preview host runs `BuildAvaloniaApp`. Check `ZAFIRO_AVALONIA_MCP_PREVIEW=1` and skip production-only startup work while keeping UI setup and resources available. |
 

@@ -1,4 +1,5 @@
 using Xunit;
+using Zafiro.Avalonia.Mcp.Protocol.Messages;
 using Zafiro.Avalonia.Mcp.Tool.Preview;
 
 namespace Zafiro.Avalonia.Mcp.Tests.Preview;
@@ -64,6 +65,41 @@ public sealed class PreviewGraphicalEnvironmentTests
 
         Assert.Equal(":99", environment["DISPLAY"]);
         Assert.Equal("/run/user/1000", environment["XDG_RUNTIME_DIR"]);
+    }
+
+    [Fact]
+    public void EnsureAvailable_ThrowsDisplayUnavailable_WhenLinuxEnvironmentHasNoDisplay()
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["XDG_SESSION_TYPE"] = "wayland",
+            ["XDG_RUNTIME_DIR"] = "/run/user/1000",
+        };
+
+        var ex = Assert.Throws<PreviewValidationException>(() =>
+            PreviewGraphicalEnvironment.EnsureAvailable(environment, isLinux: true));
+
+        Assert.Equal(DiagnosticErrorCodes.DisplayUnavailable, ex.Code);
+        Assert.Contains("graphical session", ex.Message);
+        Assert.Contains("DISPLAY", ex.Message);
+        var suggested = Assert.IsType<string>(ex.Suggested);
+        Assert.Contains("XDG_RUNTIME_DIR", suggested);
+        var details = Assert.IsType<PreviewDisplayEnvironmentDetails>(ex.Details);
+        Assert.Null(details.Display);
+        Assert.Null(details.WaylandDisplay);
+        Assert.Equal("wayland", details.XdgSessionType);
+        Assert.True(details.XdgRuntimeDirSet);
+    }
+
+    [Fact]
+    public void EnsureAvailable_AllowsDisplayVariable()
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["DISPLAY"] = ":1",
+        };
+
+        PreviewGraphicalEnvironment.EnsureAvailable(environment, isLinux: true);
     }
 
     private sealed class FakeProcessEnvironmentReader(

@@ -15,10 +15,16 @@ public sealed class AppConnection : IDisposable
     private StreamWriter? _writer;
     private int _requestId;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly Func<CancellationToken, Task<string?>>? _connectionFailureDetailsProvider;
 
-    public AppConnection(DiscoveryInfo info)
+    public AppConnection(DiscoveryInfo info) : this(info, null)
+    {
+    }
+
+    internal AppConnection(DiscoveryInfo info, Func<CancellationToken, Task<string?>>? connectionFailureDetailsProvider)
     {
         _info = info;
+        _connectionFailureDetailsProvider = connectionFailureDetailsProvider;
     }
 
     public int Pid => _info.Pid;
@@ -73,6 +79,9 @@ public sealed class AppConnection : IDisposable
             _sendLock.Release();
         }
     }
+
+    internal Task<string?> GetConnectionFailureDetails(CancellationToken ct) =>
+        _connectionFailureDetailsProvider?.Invoke(ct) ?? Task.FromResult<string?>(null);
 
     public void Dispose()
     {

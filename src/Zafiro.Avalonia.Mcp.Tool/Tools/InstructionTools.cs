@@ -36,9 +36,14 @@ public sealed class InstructionTools
 
         AXAML preview workflow (desktop-only):
         1. Use 'preview_axaml' with axamlPath and exactly one of projectPath or assemblyPath
-        2. The tool launches an isolated preview window and connects to it automatically
+        2. The tool launches an isolated preview window, waits for get_snapshot, and connects to it automatically
         3. Use normal tools: get_snapshot, screenshot, get_datacontext, click, wait_for, ...
         4. Use 'close_preview' when finished
+
+        On Linux, preview_axaml needs access to a graphical display. It recovers
+        missing DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR values from same-user
+        ancestor processes when possible and fails early with DISPLAY_UNAVAILABLE
+        when no display is available.
 
         Example:
           preview_axaml axamlPath="src/MyApp/Views/EditView.axaml" projectPath="src/MyApp/MyApp.csproj" width=390 height=844
@@ -133,6 +138,9 @@ public sealed class InstructionTools
         then adds MCP diagnostics inside the isolated preview process.
         On Linux, the preview launcher recovers missing graphical session
         variables from same-user ancestor processes before starting the host.
+        If no display is available after recovery, preview_axaml fails before
+        launch with DISPLAY_UNAVAILABLE and includes non-sensitive environment
+        hints.
 
         MCP Server setup (for AI agent integration):
 
