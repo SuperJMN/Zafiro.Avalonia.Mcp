@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using Zafiro.Avalonia.Mcp.Protocol;
+using Zafiro.Avalonia.Mcp.Protocol.Messages;
 using Zafiro.Avalonia.Mcp.Tool.Connection;
 
 namespace Zafiro.Avalonia.Mcp.Tool.Preview;
@@ -12,6 +13,8 @@ public sealed class PreviewProcessManager : IDisposable
     private readonly TimeSpan discoveryTimeout;
     private readonly TimeSpan pollInterval;
     private readonly ConcurrentDictionary<int, PreviewProcess> processes = new();
+    private static readonly TimeSpan ReadinessProbeTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan ExitDrainTimeout = TimeSpan.FromMilliseconds(500);
 
     public PreviewProcessManager()
         : this(new PreviewHostProjectBuilder(new DotnetProcessRunner()), TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(150))
@@ -49,12 +52,12 @@ public sealed class PreviewProcessManager : IDisposable
 
         if (!process.Start())
         {
-            throw new PreviewValidationException("INTERNAL", "Failed to start the AXAML preview host process.");
+            throw new PreviewValidationException(DiagnosticErrorCodes.Internal, "Failed to start the AXAML preview host process.");
         }
 
         var output = PreviewProcessOutput.Capture(process.StandardOutput, process.StandardError);
 
-        var previewProcess = new PreviewProcess(process.Id, process, target, output);
+        var previewProcess = new PreviewProcess(process.Id, process, target, output, launch.ProjectPath);
         processes[process.Id] = previewProcess;
 
         return previewProcess;
@@ -72,18 +75,15 @@ public sealed class PreviewProcessManager : IDisposable
         {
             while (true)
             {
-                if (previewProcess.Process.HasExited)
-                {
-                    await previewProcess.Output.WaitForDrain(TimeSpan.FromMilliseconds(500), cancellationToken);
-                    var output = previewProcess.Output.Snapshot();
-                    throw new PreviewValidationException(
-                        "INTERNAL",
-                        $"Preview host exited before publishing MCP discovery. Exit code: {previewProcess.Process.ExitCode}.",
-                        details: new PreviewHostExitDetails(
-                            previewProcess.Process.ExitCode,
-                            output.StandardOutput,
-                            output.StandardError));
-                }
+                pool.RegisterConnectionFailureDetails(
+                    previewProcess.Pid,
+                    cancellationToken => GetConnectionFailureDetails(previewProcess.Pid, cancellationToken));
+
+                await ThrowIfExited(
+                    previewProcess,
+                    "Preview host exited before publishing MCP discovery.",
+                    connected: false,
+                    cancellationToken);
 
                 var app = pool.DiscoverApps().FirstOrDefault(x => x.Pid == previewProcess.Pid);
                 if (app is not null)
@@ -92,7 +92,10 @@ public sealed class PreviewProcessManager : IDisposable
                     {
                         var connection = await pool.Connect(previewProcess.Pid);
                         await connection.SendAsync(ProtocolMethods.Ping, null, timeout.Token);
-                        return connection;
+                        if (await IsPreviewReady(connection, previewProcess, timeout.Token))
+                        {
+                            return connection;
+                        }
                     }
                     catch (OperationCanceledException)
                     {
@@ -100,6 +103,12 @@ public sealed class PreviewProcessManager : IDisposable
                     }
                     catch
                     {
+                        await ThrowIfExited(
+                            previewProcess,
+                            "Preview host exited before the preview window became ready.",
+                            connected: true,
+                            cancellationToken);
+                        pool.Disconnect(previewProcess.Pid);
                     }
                 }
 
@@ -108,8 +117,26 @@ public sealed class PreviewProcessManager : IDisposable
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeout.IsCancellationRequested)
         {
-            throw new PreviewValidationException("TIMEOUT", "Timed out waiting for the AXAML preview host MCP discovery.");
+            throw new PreviewValidationException(
+                DiagnosticErrorCodes.Timeout,
+                "Timed out waiting for the AXAML preview host to publish MCP discovery and answer get_snapshot.");
         }
+    }
+
+    internal async Task<string?> GetConnectionFailureDetails(int pid, CancellationToken cancellationToken)
+    {
+        if (!processes.TryGetValue(pid, out var preview))
+        {
+            return null;
+        }
+
+        var details = await TryGetExitDetails(preview, connected: true, cancellationToken);
+        if (details is null)
+        {
+            return null;
+        }
+
+        return FormatConnectionFailure(details);
     }
 
     internal IReadOnlyList<int> Close(int pid, ConnectionPool pool)
@@ -184,9 +211,137 @@ public sealed class PreviewProcessManager : IDisposable
         {
         }
     }
+
+    private async Task<bool> IsPreviewReady(
+        AppConnection connection,
+        PreviewProcess previewProcess,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var snapshot = await connection.SendAsync(
+                ProtocolMethods.GetSnapshot,
+                null,
+                ReadinessProbeTimeout,
+                cancellationToken);
+
+            return SnapshotHasWindow(snapshot);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException("Timed out waiting for get_snapshot during preview readiness probing.");
+        }
+        catch
+        {
+            await ThrowIfExited(
+                previewProcess,
+                "Preview host exited before the preview window became ready.",
+                connected: true,
+                cancellationToken);
+            throw;
+        }
+    }
+
+    private static bool SnapshotHasWindow(System.Text.Json.JsonElement? snapshot)
+    {
+        if (snapshot is null)
+        {
+            return false;
+        }
+
+        return !snapshot.Value.TryGetProperty("error", out _);
+    }
+
+    private static async Task ThrowIfExited(
+        PreviewProcess previewProcess,
+        string message,
+        bool connected,
+        CancellationToken cancellationToken)
+    {
+        var details = await TryGetExitDetails(previewProcess, connected, cancellationToken);
+        if (details is null)
+        {
+            return;
+        }
+
+        throw new PreviewValidationException(
+            DiagnosticErrorCodes.PreviewHostExited,
+            $"{message} Exit code: {details.ExitCode}.",
+            "Inspect the preview host standardError/standardOutput details to distinguish AXAML load failures, app startup failures, and environment failures.",
+            details);
+    }
+
+    private static async Task<PreviewHostExitDetails?> TryGetExitDetails(
+        PreviewProcess previewProcess,
+        bool connected,
+        CancellationToken cancellationToken)
+    {
+        if (!previewProcess.Process.HasExited)
+        {
+            try
+            {
+                await Task.Delay(ExitDrainTimeout, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            if (!previewProcess.Process.HasExited)
+            {
+                return null;
+            }
+        }
+
+        await previewProcess.Output.WaitForDrain(ExitDrainTimeout, cancellationToken);
+        var output = previewProcess.Output.Snapshot();
+        return new PreviewHostExitDetails(
+            previewProcess.Process.ExitCode,
+            output.StandardOutput,
+            output.StandardError,
+            previewProcess.HostProjectPath,
+            connected);
+    }
+
+    private static string FormatConnectionFailure(PreviewHostExitDetails details)
+    {
+        var builder = new StringBuilder()
+            .Append("Preview host process exited. Exit code: ")
+            .Append(details.ExitCode)
+            .Append('.');
+
+        if (!string.IsNullOrWhiteSpace(details.PreviewHostProjectPath))
+        {
+            builder.AppendLine()
+                .Append("Preview host project: ")
+                .Append(details.PreviewHostProjectPath);
+        }
+
+        if (!string.IsNullOrWhiteSpace(details.StandardError))
+        {
+            builder.AppendLine()
+                .Append("stderr:")
+                .AppendLine()
+                .Append(details.StandardError.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(details.StandardOutput))
+        {
+            builder.AppendLine()
+                .Append("stdout:")
+                .AppendLine()
+                .Append(details.StandardOutput.Trim());
+        }
+
+        return builder.ToString();
+    }
 }
 
-internal sealed record PreviewProcess(int Pid, Process Process, PreviewTarget Target, PreviewProcessOutput Output);
+internal sealed record PreviewProcess(
+    int Pid,
+    Process Process,
+    PreviewTarget Target,
+    PreviewProcessOutput Output,
+    string HostProjectPath);
 
 internal sealed class PreviewProcessOutput
 {

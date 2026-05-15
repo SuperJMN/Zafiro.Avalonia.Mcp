@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Xunit;
+using Zafiro.Avalonia.Mcp.Protocol.Messages;
 using Zafiro.Avalonia.Mcp.Tool.Connection;
 using Zafiro.Avalonia.Mcp.Tool.Preview;
 
@@ -43,7 +44,8 @@ public sealed class PreviewProcessManagerTests
             process.Id,
             process,
             CreateTarget(),
-            output);
+            output,
+            "/tmp/PreviewHost.csproj");
         var manager = new PreviewProcessManager(
             discoveryTimeout: TimeSpan.FromSeconds(5),
             pollInterval: TimeSpan.FromMilliseconds(1));
@@ -51,10 +53,98 @@ public sealed class PreviewProcessManagerTests
         var ex = await Assert.ThrowsAsync<PreviewValidationException>(() =>
             manager.WaitForConnection(preview, new ConnectionPool(), CancellationToken.None));
 
+        Assert.Equal(DiagnosticErrorCodes.PreviewHostExited, ex.Code);
         var details = Assert.IsType<PreviewHostExitDetails>(ex.Details);
         Assert.Equal(37, details.ExitCode);
         Assert.Contains("preview-output", details.StandardOutput);
         Assert.Contains("preview-error", details.StandardError);
+    }
+
+    [Fact]
+    public async Task WaitForConnection_ReportsCapturedOutput_WhenPreviewHostExitsAfterPingBeforeSnapshot()
+    {
+        using var app = new TempDotnetConsoleApp("""
+            using System.IO.Pipes;
+            using System.Text.Json;
+
+            var pid = Environment.ProcessId;
+            var pipeName = $"zafiro-avalonia-mcp-test-{pid}";
+            var discoveryDirectory = Path.Combine(Path.GetTempPath(), "zafiro-avalonia-mcp");
+            Directory.CreateDirectory(discoveryDirectory);
+            var discoveryPath = Path.Combine(discoveryDirectory, $"{pid}.json");
+            var discoveryJson = "{\"pid\":" + pid +
+                ",\"processName\":\"PreviewCrashAfterPing\"" +
+                ",\"startTime\":\"2026-05-15T00:00:00+00:00\"" +
+                ",\"transport\":\"pipe\"" +
+                ",\"endpoint\":\"" + pipeName + "\"" +
+                ",\"pipeName\":\"" + pipeName + "\"}";
+            await File.WriteAllTextAsync(discoveryPath, discoveryJson);
+
+            using var pipe = new NamedPipeServerStream(
+                pipeName,
+                PipeDirection.InOut,
+                NamedPipeServerStream.MaxAllowedServerInstances,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous);
+            await pipe.WaitForConnectionAsync();
+            using var reader = new StreamReader(pipe);
+            await using var writer = new StreamWriter(pipe) { AutoFlush = true };
+
+            var line = await reader.ReadLineAsync();
+            using var request = JsonDocument.Parse(line!);
+            var id = request.RootElement.GetProperty("id").GetString();
+            await writer.WriteLineAsync("{\"id\":\"" + id + "\",\"result\":{\"status\":\"ok\"}}");
+
+            Console.Error.WriteLine("preview crashed after ping");
+            return 37;
+            """);
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo("dotnet")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            },
+            EnableRaisingEvents = true,
+        };
+        process.StartInfo.ArgumentList.Add(app.AssemblyPath);
+
+        Assert.True(process.Start());
+        var output = PreviewProcessOutput.Capture(process.StandardOutput, process.StandardError);
+        var preview = new PreviewProcess(
+            process.Id,
+            process,
+            CreateTarget(),
+            output,
+            "/tmp/PreviewHost.csproj");
+        var manager = new PreviewProcessManager(
+            discoveryTimeout: TimeSpan.FromSeconds(5),
+            pollInterval: TimeSpan.FromMilliseconds(1));
+        using var pool = new ConnectionPool();
+
+        try
+        {
+            var ex = await Assert.ThrowsAsync<PreviewValidationException>(() =>
+                manager.WaitForConnection(preview, pool, CancellationToken.None));
+
+            Assert.Equal(DiagnosticErrorCodes.PreviewHostExited, ex.Code);
+            var details = Assert.IsType<PreviewHostExitDetails>(ex.Details);
+            Assert.Equal(37, details.ExitCode);
+            Assert.True(details.Connected);
+            Assert.Contains("preview crashed after ping", details.StandardError);
+            Assert.Equal("/tmp/PreviewHost.csproj", details.PreviewHostProjectPath);
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(Path.Combine(pool.DiscoveryDirectory, $"{process.Id}.json"));
+            }
+            catch
+            {
+            }
+        }
     }
 
     [Fact]
@@ -68,7 +158,8 @@ public sealed class PreviewProcessManagerTests
             currentProcess.Id,
             currentProcess,
             CreateTarget(),
-            PreviewProcessOutput.Empty);
+            PreviewProcessOutput.Empty,
+            "/tmp/PreviewHost.csproj");
 
         var ex = await Assert.ThrowsAsync<PreviewValidationException>(() =>
             manager.WaitForConnection(preview, new ConnectionPool(), CancellationToken.None));

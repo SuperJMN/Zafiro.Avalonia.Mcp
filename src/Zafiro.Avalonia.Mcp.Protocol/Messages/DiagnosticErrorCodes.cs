@@ -14,4 +14,7 @@ public static class DiagnosticErrorCodes
     public const string UnsupportedOperation = "UNSUPPORTED_OPERATION";
     public const string Timeout = "TIMEOUT";
     public const string Internal = "INTERNAL";
+    public const string BuildFailed = "BUILD_FAILED";
+    public const string DisplayUnavailable = "DISPLAY_UNAVAILABLE";
+    public const string PreviewHostExited = "PREVIEW_HOST_EXITED";
 }

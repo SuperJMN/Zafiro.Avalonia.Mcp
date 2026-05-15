@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Xml.Linq;
+using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
 namespace Zafiro.Avalonia.Mcp.Tool.Preview;
 
@@ -23,7 +24,7 @@ public sealed class PreviewTargetResolver
         if (hasProject == hasAssembly)
         {
             throw new PreviewValidationException(
-                "INVALID_PARAM",
+                DiagnosticErrorCodes.InvalidParam,
                 hasProject
                     ? "Pass either projectPath or assemblyPath, not both."
                     : "Either projectPath or assemblyPath is required.");
@@ -59,7 +60,7 @@ public sealed class PreviewTargetResolver
         if (!File.Exists(targetPath))
         {
             throw new PreviewValidationException(
-                "INVALID_PARAM",
+                DiagnosticErrorCodes.InvalidParam,
                 $"Target assembly was not found at evaluated TargetPath '{targetPath}'. Build the project or pass build=true.");
         }
 
@@ -183,10 +184,10 @@ public sealed class PreviewTargetResolver
             arguments.Add(targetFramework);
         }
 
-        var result = await RunDotnet(arguments, Path.GetDirectoryName(projectPath), cancellationToken, "BUILD_FAILED");
+        var result = await RunDotnet(arguments, Path.GetDirectoryName(projectPath), cancellationToken, DiagnosticErrorCodes.BuildFailed);
         if (result.ExitCode != 0)
         {
-            throw new PreviewValidationException("BUILD_FAILED", CleanError(result.StandardError, result.StandardOutput));
+            throw new PreviewValidationException(DiagnosticErrorCodes.BuildFailed, CleanError(result.StandardError, result.StandardOutput));
         }
     }
 
@@ -215,7 +216,7 @@ public sealed class PreviewTargetResolver
 
         if (string.IsNullOrWhiteSpace(targetPath))
         {
-            throw new PreviewValidationException("INVALID_PARAM", "MSBuild did not return a TargetPath for the project.");
+            throw new PreviewValidationException(DiagnosticErrorCodes.InvalidParam, "MSBuild did not return a TargetPath for the project.");
         }
 
         return targetPath.Trim();
@@ -225,7 +226,7 @@ public sealed class PreviewTargetResolver
         IReadOnlyList<string> arguments,
         string? workingDirectory,
         CancellationToken cancellationToken,
-        string errorCode = "INVALID_PARAM")
+        string errorCode = DiagnosticErrorCodes.InvalidParam)
     {
         var result = await processRunner.Run("dotnet", arguments, workingDirectory, cancellationToken);
         if (result.ExitCode != 0)
@@ -241,7 +242,7 @@ public sealed class PreviewTargetResolver
         var fullPath = Path.GetFullPath(path);
         if (!File.Exists(fullPath))
         {
-            throw new PreviewValidationException("INVALID_PARAM", $"{message}: '{fullPath}'.");
+            throw new PreviewValidationException(DiagnosticErrorCodes.InvalidParam, $"{message}: '{fullPath}'.");
         }
 
         return fullPath;

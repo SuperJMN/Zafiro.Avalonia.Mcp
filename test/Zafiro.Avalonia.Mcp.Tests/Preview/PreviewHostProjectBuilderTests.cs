@@ -44,8 +44,19 @@ public sealed class PreviewHostProjectBuilderTests
             EntryType: null,
             TargetFramework: "net10.0",
             Configuration: "Debug");
+        var previousDisplay = Environment.GetEnvironmentVariable("DISPLAY");
 
-        var launch = await builder.Build(target, width: 320, height: 240, CancellationToken.None);
+        PreviewHostLaunch launch;
+        try
+        {
+            Environment.SetEnvironmentVariable("DISPLAY", previousDisplay ?? ":1");
+            launch = await builder.Build(target, width: 320, height: 240, CancellationToken.None);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DISPLAY", previousDisplay);
+        }
+
         var projectText = File.ReadAllText(launch.ProjectPath);
         var programText = File.ReadAllText(Path.Combine(Path.GetDirectoryName(launch.ProjectPath)!, "Program.cs"));
         var nativeResolverText = File.ReadAllText(Path.Combine(Path.GetDirectoryName(launch.ProjectPath)!, "PreviewNativeAssetResolver.cs"));

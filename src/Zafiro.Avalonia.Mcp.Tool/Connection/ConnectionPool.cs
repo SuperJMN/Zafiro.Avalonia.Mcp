@@ -9,6 +9,7 @@ namespace Zafiro.Avalonia.Mcp.Tool.Connection;
 public sealed class ConnectionPool : IDisposable
 {
     private readonly ConcurrentDictionary<int, AppConnection> _connections = new();
+    private readonly ConcurrentDictionary<int, Func<CancellationToken, Task<string?>>> _connectionFailureDetails = new();
     private volatile AppConnection? _activeConnection;
 
     public string DiscoveryDirectory
@@ -92,7 +93,7 @@ public sealed class ConnectionPool : IDisposable
         var app = apps.FirstOrDefault(a => a.Pid == pid)
                   ?? throw new InvalidOperationException($"No app found with PID {pid}");
 
-        var connection = new AppConnection(app);
+        var connection = new AppConnection(app, GetConnectionFailureDetailsProvider(pid));
         await connection.ConnectAsync();
         _connections[pid] = connection;
         _activeConnection = connection;
@@ -121,12 +122,20 @@ public sealed class ConnectionPool : IDisposable
             return existing;
         }
 
-        var connection = new AppConnection(info);
+        var connection = new AppConnection(info, GetConnectionFailureDetailsProvider(info.Pid));
         await connection.ConnectAsync();
         _connections[info.Pid] = connection;
         _activeConnection = connection;
         return connection;
     }
+
+    internal void RegisterConnectionFailureDetails(int pid, Func<CancellationToken, Task<string?>> detailsProvider)
+    {
+        _connectionFailureDetails[pid] = detailsProvider;
+    }
+
+    private Func<CancellationToken, Task<string?>>? GetConnectionFailureDetailsProvider(int pid) =>
+        _connectionFailureDetails.TryGetValue(pid, out var provider) ? provider : null;
 
     public AppConnection GetActive()
     {
@@ -144,6 +153,7 @@ public sealed class ConnectionPool : IDisposable
     {
         if (_connections.TryRemove(pid, out var connection))
         {
+            _connectionFailureDetails.TryRemove(pid, out _);
             if (ReferenceEquals(_activeConnection, connection))
             {
                 _activeConnection = null;
@@ -158,6 +168,8 @@ public sealed class ConnectionPool : IDisposable
         {
             _activeConnection = null;
         }
+
+        _connectionFailureDetails.TryRemove(pid, out _);
     }
 
     public void Dispose()
@@ -165,5 +177,6 @@ public sealed class ConnectionPool : IDisposable
         foreach (var conn in _connections.Values)
             conn.Dispose();
         _connections.Clear();
+        _connectionFailureDetails.Clear();
     }
 }

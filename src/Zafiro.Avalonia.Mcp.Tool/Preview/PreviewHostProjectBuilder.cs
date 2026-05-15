@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Security;
 using System.Text.Json;
+using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
 namespace Zafiro.Avalonia.Mcp.Tool.Preview;
 
@@ -67,13 +68,13 @@ internal sealed class PreviewHostProjectBuilder
 
         if (result.ExitCode != 0)
         {
-            throw new PreviewValidationException("BUILD_FAILED", CleanError(result.StandardError, result.StandardOutput));
+            throw new PreviewValidationException(DiagnosticErrorCodes.BuildFailed, CleanError(result.StandardError, result.StandardOutput));
         }
 
         var hostAssemblyPath = Path.Combine(hostDirectory, "bin", "Release", targetFramework, $"{HostAssemblyName}.dll");
         if (!File.Exists(hostAssemblyPath))
         {
-            throw new PreviewValidationException("INTERNAL", $"Preview host build did not produce '{hostAssemblyPath}'.");
+            throw new PreviewValidationException(DiagnosticErrorCodes.Internal, $"Preview host build did not produce '{hostAssemblyPath}'.");
         }
 
         return new PreviewHostLaunch(projectPath, CreateStartInfo(hostAssemblyPath, target, width, height));
@@ -113,7 +114,7 @@ internal sealed class PreviewHostProjectBuilder
     private static string CreateReferenceItems(string targetAssemblyPath)
     {
         var targetDirectory = Path.GetDirectoryName(targetAssemblyPath)
-                              ?? throw new PreviewValidationException("INVALID_PARAM", "Target assembly has no parent directory.");
+                              ?? throw new PreviewValidationException(DiagnosticErrorCodes.InvalidParam, "Target assembly has no parent directory.");
 
         return string.Join(
             Environment.NewLine,
@@ -142,7 +143,7 @@ internal sealed class PreviewHostProjectBuilder
 
         if (string.IsNullOrWhiteSpace(dependency.AppHostPackageVersion))
         {
-            throw new PreviewValidationException("INTERNAL", "Could not resolve a Zafiro.Avalonia.Mcp.AppHost source project or package version.");
+            throw new PreviewValidationException(DiagnosticErrorCodes.Internal, "Could not resolve a Zafiro.Avalonia.Mcp.AppHost source project or package version.");
         }
 
         return $$"""
@@ -153,7 +154,7 @@ internal sealed class PreviewHostProjectBuilder
     private static string CreateXamlLoaderItems(string targetAssemblyPath)
     {
         var targetDirectory = Path.GetDirectoryName(targetAssemblyPath)
-                              ?? throw new PreviewValidationException("INVALID_PARAM", "Target assembly has no parent directory.");
+                              ?? throw new PreviewValidationException(DiagnosticErrorCodes.InvalidParam, "Target assembly has no parent directory.");
         var loaderPath = Path.Combine(targetDirectory, "Avalonia.Markup.Xaml.Loader.dll");
         if (File.Exists(loaderPath))
         {
@@ -164,7 +165,7 @@ internal sealed class PreviewHostProjectBuilder
         if (string.IsNullOrWhiteSpace(avaloniaVersion))
         {
             throw new PreviewValidationException(
-                "INVALID_PARAM",
+                DiagnosticErrorCodes.InvalidParam,
                 "Could not resolve the Avalonia package version from the target app output. Build the app before launching the AXAML preview.");
         }
 
@@ -189,7 +190,7 @@ internal sealed class PreviewHostProjectBuilder
     private static string CreateRuntimeContent(string targetAssemblyPath)
     {
         var targetDirectory = Path.GetDirectoryName(targetAssemblyPath)
-                              ?? throw new PreviewValidationException("INVALID_PARAM", "Target assembly has no parent directory.");
+                              ?? throw new PreviewValidationException(DiagnosticErrorCodes.InvalidParam, "Target assembly has no parent directory.");
         var runtimesDirectory = Path.Combine(targetDirectory, "runtimes");
         if (!Directory.Exists(runtimesDirectory))
         {
@@ -281,6 +282,7 @@ internal sealed class PreviewHostProjectBuilder
         startInfo.ArgumentList.Add(height.ToString());
 
         PreviewGraphicalEnvironment.Apply(startInfo.Environment);
+        PreviewGraphicalEnvironment.EnsureAvailable(startInfo.Environment);
         startInfo.Environment[PreviewEnvironmentVariable] = "1";
 
         if (!string.IsNullOrWhiteSpace(target.EntryType))

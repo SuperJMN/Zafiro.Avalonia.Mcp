@@ -39,4 +39,6 @@ internal sealed class PreviewValidationException : Exception
 internal sealed record PreviewHostExitDetails(
     [property: JsonPropertyName("exitCode")] int ExitCode,
     [property: JsonPropertyName("standardOutput")] string StandardOutput,
-    [property: JsonPropertyName("standardError")] string StandardError);
+    [property: JsonPropertyName("standardError")] string StandardError,
+    [property: JsonPropertyName("previewHostProjectPath")] string? PreviewHostProjectPath = null,
+    [property: JsonPropertyName("connected")] bool Connected = false);
