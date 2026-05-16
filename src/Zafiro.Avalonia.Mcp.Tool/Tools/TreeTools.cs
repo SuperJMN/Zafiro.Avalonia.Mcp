@@ -54,17 +54,18 @@ public sealed class TreeTools
     }
 
     [McpServerTool(Name = "get_snapshot"), Description("""
-        BEST FIRST CALL to understand the UI. Compact spatial flat list of all visible text + interactive controls in logical (XAML) order. Replaces get_screen_text + get_interactables with one cheaper call.
-        Returns: {window:{w,h}, focused:nodeId, items:[{nodeId, role, text, value, x, y, w, h}, ...]}.
-        Example: {"window":{"w":800,"h":600},"focused":12,"items":[{"nodeId":5,"role":"text","text":"Login"},{"nodeId":12,"role":"textbox","value":"user@x","x":50,"y":80,"w":200,"h":24},{"nodeId":15,"role":"button","text":"Sign in"}]}
+        BEST FIRST CALL to understand the UI. Human-oriented spatial snapshot. detail='smart' (default) returns Avalonia automation roles, semantic regions, standalone visible text, and actionable controls in a flattened hierarchy while suppressing template text and generic container summaries. Use detail='verbose' only when you need exhaustive diagnostics and can tolerate noise.
+        Returns: {window, detail, focusedId?, elements:[{nodeId, type, role, text?, value?, level, parentId?, x, y, w, h}, ...]}.
+        Example: {"window":"Main (800x600)","elements":[{"nodeId":5,"type":"TextBlock","role":"text","text":"Login","level":0},{"nodeId":12,"type":"TextBox","role":"textbox","value":"user@x","level":0,"x":50,"y":80,"w":200,"h":24},{"nodeId":15,"type":"Button","role":"button","text":"Sign in","level":0}]}
         """)]
     public static async Task<string> GetSnapshot(
         ConnectionPool pool,
         [Description("CSS-like selector to scope the snapshot to a single element. Omit for the first window.")] string? selector = null,
-        [Description("When true (default), only returns elements within the visible viewport.")] bool visibleOnly = true)
+        [Description("When true (default), only returns elements within the visible viewport.")] bool visibleOnly = true,
+        [Description("Snapshot detail: 'smart' (default) for low-noise navigation, or 'verbose' for exhaustive diagnostics with container/template text.")] string detail = "smart")
     {
         var conn = pool.GetActive();
-        var parms = new Dictionary<string, object> { ["visibleOnly"] = visibleOnly };
+        var parms = new Dictionary<string, object> { ["visibleOnly"] = visibleOnly, ["detail"] = detail };
         if (selector is not null) parms["selector"] = selector;
         return await conn.InvokeAsync(ProtocolMethods.GetSnapshot, parms, "No snapshot");
     }
