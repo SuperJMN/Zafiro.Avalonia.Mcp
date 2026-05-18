@@ -84,6 +84,7 @@ internal sealed class PreviewHostProjectBuilder
     {
         var references = CreateReferenceItems(target.AssemblyPath);
         var appHostReference = CreateAppHostReference(dependency);
+        var desktopItems = CreateDesktopItems(target.AssemblyPath);
         var xamlLoaderItems = CreateXamlLoaderItems(target.AssemblyPath);
         var runtimeContent = CreateRuntimeContent(target.AssemblyPath);
 
@@ -105,6 +106,7 @@ internal sealed class PreviewHostProjectBuilder
             {{appHostReference}}
               </ItemGroup>
 
+            {{desktopItems}}
             {{xamlLoaderItems}}
             {{runtimeContent}}
             </Project>
@@ -148,6 +150,32 @@ internal sealed class PreviewHostProjectBuilder
 
         return $$"""
                 <PackageReference Include="Zafiro.Avalonia.Mcp.AppHost" Version="{{Xml(dependency.AppHostPackageVersion)}}" />
+            """;
+    }
+
+    private static string CreateDesktopItems(string targetAssemblyPath)
+    {
+        var targetDirectory = Path.GetDirectoryName(targetAssemblyPath)
+                              ?? throw new PreviewValidationException(DiagnosticErrorCodes.InvalidParam, "Target assembly has no parent directory.");
+        var desktopPath = Path.Combine(targetDirectory, "Avalonia.Desktop.dll");
+        if (File.Exists(desktopPath))
+        {
+            return string.Empty;
+        }
+
+        var avaloniaVersion = ResolveAvaloniaPackageVersion(targetAssemblyPath);
+        if (string.IsNullOrWhiteSpace(avaloniaVersion))
+        {
+            throw new PreviewValidationException(
+                DiagnosticErrorCodes.InvalidParam,
+                "Could not resolve the Avalonia package version from the target app output. Build the app before launching the AXAML preview.");
+        }
+
+        return $$"""
+              <ItemGroup>
+                <PackageReference Include="Avalonia.Desktop" Version="{{Xml(avaloniaVersion)}}" PrivateAssets="all" />
+              </ItemGroup>
+
             """;
     }
 
