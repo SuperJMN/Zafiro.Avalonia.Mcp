@@ -85,9 +85,28 @@ public sealed class AppConnection : IDisposable
 
     public void Dispose()
     {
-        _writer?.Dispose();
-        _reader?.Dispose();
-        _stream?.Dispose();
+        DisposeConnectionResource(_writer);
+        DisposeConnectionResource(_reader);
+        DisposeConnectionResource(_stream);
         _sendLock.Dispose();
+    }
+
+    private static void DisposeConnectionResource(IDisposable? disposable)
+    {
+        if (disposable is null)
+        {
+            return;
+        }
+
+        try
+        {
+            disposable.Dispose();
+        }
+        catch (IOException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 }
