@@ -15,6 +15,17 @@ public sealed class ToolPackageDependencyTests
         Assert.DoesNotContain("Zafiro.Avalonia.Mcp.AppHost", projectText);
     }
 
+    [Fact]
+    public void AppHostProject_ReferencesRoslynRuntimeDependencies()
+    {
+        var projectPath = FindRepositoryFile("src/Zafiro.Avalonia.Mcp.AppHost/Zafiro.Avalonia.Mcp.AppHost.csproj");
+        var projectText = File.ReadAllText(projectPath);
+
+        Assert.Contains("Microsoft.CodeAnalysis.CSharp.Scripting", projectText);
+        Assert.Contains("Microsoft.CodeAnalysis.CSharp", projectText);
+        Assert.Contains("Microsoft.CodeAnalysis.Common", projectText);
+    }
+
     private static string FindRepositoryFile(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
