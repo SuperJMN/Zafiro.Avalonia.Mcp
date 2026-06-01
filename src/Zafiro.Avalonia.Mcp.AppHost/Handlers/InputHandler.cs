@@ -92,6 +92,12 @@ public sealed class InputHandler : IRequestHandler
                 }
             }
 
+            if (control is TreeViewItem treeViewItem)
+            {
+                treeViewItem.IsSelected = true;
+                return new { success = true, nodeId, method = "treeview_select", isSelected = treeViewItem.IsSelected };
+            }
+
             var itemsHost = control.GetVisualAncestors().OfType<SelectingItemsControl>().FirstOrDefault();
             if (itemsHost is not null)
             {

@@ -125,7 +125,7 @@ public sealed class ClickByQueryHandler : IRequestHandler
         "radio" => visual is RadioButton,
         "combobox" => visual is ComboBox,
         "tab" => visual is TabItem,
-        "listitem" => visual is ListBoxItem,
+        "listitem" or "treeitem" => visual is ListBoxItem or TreeViewItem,
         "menuitem" => visual is MenuItem,
         "togglebutton" => visual is ToggleButton,
         _ => true,
@@ -133,6 +133,11 @@ public sealed class ClickByQueryHandler : IRequestHandler
 
     private static string PerformClick(Visual visual)
     {
+        var inputResult = InputHandler.Click(visual);
+        var method = TryGetResultMethod(inputResult);
+        if (!string.IsNullOrWhiteSpace(method))
+            return method;
+
         if (visual is ToggleButton toggle)
         {
             toggle.IsChecked = visual is RadioButton ? true : toggle.IsChecked != true;
@@ -192,6 +197,12 @@ public sealed class ClickByQueryHandler : IRequestHandler
         }
 
         return "no_action";
+    }
+
+    private static string? TryGetResultMethod(object result)
+    {
+        var property = result.GetType().GetProperty("method");
+        return property?.GetValue(result) as string;
     }
 
     /// <summary>
