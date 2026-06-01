@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
@@ -94,6 +95,25 @@ public sealed class InputHandler : IRequestHandler
 
             if (control is TreeViewItem treeViewItem)
             {
+                var treeView = treeViewItem.GetVisualAncestors().OfType<TreeView>().FirstOrDefault()
+                    ?? treeViewItem.GetLogicalAncestors().OfType<TreeView>().FirstOrDefault();
+
+                if (treeView is not null)
+                {
+                    var selectedItem = treeViewItem.DataContext ?? treeViewItem.Header ?? treeViewItem;
+                    treeView.SelectedItem = selectedItem;
+                    treeViewItem.IsSelected = true;
+
+                    return new
+                    {
+                        success = true,
+                        nodeId,
+                        method = "treeview_select",
+                        isSelected = treeViewItem.IsSelected,
+                        selectedItem = treeView.SelectedItem?.ToString()
+                    };
+                }
+
                 treeViewItem.IsSelected = true;
                 return new { success = true, nodeId, method = "treeview_select", isSelected = treeViewItem.IsSelected };
             }

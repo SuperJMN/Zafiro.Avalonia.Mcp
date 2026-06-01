@@ -30,4 +30,27 @@ public class InputHandlerTests
         Assert.True(json.GetProperty("success").GetBoolean());
         Assert.Equal("treeview_select", json.GetProperty("method").GetString());
     }
+
+    [Fact]
+    public void Click_SelectsTreeViewOwnerItem()
+    {
+        const string funded = "funded";
+        var item = new TreeViewItem { Header = "Funded", DataContext = funded };
+        var treeView = new TreeView();
+        treeView.Items.Add(item);
+
+        var result = InputHandler.Click(item);
+
+        Assert.True(item.IsSelected);
+        Assert.Equal(funded, treeView.SelectedItem);
+
+        var json = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        Assert.True(json.GetProperty("success").GetBoolean());
+        Assert.Equal("treeview_select", json.GetProperty("method").GetString());
+        Assert.Equal(funded, json.GetProperty("selectedItem").GetString());
+    }
 }
