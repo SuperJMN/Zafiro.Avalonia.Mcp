@@ -51,6 +51,16 @@ public class InstructionsToolTests
     }
 
     [Fact]
+    public void Tools_Page_Documents_Preview_ProjectPath_ShouldUseExecutableDesktopHost()
+    {
+        var body = InstructionTools.GetInstructions("tools");
+
+        Assert.Contains("executable Desktop host project", body);
+        Assert.Contains("not the shared UI class library", body);
+        Assert.Contains("built executable host assembly", body);
+    }
+
+    [Fact]
     public void Tools_Page_HallucinationTable_Maps_TakeScreenshot_To_Screenshot()
     {
         var body = InstructionTools.GetInstructions("tools");

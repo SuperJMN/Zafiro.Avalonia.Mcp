@@ -16,6 +16,7 @@ public sealed class AppConnection : IDisposable
     private int _requestId;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private readonly Func<CancellationToken, Task<string?>>? _connectionFailureDetailsProvider;
+    private volatile bool _isConnected;
 
     public AppConnection(DiscoveryInfo info) : this(info, null)
     {
@@ -29,13 +30,23 @@ public sealed class AppConnection : IDisposable
 
     public int Pid => _info.Pid;
     public string ProcessName => _info.ProcessName;
-    public bool IsConnected => _stream is { CanRead: true, CanWrite: true };
+    public bool IsConnected => _isConnected && _stream is { CanRead: true, CanWrite: true };
 
     public async Task ConnectAsync(CancellationToken ct = default)
     {
-        _stream = await TransportClient.ConnectAsync(_info.Endpoint, _info.PipeName, TimeSpan.FromSeconds(5), ct);
-        _reader = new StreamReader(_stream, Encoding.UTF8);
-        _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
+        DisposeConnectionResources();
+        try
+        {
+            _stream = await TransportClient.ConnectAsync(_info.Endpoint, _info.PipeName, TimeSpan.FromSeconds(5), ct);
+            _reader = new StreamReader(_stream, Encoding.UTF8);
+            _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
+            _isConnected = true;
+        }
+        catch
+        {
+            DisposeConnectionResources();
+            throw;
+        }
     }
 
     public async Task<JsonElement?> SendAsync(string method, object? parameters = null, CancellationToken ct = default)
@@ -59,20 +70,38 @@ public sealed class AppConnection : IDisposable
             };
 
             var json = ProtocolSerializer.Serialize(request);
-            await _writer.WriteLineAsync(json.AsMemory(), ct);
+            try
+            {
+                await _writer.WriteLineAsync(json.AsMemory(), ct);
 
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(timeout);
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(timeout);
 
-            var responseLine = await _reader.ReadLineAsync(timeoutCts.Token);
-            if (responseLine is null)
-                throw new IOException("Connection closed");
+                var responseLine = await _reader.ReadLineAsync(timeoutCts.Token);
+                if (responseLine is null)
+                    throw new IOException("Connection closed");
 
-            var response = ProtocolSerializer.Deserialize<DiagnosticResponse>(responseLine);
-            if (response?.Error is not null)
-                throw new McpRemoteException(response.Error, response.ErrorInfo);
+                var response = ProtocolSerializer.Deserialize<DiagnosticResponse>(responseLine);
+                if (response?.Error is not null)
+                    throw new McpRemoteException(response.Error, response.ErrorInfo);
 
-            return response?.Result;
+                return response?.Result;
+            }
+            catch (OperationCanceledException)
+            {
+                DisposeConnectionResources();
+                throw;
+            }
+            catch (IOException)
+            {
+                DisposeConnectionResources();
+                throw;
+            }
+            catch (ObjectDisposedException)
+            {
+                DisposeConnectionResources();
+                throw;
+            }
         }
         finally
         {
@@ -85,10 +114,19 @@ public sealed class AppConnection : IDisposable
 
     public void Dispose()
     {
+        DisposeConnectionResources();
+        _sendLock.Dispose();
+    }
+
+    private void DisposeConnectionResources()
+    {
         DisposeConnectionResource(_writer);
         DisposeConnectionResource(_reader);
         DisposeConnectionResource(_stream);
-        _sendLock.Dispose();
+        _writer = null;
+        _reader = null;
+        _stream = null;
+        _isConnected = false;
     }
 
     private static void DisposeConnectionResource(IDisposable? disposable)

@@ -218,16 +218,18 @@ internal static class ToolsCatalogue
         sb.AppendLine();
         sb.AppendLine("`preview_axaml` launches a real preview host and executes the target app's real `BuildAvaloniaApp` method when that entry point is used. That preserves UI setup, styles, resources, fonts, service registration needed by controls, and design-time resource wiring, but it can also trigger startup side effects.");
         sb.AppendLine();
+        sb.AppendLine("In multi-project Avalonia apps, pass `projectPath` for the executable Desktop host project, not the shared UI class library that merely contains `App.axaml` and views. If using `assemblyPath`, point it at the built executable host assembly output so the preview host sees the same copied dependencies as the real app.");
+        sb.AppendLine();
         sb.AppendLine("The preview process defines `ZAFIRO_AVALONIA_MCP_PREVIEW=1`. App startup code should check that flag to skip non-UI work such as service calls, file writes, network requests, timers, database migrations or writes, telemetry, background sync, and other startup risks while still keeping UI/resource setup active.");
         sb.AppendLine();
         sb.AppendLine("On Linux, the preview launcher recovers missing graphical session variables such as `DISPLAY`, `WAYLAND_DISPLAY`, and `XDG_RUNTIME_DIR` from same-user ancestor processes before starting the host. If no graphical display is available after recovery, `preview_axaml` fails before launch with `DISPLAY_UNAVAILABLE` and includes non-sensitive environment hints.");
         sb.AppendLine();
-        sb.AppendLine("`preview_axaml` reports `connected=true` only after the preview process answers `get_snapshot`, so an AXAML/app startup crash is returned as `PREVIEW_HOST_EXITED` with captured stdout/stderr instead of surfacing later as a generic `Connection closed`.");
+        sb.AppendLine("`preview_axaml` reports `connected=true` only after the preview process answers `get_snapshot`, so an AXAML/app startup crash is returned as `PREVIEW_HOST_EXITED` with captured stdout/stderr instead of surfacing later as a generic `Connection closed`. Missing-assembly crashes include a suggestion to switch from a shared UI class library to the Desktop host project or built executable host assembly.");
         sb.AppendLine();
 
         sb.AppendLine("## 6. Recommended call order");
         sb.AppendLine();
-        sb.AppendLine("- **\"Preview this AXAML\"** → `preview_axaml` with `axamlPath` + `projectPath`, then use normal tools (`get_snapshot`, `screenshot`, `get_datacontext`); finish with `close_preview`.");
+        sb.AppendLine("- **\"Preview this AXAML\"** → `preview_axaml` with `axamlPath` + `projectPath` for the executable Desktop host, then use normal tools (`get_snapshot`, `screenshot`, `get_datacontext`); finish with `close_preview`.");
         sb.AppendLine("- **\"What's on screen?\"** → `get_snapshot` (cheapest), then `get_screen_text` if you only need text.");
         sb.AppendLine("- **\"Click the X button\"** → `click_by_query` (atomic find+click — avoids stale-node races).");
         sb.AppendLine("- **\"Inspect a control\"** → `get_props` + `get_styles` + `get_layout_info`.");
@@ -273,7 +275,7 @@ internal static class ToolsCatalogue
             [DiagnosticErrorCodes.Internal]            = "Internal server error — retry once; if it persists, capture the error message and report it.",
             [DiagnosticErrorCodes.BuildFailed]         = "`preview_axaml` could not build/evaluate the target or generated preview host — inspect the build output.",
             [DiagnosticErrorCodes.DisplayUnavailable]  = "`preview_axaml` needs a desktop graphical session — run the MCP server with DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR available.",
-            [DiagnosticErrorCodes.PreviewHostExited]   = "The generated AXAML preview host exited — inspect the captured stdout/stderr and preview host project path in the details.",
+            [DiagnosticErrorCodes.PreviewHostExited]   = "The generated AXAML preview host exited — inspect captured stdout/stderr; if dependencies are missing, use the executable Desktop host project or built executable host assembly.",
         };
 
         var fields = typeof(DiagnosticErrorCodes)

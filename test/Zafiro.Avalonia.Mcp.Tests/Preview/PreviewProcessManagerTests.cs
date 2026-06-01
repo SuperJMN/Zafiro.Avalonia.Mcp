@@ -61,6 +61,45 @@ public sealed class PreviewProcessManagerTests
     }
 
     [Fact]
+    public async Task WaitForConnection_SuggestsDesktopHost_WhenPreviewHostExitsWithMissingAssembly()
+    {
+        using var app = new TempDotnetConsoleApp("""
+            Console.Error.WriteLine("System.IO.FileNotFoundException: Could not load file or assembly 'Avalonia.Themes.Fluent, Version=12.0.2.0, Culture=neutral, PublicKeyToken=c8d484a7012f9a8b'. The system cannot find the file specified.");
+            return 37;
+            """);
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo("dotnet")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            },
+            EnableRaisingEvents = true,
+        };
+        process.StartInfo.ArgumentList.Add(app.AssemblyPath);
+
+        Assert.True(process.Start());
+        var output = PreviewProcessOutput.Capture(process.StandardOutput, process.StandardError);
+        var preview = new PreviewProcess(
+            process.Id,
+            process,
+            CreateTarget(),
+            output,
+            "/tmp/PreviewHost.csproj");
+        var manager = new PreviewProcessManager(
+            discoveryTimeout: TimeSpan.FromSeconds(5),
+            pollInterval: TimeSpan.FromMilliseconds(1));
+
+        var ex = await Assert.ThrowsAsync<PreviewValidationException>(() =>
+            manager.WaitForConnection(preview, new ConnectionPool(), CancellationToken.None));
+
+        Assert.Equal(DiagnosticErrorCodes.PreviewHostExited, ex.Code);
+        Assert.Contains("Desktop host project", ex.Suggested);
+        Assert.Contains("assemblyPath", ex.Suggested);
+    }
+
+    [Fact]
     public async Task WaitForConnection_ReportsCapturedOutput_WhenPreviewHostExitsAfterPingBeforeSnapshot()
     {
         using var app = new TempDotnetConsoleApp("""

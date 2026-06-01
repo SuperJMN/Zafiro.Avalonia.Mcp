@@ -182,13 +182,15 @@ For layout work, an agent can open a single desktop AXAML document without navig
 ```jsonc
 {
   "axamlPath": "src/MyApp/Views/EditProjectView.axaml",
-  "projectPath": "src/MyApp/MyApp.csproj",
+  "projectPath": "src/MyApp.Desktop/MyApp.Desktop.csproj",
   "width": 390,
   "height": 844
 }
 ```
 
 Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assemblyPath`. In `projectPath` mode the tool builds/evaluates the app by default, launches a hidden preview host process, loads the AXAML in design mode, connects MCP to that preview, waits until the preview answers `get_snapshot`, and returns `{ pid, title, axamlPath, connected }`. The global dotnet tool does not embed Avalonia desktop binaries; the temporary preview host is built from the target app output and restores only the runtime XAML loader when that DLL is not already present.
+
+For multi-project Avalonia apps, pass the executable Desktop host project as `projectPath`, not the shared UI class library that only contains `App.axaml` and views. In `assemblyPath` mode, pass the built executable host assembly output so the preview process sees the same copied dependencies as the real app.
 
 After that, use the normal tools against the preview: `get_snapshot`, `screenshot`, `get_datacontext`, selectors, `wait_for`, and so on. Finish with `close_preview` to terminate the process. Preview is desktop-only; Android still uses the `connect_adb` flow.
 
@@ -287,7 +289,7 @@ Stable codes you can switch on:
 | `INTERNAL` | Internal server error. Retry once; report if it persists. |
 | `BUILD_FAILED` | `preview_axaml` could not build/evaluate the target project or generated preview host. |
 | `DISPLAY_UNAVAILABLE` | `preview_axaml` could not access a graphical desktop display. |
-| `PREVIEW_HOST_EXITED` | The generated preview host exited before it was ready; inspect returned stdout/stderr. |
+| `PREVIEW_HOST_EXITED` | The generated preview host exited before it was ready; inspect returned stdout/stderr. Missing-assembly cases usually mean `projectPath` should be the executable Desktop host project or `assemblyPath` should be the built executable host assembly. |
 
 ## Troubleshooting
 
@@ -301,9 +303,9 @@ Stable codes you can switch on:
 | `TypeLoadException` | Version mismatch — `AppHost` targets Avalonia 12.x, not compatible with Avalonia 11.x. |
 | Stale discovery files | If the app crashed, delete leftover `.json` files from `{TEMP}/zafiro-avalonia-mcp/`. |
 | `preview_axaml` asks for `entryType` | The target assembly has multiple possible Avalonia entry points. Pass the full type name of `Program` with `BuildAvaloniaApp` or the `Application` subclass. |
-| `preview_axaml` cannot find the target assembly | In project mode the tool uses MSBuild `TargetPath`; build the requested configuration/framework or leave `build=true`. In assembly mode pass the built app `.dll`. |
+| `preview_axaml` cannot find the target assembly | In project mode the tool uses MSBuild `TargetPath`; build the requested configuration/framework or leave `build=true`. In assembly mode pass the built executable host assembly `.dll`. |
 | `preview_axaml` reports `DISPLAY_UNAVAILABLE` | The MCP server process has no usable desktop display. Run it from the graphical session or pass `DISPLAY`/`WAYLAND_DISPLAY` and `XDG_RUNTIME_DIR` into that process. |
-| `preview_axaml` reports `PREVIEW_HOST_EXITED` | The generated preview host crashed or closed before it was ready. Inspect the returned stdout/stderr and preview host project path to distinguish AXAML load, app startup, resource, and environment failures. |
+| `preview_axaml` reports `PREVIEW_HOST_EXITED` | The generated preview host crashed or closed before it was ready. Inspect the returned stdout/stderr and preview host project path to distinguish AXAML load, app startup, resource, and environment failures. If stderr says an assembly could not be loaded, use the executable Desktop host project instead of the shared UI class library, or pass `assemblyPath` to the built executable host assembly. |
 | `preview_axaml` reports a type or resource resolution failure | Rebuild the target app, confirm the AXAML `x:Class` namespace and assembly, check `avares://` resource paths, and compare with [runtime loader limitations](docs/axaml-preview-loader-limitations.md). |
 | `preview_axaml` starts real app services | The preview host runs `BuildAvaloniaApp`. Check `ZAFIRO_AVALONIA_MCP_PREVIEW=1` and skip production-only startup work while keeping UI setup and resources available. |
 

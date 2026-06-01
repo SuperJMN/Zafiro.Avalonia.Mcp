@@ -12,16 +12,16 @@ public sealed class PreviewTools
 {
     [McpServerTool(Name = "preview_axaml"), Description("""
         Launch a single AXAML file in an isolated preview window, connect MCP to that preview process, and make normal tools (get_snapshot, screenshot, get_datacontext, selectors) operate on the preview instead of the real app.
-        Required: axamlPath plus exactly one of projectPath or assemblyPath. projectPath builds/evaluates the app by default; assemblyPath uses an existing app output assembly. Returns: {pid,title,axamlPath,connected}.
-        Example: {"axamlPath":"src/MyApp/Views/EditView.axaml","projectPath":"src/MyApp/MyApp.csproj","width":390,"height":844}
+        Required: axamlPath plus exactly one of projectPath or assemblyPath. In multi-project apps, projectPath should usually be the executable Desktop host project, not the shared UI class library; assemblyPath should point at the built executable host assembly output. Returns: {pid,title,axamlPath,connected}.
+        Example: {"axamlPath":"src/MyApp/Views/EditView.axaml","projectPath":"src/MyApp.Desktop/MyApp.Desktop.csproj","width":390,"height":844}
         """)]
     public static async Task<string> PreviewAxaml(
         ConnectionPool pool,
         PreviewProcessManager previews,
         PreviewTargetResolver resolver,
         [Description("Path to the AXAML document to load.")] string axamlPath,
-        [Description("Path to the target Avalonia project. Required unless assemblyPath is set.")] string? projectPath = null,
-        [Description("Path to an already-built target app assembly. Required unless projectPath is set.")] string? assemblyPath = null,
+        [Description("Path to the target Avalonia project. For multi-project apps, use the executable Desktop host project, not the shared UI class library. Required unless assemblyPath is set.")] string? projectPath = null,
+        [Description("Path to an already-built target app assembly. For multi-project apps, use the executable host assembly output. Required unless projectPath is set.")] string? assemblyPath = null,
         [Description("Optional full or short type name for Program.BuildAvaloniaApp or an Application subclass.")] string? entryType = null,
         [Description("Optional target framework to build/evaluate, e.g. net10.0.")] string? targetFramework = null,
         [Description("Build configuration.")] string configuration = "Debug",

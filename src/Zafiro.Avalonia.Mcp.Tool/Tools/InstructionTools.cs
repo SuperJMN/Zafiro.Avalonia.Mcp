@@ -40,13 +40,18 @@ public sealed class InstructionTools
         3. Use normal tools: get_snapshot, screenshot, get_datacontext, click, wait_for, ...
         4. Use 'close_preview' when finished
 
+        In multi-project Avalonia apps, projectPath should usually be the executable
+        Desktop host project, not the shared UI class library that contains App.axaml
+        and views. In assemblyPath mode, pass the built executable host assembly
+        output so dependencies match the real app.
+
         On Linux, preview_axaml needs access to a graphical display. It recovers
         missing DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR values from same-user
         ancestor processes when possible and fails early with DISPLAY_UNAVAILABLE
         when no display is available.
 
         Example:
-          preview_axaml axamlPath="src/MyApp/Views/EditView.axaml" projectPath="src/MyApp/MyApp.csproj" width=390 height=844
+          preview_axaml axamlPath="src/MyApp/Views/EditView.axaml" projectPath="src/MyApp.Desktop/MyApp.Desktop.csproj" width=390 height=844
 
         Connection workflow (Android via ADB):
         Avalonia.Android apps do NOT appear in 'list_apps' — discovery files live on the
@@ -136,6 +141,9 @@ public sealed class InstructionTools
         Avalonia desktop binaries; the preview host is built from the target app
         output, reuses the app's BuildAvaloniaApp method or Application subclass,
         then adds MCP diagnostics inside the isolated preview process.
+        In multi-project apps, projectPath should usually be the executable
+        Desktop host project, not the shared UI class library. In assemblyPath
+        mode, pass the built executable host assembly output.
         On Linux, the preview launcher recovers missing graphical session
         variables from same-user ancestor processes before starting the host.
         If no display is available after recovery, preview_axaml fails before

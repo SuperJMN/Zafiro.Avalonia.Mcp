@@ -13,6 +13,8 @@ public sealed class PreviewProcessManager : IDisposable
     private readonly TimeSpan discoveryTimeout;
     private readonly TimeSpan pollInterval;
     private readonly ConcurrentDictionary<int, PreviewProcess> processes = new();
+    private const string GenericPreviewHostExitSuggestion = "Inspect the preview host standardError/standardOutput details to distinguish AXAML load failures, app startup failures, and environment failures.";
+    private const string MissingAssemblyPreviewHostExitSuggestion = "The preview host is missing an assembly. In multi-project Avalonia apps, pass projectPath for the executable Desktop host project, not the shared UI class library, or pass assemblyPath pointing at the built executable host assembly output. Inspect standardError/standardOutput for the exact missing assembly.";
     private static readonly TimeSpan ReadinessProbeTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan ExitDrainTimeout = TimeSpan.FromMilliseconds(500);
 
@@ -267,8 +269,20 @@ public sealed class PreviewProcessManager : IDisposable
         throw new PreviewValidationException(
             DiagnosticErrorCodes.PreviewHostExited,
             $"{message} Exit code: {details.ExitCode}.",
-            "Inspect the preview host standardError/standardOutput details to distinguish AXAML load failures, app startup failures, and environment failures.",
+            GetPreviewHostExitSuggestion(details),
             details);
+    }
+
+    private static string GetPreviewHostExitSuggestion(PreviewHostExitDetails details)
+    {
+        var output = details.StandardError + "\n" + details.StandardOutput;
+        if (output.Contains("Could not load file or assembly", StringComparison.OrdinalIgnoreCase) ||
+            output.Contains("System.IO.FileNotFoundException", StringComparison.OrdinalIgnoreCase))
+        {
+            return MissingAssemblyPreviewHostExitSuggestion;
+        }
+
+        return GenericPreviewHostExitSuggestion;
     }
 
     private static async Task<PreviewHostExitDetails?> TryGetExitDetails(

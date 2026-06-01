@@ -83,9 +83,8 @@ public sealed class ConnectionPool : IDisposable
 
     public async Task<AppConnection> Connect(int pid)
     {
-        if (_connections.TryGetValue(pid, out var existing) && existing.IsConnected)
+        if (TryGetReusableConnection(pid) is { } existing)
         {
-            _activeConnection = existing;
             return existing;
         }
 
@@ -116,9 +115,8 @@ public sealed class ConnectionPool : IDisposable
     /// </summary>
     public async Task<AppConnection> ConnectExternal(DiscoveryInfo info)
     {
-        if (_connections.TryGetValue(info.Pid, out var existing) && existing.IsConnected)
+        if (TryGetReusableConnection(info.Pid) is { } existing)
         {
-            _activeConnection = existing;
             return existing;
         }
 
@@ -127,6 +125,32 @@ public sealed class ConnectionPool : IDisposable
         _connections[info.Pid] = connection;
         _activeConnection = connection;
         return connection;
+    }
+
+    private AppConnection? TryGetReusableConnection(int pid)
+    {
+        if (!_connections.TryGetValue(pid, out var existing))
+        {
+            return null;
+        }
+
+        if (existing.IsConnected)
+        {
+            _activeConnection = existing;
+            return existing;
+        }
+
+        if (_connections.TryRemove(pid, out var stale))
+        {
+            if (ReferenceEquals(_activeConnection, stale))
+            {
+                _activeConnection = null;
+            }
+
+            stale.Dispose();
+        }
+
+        return null;
     }
 
     internal void RegisterConnectionFailureDetails(int pid, Func<CancellationToken, Task<string?>> detailsProvider)
