@@ -17,14 +17,22 @@ namespace Zafiro.Avalonia.Mcp.AppHost.Selectors;
 /// </remarks>
 public sealed class SelectorEngine
 {
-    private readonly IDataContextPredicateEvaluator? _predicateEvaluator;
+    private readonly Lazy<IDataContextPredicateEvaluator?>? _predicateEvaluator;
 
     /// <summary>
-    /// Shared default instance backed by the Roslyn evaluator. Can be replaced in tests.
+    /// Shared default instance backed by a lazily-created Roslyn evaluator. Can be replaced in tests.
     /// </summary>
-    public static SelectorEngine Default { get; set; } = new SelectorEngine(new RoslynDataContextPredicateEvaluator());
+    public static SelectorEngine Default { get; set; } = new(
+        new Lazy<IDataContextPredicateEvaluator?>(CreateDefaultPredicateEvaluator, LazyThreadSafetyMode.ExecutionAndPublication));
 
     public SelectorEngine(IDataContextPredicateEvaluator? predicateEvaluator = null)
+    {
+        _predicateEvaluator = predicateEvaluator is null
+            ? null
+            : new Lazy<IDataContextPredicateEvaluator?>(() => predicateEvaluator, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
+    private SelectorEngine(Lazy<IDataContextPredicateEvaluator?> predicateEvaluator)
     {
         _predicateEvaluator = predicateEvaluator;
     }
@@ -193,8 +201,29 @@ public sealed class SelectorEngine
         if (visual is not StyledElement se) return false;
         var dc = se.DataContext;
         if (dc is null) return false;
-        if (_predicateEvaluator is null) return false;
-        return _predicateEvaluator.Evaluate(filter.Expression, dc);
+        var evaluator = TryGetPredicateEvaluator();
+        if (evaluator is null) return false;
+        return evaluator.Evaluate(filter.Expression, dc);
+    }
+
+    private IDataContextPredicateEvaluator? TryGetPredicateEvaluator()
+    {
+        if (_predicateEvaluator is null) return null;
+
+        try
+        {
+            return _predicateEvaluator.Value;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[SelectorEngine] DataContext predicates unavailable: {ex.GetBaseException().Message}");
+            return null;
+        }
+    }
+
+    private static IDataContextPredicateEvaluator? CreateDefaultPredicateEvaluator()
+    {
+        return new RoslynDataContextPredicateEvaluator();
     }
 
     private static bool MatchesPseudo(Visual visual, PseudoFilter filter)

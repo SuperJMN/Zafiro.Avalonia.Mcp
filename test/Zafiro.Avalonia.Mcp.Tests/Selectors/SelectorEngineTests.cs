@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using System.Reflection;
+using System.Runtime.Loader;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
@@ -14,6 +16,28 @@ public class SelectorEngineTests
     private readonly SelectorEngine _engine = new();
 
     private static T Run<T>(Func<T> f) => Dispatcher.UIThread.Invoke(f);
+
+    [Fact]
+    public void Default_CanBeRead_WhenRoslynAssembliesAreUnavailable()
+    {
+        var appHostPath = typeof(SelectorEngine).Assembly.Location;
+        var context = new CodeAnalysisBlockingLoadContext(appHostPath);
+
+        try
+        {
+            var assembly = context.LoadFromAssemblyPath(appHostPath);
+            var type = assembly.GetType(typeof(SelectorEngine).FullName!, throwOnError: true)!;
+            var property = type.GetProperty(nameof(SelectorEngine.Default), BindingFlags.Public | BindingFlags.Static)!;
+
+            var value = property.GetValue(null);
+
+            Assert.NotNull(value);
+        }
+        finally
+        {
+            context.Unload();
+        }
+    }
 
     [Fact]
     public void Resolves_ByType_FromScope()
@@ -210,6 +234,28 @@ public class SelectorEngineTests
                 return value is int i && i == n;
             }
             return false;
+        }
+    }
+
+    private sealed class CodeAnalysisBlockingLoadContext : AssemblyLoadContext
+    {
+        private readonly AssemblyDependencyResolver _resolver;
+
+        public CodeAnalysisBlockingLoadContext(string appHostAssemblyPath) : base(isCollectible: true)
+        {
+            _resolver = new AssemblyDependencyResolver(appHostAssemblyPath);
+        }
+
+        protected override Assembly? Load(AssemblyName assemblyName)
+        {
+            if (assemblyName.Name is { } name &&
+                name.StartsWith("Microsoft.CodeAnalysis", StringComparison.Ordinal))
+            {
+                throw new FileNotFoundException($"Blocked for test: {name}");
+            }
+
+            var path = _resolver.ResolveAssemblyToPath(assemblyName);
+            return path is null ? null : LoadFromAssemblyPath(path);
         }
     }
 }

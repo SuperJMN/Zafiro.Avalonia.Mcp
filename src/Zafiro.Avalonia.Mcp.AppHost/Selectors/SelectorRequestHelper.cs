@@ -1,4 +1,5 @@
 using Avalonia;
+using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
 namespace Zafiro.Avalonia.Mcp.AppHost.Selectors;
 
@@ -17,14 +18,14 @@ public static class SelectorRequestHelper
     public static (Visual? visual, object? error) ResolveSingle(string? selector, bool requireSingle = true)
     {
         if (string.IsNullOrWhiteSpace(selector))
-            return (null, new { error = "selector is required", code = "MISSING_SELECTOR" });
+            return (null, new { error = "selector is required", code = DiagnosticErrorCodes.MissingSelector });
 
         var matches = SelectorEngine.Default.Resolve(selector);
         if (matches.Count == 0)
-            return (null, new { error = "no element matched selector", code = "NO_MATCH", selector });
+            return (null, new { error = "no element matched selector", code = DiagnosticErrorCodes.NoMatch, selector });
 
         if (requireSingle && matches.Count > 1)
-            return (null, new { error = "selector matched more than one element", code = "AMBIGUOUS_SELECTOR", count = matches.Count, selector });
+            return (null, new { error = "selector matched more than one element", code = DiagnosticErrorCodes.AmbiguousSelector, count = matches.Count, selector });
 
         return (matches[0], null);
     }

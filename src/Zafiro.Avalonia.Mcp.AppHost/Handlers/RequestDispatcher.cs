@@ -206,6 +206,15 @@ public sealed class RequestDispatcher
         if (prop is null || prop.PropertyType != typeof(string)) return null;
         if (prop.GetValue(result) is not string message || string.IsNullOrEmpty(message)) return null;
 
+        if (TryReadStringProperty(result, "code") is { Length: > 0 } explicitCode)
+        {
+            return new DiagnosticError(
+                message,
+                explicitCode,
+                GetLegacySuggestion(explicitCode),
+                result);
+        }
+
         var lower = message.ToLowerInvariant();
         var code = lower.Contains("not found") || lower.Contains("stale") || lower.Contains("garbage collected")
             ? DiagnosticErrorCodes.StaleNode
@@ -218,4 +227,20 @@ public sealed class RequestDispatcher
                 ? "Call get_snapshot, search, or get_interactables to refresh node IDs."
                 : null);
     }
+
+    private static string? TryReadStringProperty(object result, string name)
+    {
+        var property = result.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+        return property?.GetValue(result) as string;
+    }
+
+    private static string? GetLegacySuggestion(string code) => code switch
+    {
+        DiagnosticErrorCodes.MissingSelector => "Provide the selector parameter.",
+        DiagnosticErrorCodes.NoMatch => "Check the selector or call get_snapshot to inspect available elements.",
+        DiagnosticErrorCodes.AmbiguousSelector => "Use a more specific selector.",
+        DiagnosticErrorCodes.InvalidSelector => "Check selector syntax (e.g. type, #name, .class, [property=value]).",
+        DiagnosticErrorCodes.StaleNode => "Call get_snapshot, search, or get_interactables to refresh node IDs.",
+        _ => null,
+    };
 }

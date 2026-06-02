@@ -6,6 +6,7 @@ namespace Zafiro.Avalonia.Mcp.Protocol.Messages;
 /// </summary>
 public static class DiagnosticErrorCodes
 {
+    public const string MissingSelector = "MISSING_SELECTOR";
     public const string NoMatch = "NO_MATCH";
     public const string AmbiguousSelector = "AMBIGUOUS_SELECTOR";
     public const string StaleNode = "STALE_NODE";

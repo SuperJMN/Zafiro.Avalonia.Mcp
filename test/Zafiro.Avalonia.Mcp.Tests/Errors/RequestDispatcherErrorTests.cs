@@ -137,6 +137,19 @@ public class RequestDispatcherErrorTests
     }
 
     [Fact]
+    public async Task LegacyErrorObject_WithCode_PreservesStableCode()
+    {
+        var handler = new StubHandler("test_legacy_selector",
+            _ => Task.FromResult<object>(new { error = "no element matched selector", code = DiagnosticErrorCodes.NoMatch, selector = "#Missing" }));
+
+        var response = await Dispatch(handler, "test_legacy_selector");
+
+        Assert.NotNull(response.ErrorInfo);
+        Assert.Equal(DiagnosticErrorCodes.NoMatch, response.ErrorInfo!.Code);
+        Assert.Equal("no element matched selector", response.Error);
+    }
+
+    [Fact]
     public async Task LegacyArbitraryError_DefaultsToInternal()
     {
         var handler = new StubHandler("test_legacy_other",
