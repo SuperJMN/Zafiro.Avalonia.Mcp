@@ -18,4 +18,5 @@ public static class DiagnosticErrorCodes
     public const string BuildFailed = "BUILD_FAILED";
     public const string DisplayUnavailable = "DISPLAY_UNAVAILABLE";
     public const string PreviewHostExited = "PREVIEW_HOST_EXITED";
+    public const string AppLaunchFailed = "APP_LAUNCH_FAILED";
 }

@@ -1,4 +1,5 @@
 using Zafiro.Avalonia.Mcp.Tool.Connection;
+using Zafiro.Avalonia.Mcp.Tool.Launching;
 using Zafiro.Avalonia.Mcp.Tool.Preview;
 using Zafiro.Avalonia.Mcp.Tool.Tools;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,7 @@ builder.Services.AddSingleton<ConnectionPool>();
 builder.Services.AddSingleton<PreviewProcessManager>();
 builder.Services.AddSingleton<IProcessRunner, DotnetProcessRunner>();
 builder.Services.AddSingleton<PreviewTargetResolver>();
+builder.Services.AddSingleton<ManagedAppProcessManager>();
 
 builder.Services
     .AddMcpServer(options =>

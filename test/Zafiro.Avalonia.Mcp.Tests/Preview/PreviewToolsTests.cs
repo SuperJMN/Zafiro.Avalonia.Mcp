@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Xunit;
 using Zafiro.Avalonia.Mcp.Tool.Connection;
+using Zafiro.Avalonia.Mcp.Tool.Launching;
 using Zafiro.Avalonia.Mcp.Tool.Preview;
 using Zafiro.Avalonia.Mcp.Tool.Tools;
 
@@ -70,6 +71,35 @@ public sealed class PreviewToolsTests
         Assert.Equal(37, details.GetProperty("exitCode").GetInt32());
         Assert.Equal("stdout", details.GetProperty("standardOutput").GetString());
         Assert.Equal("stderr", details.GetProperty("standardError").GetString());
+    }
+
+    [Fact]
+    public void PreviewErrorSerializer_WritesMachineReadableLaunchFailureDetails()
+    {
+        var result = PreviewErrorSerializer.Serialize(
+            "APP_LAUNCH_FAILED",
+            "Launch failed.",
+            details: new ManagedAppExitDetails(
+                LaunchId: 7,
+                Pid: 123,
+                ExitCode: 37,
+                StandardOutput: "stdout",
+                StandardError: "stderr",
+                AssemblyPath: "/tmp/App.dll",
+                Connected: false));
+
+        using var document = JsonDocument.Parse(result);
+        var details = document.RootElement.GetProperty("error").GetProperty("details");
+
+        Assert.Equal(7, details.GetProperty("launchId").GetInt32());
+        Assert.Equal(123, details.GetProperty("pid").GetInt32());
+        Assert.Equal(37, details.GetProperty("exitCode").GetInt32());
+        Assert.Equal("stdout", details.GetProperty("standardOutput").GetString());
+        Assert.Equal("stderr", details.GetProperty("standardError").GetString());
+        Assert.Equal("/tmp/App.dll", details.GetProperty("assemblyPath").GetString());
+        Assert.False(details.GetProperty("connected").GetBoolean());
+        Assert.False(details.TryGetProperty("StandardOutput", out _));
+        Assert.False(details.TryGetProperty("StandardError", out _));
     }
 
     private sealed class NoOpProcessRunner : IProcessRunner

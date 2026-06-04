@@ -68,6 +68,42 @@ public sealed class PreviewGraphicalEnvironmentTests
     }
 
     [Fact]
+    public void Apply_RecoversGraphicalVariablesFromSameUserGraphicalProcess_WhenAncestorsHaveNoDisplay()
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal);
+        var reader = new FakeScanningProcessEnvironmentReader(
+            parents: new Dictionary<int, int>
+            {
+                [30] = 20,
+                [20] = 10,
+            },
+            environments: new Dictionary<int, IReadOnlyDictionary<string, string>>
+            {
+                [20] = new Dictionary<string, string>(StringComparer.Ordinal),
+                [10] = new Dictionary<string, string>(StringComparer.Ordinal),
+                [40] = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["DISPLAY"] = ":0",
+                    ["XAUTHORITY"] = "/home/user/.Xauthority",
+                    ["XDG_RUNTIME_DIR"] = "/run/user/1000",
+                    ["DBUS_SESSION_BUS_ADDRESS"] = "unix:path=/run/user/1000/bus",
+                },
+            },
+            processNames: new Dictionary<int, string>
+            {
+                [40] = "plasmashell",
+            },
+            candidatePids: [40]);
+
+        PreviewGraphicalEnvironment.Apply(environment, currentPid: 30, reader);
+
+        Assert.Equal(":0", environment["DISPLAY"]);
+        Assert.Equal("/home/user/.Xauthority", environment["XAUTHORITY"]);
+        Assert.Equal("/run/user/1000", environment["XDG_RUNTIME_DIR"]);
+        Assert.Equal("unix:path=/run/user/1000/bus", environment["DBUS_SESSION_BUS_ADDRESS"]);
+    }
+
+    [Fact]
     public void EnsureAvailable_ThrowsDisplayUnavailable_WhenLinuxEnvironmentHasNoDisplay()
     {
         var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
@@ -114,5 +150,26 @@ public sealed class PreviewGraphicalEnvironmentTests
             environments.TryGetValue(pid, out var environment)
                 ? environment
                 : new Dictionary<string, string>(StringComparer.Ordinal);
+    }
+
+    private sealed class FakeScanningProcessEnvironmentReader(
+        IReadOnlyDictionary<int, int> parents,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, string>> environments,
+        IReadOnlyDictionary<int, string> processNames,
+        IReadOnlyList<int> candidatePids)
+        : IProcessEnvironmentReader, IProcessEnvironmentScanner
+    {
+        public int? GetParentPid(int pid) =>
+            parents.TryGetValue(pid, out var parentPid) ? parentPid : null;
+
+        public IReadOnlyDictionary<string, string> ReadEnvironment(int pid) =>
+            environments.TryGetValue(pid, out var environment)
+                ? environment
+                : new Dictionary<string, string>(StringComparer.Ordinal);
+
+        public IEnumerable<int> GetCandidatePids() => candidatePids;
+
+        public string? GetProcessName(int pid) =>
+            processNames.TryGetValue(pid, out var processName) ? processName : null;
     }
 }

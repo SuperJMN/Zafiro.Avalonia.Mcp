@@ -8,6 +8,7 @@ internal static class ToolRegistration
     [
         typeof(ConnectionTools),
         typeof(AdbTools),
+        typeof(AppLaunchTools),
         typeof(PreviewTools),
         typeof(TreeTools),
         typeof(PropertyTools),
@@ -26,6 +27,7 @@ internal static class ToolRegistration
         => builder
             .WithTools<ConnectionTools>()
             .WithTools<AdbTools>()
+            .WithTools<AppLaunchTools>()
             .WithTools<PreviewTools>()
             .WithTools<TreeTools>()
             .WithTools<PropertyTools>()

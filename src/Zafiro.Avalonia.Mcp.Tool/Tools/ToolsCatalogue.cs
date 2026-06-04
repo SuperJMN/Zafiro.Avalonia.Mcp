@@ -214,7 +214,13 @@ internal static class ToolsCatalogue
         }
         sb.AppendLine();
 
-        sb.AppendLine("## 5. Preview startup side effects");
+        sb.AppendLine("## 5. Launching apps and preview startup side effects");
+        sb.AppendLine();
+        sb.AppendLine("Use `launch_app` when the MCP server is running over SSH but the target machine has a local graphical desktop session. The tool launches the real Avalonia app in that local GUI session, waits for `UseMcpDiagnostics()` discovery, and connects automatically. The AI agent does not need SSH X forwarding or direct screen access; it inspects and interacts through MCP.");
+        sb.AppendLine();
+        sb.AppendLine("Finish managed app sessions with `close_app`. It disconnects MCP, removes the discovery file, and terminates the launched process tree owned by this MCP tool process.");
+        sb.AppendLine();
+        sb.AppendLine("If `launch_app` cannot find a same-user local desktop display after checking the current environment, ancestor processes, and same-user graphical processes, it returns `DISPLAY_UNAVAILABLE`. Start the desktop session locally as the same user or pass the graphical session variables into the MCP process.");
         sb.AppendLine();
         sb.AppendLine("`preview_axaml` launches a real preview host and executes the target app's real `BuildAvaloniaApp` method when that entry point is used. That preserves UI setup, styles, resources, fonts, service registration needed by controls, and design-time resource wiring, but it can also trigger startup side effects.");
         sb.AppendLine();
@@ -222,13 +228,14 @@ internal static class ToolsCatalogue
         sb.AppendLine();
         sb.AppendLine("The preview process defines `ZAFIRO_AVALONIA_MCP_PREVIEW=1`. App startup code should check that flag to skip non-UI work such as service calls, file writes, network requests, timers, database migrations or writes, telemetry, background sync, and other startup risks while still keeping UI/resource setup active.");
         sb.AppendLine();
-        sb.AppendLine("On Linux, the preview launcher recovers missing graphical session variables such as `DISPLAY`, `WAYLAND_DISPLAY`, and `XDG_RUNTIME_DIR` from same-user ancestor processes before starting the host. If no graphical display is available after recovery, `preview_axaml` fails before launch with `DISPLAY_UNAVAILABLE` and includes non-sensitive environment hints.");
+        sb.AppendLine("On Linux, launchers recover missing graphical session variables such as `DISPLAY`, `WAYLAND_DISPLAY`, and `XDG_RUNTIME_DIR` from same-user ancestor processes and same-user local graphical processes before starting the target.");
         sb.AppendLine();
         sb.AppendLine("`preview_axaml` reports `connected=true` only after the preview process answers `get_snapshot`, so an AXAML/app startup crash is returned as `PREVIEW_HOST_EXITED` with captured stdout/stderr instead of surfacing later as a generic `Connection closed`. Missing-assembly crashes include a suggestion to switch from a shared UI class library to the Desktop host project or built executable host assembly.");
         sb.AppendLine();
 
         sb.AppendLine("## 6. Recommended call order");
         sb.AppendLine();
+        sb.AppendLine("- **\"Launch this app from SSH\"** → `launch_app` with `projectPath` for the executable Desktop host, then use normal tools (`get_snapshot`, `click`, `screenshot`); finish with `close_app`.");
         sb.AppendLine("- **\"Preview this AXAML\"** → `preview_axaml` with `axamlPath` + `projectPath` for the executable Desktop host, then use normal tools (`get_snapshot`, `screenshot`, `get_datacontext`); finish with `close_preview`.");
         sb.AppendLine("- **\"What's on screen?\"** → `get_snapshot` (cheapest), then `get_screen_text` if you only need text.");
         sb.AppendLine("- **\"Click the X button\"** → `click_by_query` (atomic find+click — avoids stale-node races).");
@@ -273,9 +280,10 @@ internal static class ToolsCatalogue
             [DiagnosticErrorCodes.UnsupportedOperation]= "The control does not support this operation — pick a more specific tool (e.g. `toggle` for CheckBox).",
             [DiagnosticErrorCodes.Timeout]             = "The condition was not met within the timeout — increase `timeoutMs` or verify the precondition.",
             [DiagnosticErrorCodes.Internal]            = "Internal server error — retry once; if it persists, capture the error message and report it.",
-            [DiagnosticErrorCodes.BuildFailed]         = "`preview_axaml` could not build/evaluate the target or generated preview host — inspect the build output.",
-            [DiagnosticErrorCodes.DisplayUnavailable]  = "`preview_axaml` needs a desktop graphical session — run the MCP server with DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR available.",
+            [DiagnosticErrorCodes.BuildFailed]         = "`preview_axaml`/`launch_app` could not build/evaluate the target or generated preview host — inspect the build output.",
+            [DiagnosticErrorCodes.DisplayUnavailable]  = "The launcher needs a local desktop graphical session — run as the desktop user or expose DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR.",
             [DiagnosticErrorCodes.PreviewHostExited]   = "The generated AXAML preview host exited — inspect captured stdout/stderr; if dependencies are missing, use the executable Desktop host project or built executable host assembly.",
+            [DiagnosticErrorCodes.AppLaunchFailed]     = "The launched Avalonia app exited or failed before MCP was ready — inspect captured stdout/stderr and confirm UseMcpDiagnostics().",
         };
 
         var fields = typeof(DiagnosticErrorCodes)

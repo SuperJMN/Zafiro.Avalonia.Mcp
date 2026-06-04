@@ -34,6 +34,12 @@ public sealed class InstructionTools
         2. Use 'connect_to_app' with a PID to connect
         3. Use inspection/interaction tools
 
+        Managed launch workflow (local GUI from SSH):
+        1. Use 'launch_app' with projectPath or assemblyPath to start the real app
+        2. The tool recovers the same user's local graphical session, waits for MCP discovery, and connects automatically
+        3. Use normal tools: get_snapshot, click, screenshot, wait_for, ...
+        4. Use 'close_app' when finished
+
         AXAML preview workflow (desktop-only):
         1. Use 'preview_axaml' with axamlPath and exactly one of projectPath or assemblyPath
         2. The tool launches an isolated preview window, waits for get_snapshot, and connects to it automatically
@@ -45,12 +51,15 @@ public sealed class InstructionTools
         and views. In assemblyPath mode, pass the built executable host assembly
         output so dependencies match the real app.
 
-        On Linux, preview_axaml needs access to a graphical display. It recovers
-        missing DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR values from same-user
-        ancestor processes when possible and fails early with DISPLAY_UNAVAILABLE
-        when no display is available.
+        On Linux, launch_app and preview_axaml need access to a graphical display.
+        They recover missing DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR values from
+        the current environment, same-user ancestor processes, and same-user local
+        graphical processes. This lets an MCP process started over SSH launch and
+        test the app in the machine's local GUI; the AI agent reads the UI through
+        MCP and does not need SSH X forwarding.
 
         Example:
+          launch_app projectPath="src/MyApp.Desktop/MyApp.Desktop.csproj" build=true
           preview_axaml axamlPath="src/MyApp/Views/EditView.axaml" projectPath="src/MyApp.Desktop/MyApp.Desktop.csproj" width=390 height=844
 
         Connection workflow (Android via ADB):
@@ -93,6 +102,8 @@ public sealed class InstructionTools
         - capture_animation: One-shot record for N seconds
 
         Preview:
+        - launch_app: Launch a real Avalonia app in the local GUI and connect to it
+        - close_app: Terminate apps launched by launch_app
         - preview_axaml: Launch one AXAML file in an isolated MCP-connected preview window
         - close_preview: Terminate previews launched by preview_axaml
 
@@ -144,11 +155,10 @@ public sealed class InstructionTools
         In multi-project apps, projectPath should usually be the executable
         Desktop host project, not the shared UI class library. In assemblyPath
         mode, pass the built executable host assembly output.
-        On Linux, the preview launcher recovers missing graphical session
-        variables from same-user ancestor processes before starting the host.
-        If no display is available after recovery, preview_axaml fails before
-        launch with DISPLAY_UNAVAILABLE and includes non-sensitive environment
-        hints.
+        On Linux, launch_app and preview_axaml recover missing graphical session
+        variables from same-user ancestor and local graphical processes before
+        starting the target. This supports SSH-driven MCP sessions that launch
+        the app into the machine's own local GUI.
 
         MCP Server setup (for AI agent integration):
 

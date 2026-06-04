@@ -27,6 +27,8 @@ public class InstructionsToolTests
         var body = InstructionTools.GetInstructions("tools");
         Assert.Contains("zafiro-avalonia-mcp-preview_axaml", body);
         Assert.Contains("zafiro-avalonia-mcp-close_preview", body);
+        Assert.Contains("zafiro-avalonia-mcp-launch_app", body);
+        Assert.Contains("zafiro-avalonia-mcp-close_app", body);
     }
 
     [Fact]
@@ -47,6 +49,9 @@ public class InstructionsToolTests
         Assert.Contains("UI/resource setup", body);
         Assert.Contains("DISPLAY_UNAVAILABLE", body);
         Assert.Contains("PREVIEW_HOST_EXITED", body);
+        Assert.Contains("launch_app", body);
+        Assert.Contains("close_app", body);
+        Assert.Contains("SSH", body);
         Assert.Contains("get_snapshot", body);
     }
 
@@ -88,6 +93,7 @@ public class InstructionsToolTests
         Assert.Contains("STALE_NODE", body);
         Assert.Contains("DISPLAY_UNAVAILABLE", body);
         Assert.Contains("PREVIEW_HOST_EXITED", body);
+        Assert.Contains("APP_LAUNCH_FAILED", body);
     }
 
     [Fact]
@@ -112,6 +118,8 @@ public class InstructionsToolTests
         Assert.Contains("instructions", names);
         Assert.Contains("preview_axaml", names);
         Assert.Contains("close_preview", names);
+        Assert.Contains("launch_app", names);
+        Assert.Contains("close_app", names);
     }
 
     [Fact]
