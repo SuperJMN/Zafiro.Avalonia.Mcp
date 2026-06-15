@@ -3,6 +3,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
+    <AvaloniaMinimumVersion>11.3.17</AvaloniaMinimumVersion>
     <AvaloniaVersion>12.0.2</AvaloniaVersion>
     <McpSdkVersion>1.2.0</McpSdkVersion>
   </PropertyGroup>

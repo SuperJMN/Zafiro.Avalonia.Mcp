@@ -367,7 +367,7 @@ public sealed class SnapshotHandler : IRequestHandler
 
     private static string? GetMeaningfulText(Visual visual) => visual switch
     {
-        TextBox tb => string.IsNullOrWhiteSpace(tb.Text) ? tb.PlaceholderText : tb.Text,
+        TextBox tb => string.IsNullOrWhiteSpace(tb.Text) ? tb.Watermark : tb.Text,
         TextBlock tb => NormalizeText(tb.Text),
         HeaderedContentControl hcc => GetObjectText(hcc.Header)
                                       ?? GetContentString(hcc)
@@ -381,7 +381,7 @@ public sealed class SnapshotHandler : IRequestHandler
 
     private static string? GetVerboseText(Visual visual) => visual switch
     {
-        TextBox tb => tb.PlaceholderText ?? tb.Text,
+        TextBox tb => tb.Watermark ?? tb.Text,
         TextBlock tb => NormalizeText(tb.Text),
         HeaderedContentControl hcc => GetObjectText(hcc.Header) ?? GetContentString(hcc),
         ContentControl cc => GetContentString(cc) ?? GetTextFromDescendants(cc),
