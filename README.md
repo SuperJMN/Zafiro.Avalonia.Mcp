@@ -32,9 +32,17 @@ MCP (Model Context Protocol) bridge that lets AI agents **inspect, interact with
 
 ## Prerequisites
 
-- **.NET 10 SDK** — required for the `dnx` command used to run the tool without installing it
-- **Avalonia 12.x** application
+- **Target app:** .NET 8, 9, or 10 with Avalonia 11.3.17+ or 12.x
+- **Tool runner:** .NET 10 SDK for the `dnx` command shown below, or the global .NET tool on .NET 8/9/10
 - An MCP-capable AI agent (see [Configure your agent](#configure-your-agent) below)
+
+## Compatibility
+
+| Component | Supported versions | Notes |
+|---|---|---|
+| `Zafiro.Avalonia.Mcp.AppHost` | .NET 8, 9, and 10 | Ships `net8.0` and `net10.0` assets; .NET 9 uses the `net8.0`-compatible asset. |
+| Target Avalonia app | Avalonia 11.3.17+ and 12.x | `AppHost` references Avalonia 11.3.17 as its minimum Avalonia package version. |
+| MCP tool process | .NET 8, 9, and 10 | The tool targets `net8.0` and rolls forward to newer runtimes. The `dnx` convenience path requires the .NET 10 SDK. |
 
 ## Step 1 — Add AppHost to your Avalonia app
 
@@ -63,7 +71,7 @@ That's all. On startup the app writes a discovery file to `{TEMP}/zafiro-avaloni
 
 ## Step 2 — Configure your agent
 
-No installation is needed. The `dnx` command (new in .NET 10) checks NuGet for the latest version **on every invocation** and downloads it automatically if needed. You always get the newest release without any manual update step.
+The snippets below use `dnx`. With the .NET 10 SDK, no installation is needed: `dnx` checks NuGet for the latest version **on every invocation** and downloads it automatically if needed. On .NET 8/9, use the global tool install shown under [Other MCP clients](#other-mcp-clients).
 
 ---
 
@@ -303,7 +311,7 @@ Stable codes you can switch on:
 | `dnx` not found | Requires .NET 10 SDK. Run `dotnet --version`. Fall back to global install for .NET 8/9. |
 | New release not picked up yet | NuGet HTTP responses are briefly cached. Force an immediate check: `dnx --no-http-cache Zafiro.Avalonia.Mcp.Tool --yes` |
 | Want a specific version | Pin it explicitly: `dnx Zafiro.Avalonia.Mcp.Tool@1.2.3 --yes` |
-| `TypeLoadException` | Version mismatch — `AppHost` targets Avalonia 12.x, not compatible with Avalonia 11.x. |
+| `TypeLoadException` | Version mismatch — `AppHost` supports Avalonia 11.3.17+ and 12.x. Upgrade apps below 11.3.17 and make sure the app does not mix incompatible Avalonia package versions. |
 | Stale discovery files | If the app crashed, delete leftover `.json` files from `{TEMP}/zafiro-avalonia-mcp/`. |
 | `preview_axaml` asks for `entryType` | The target assembly has multiple possible Avalonia entry points. Pass the full type name of `Program` with `BuildAvaloniaApp` or the `Application` subclass. |
 | `preview_axaml` cannot find the target assembly | In project mode the tool uses MSBuild `TargetPath`; build the requested configuration/framework or leave `build=true`. In assembly mode pass the built executable host assembly `.dll`. |
