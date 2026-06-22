@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 
@@ -52,5 +53,25 @@ public class InputHandlerTests
         Assert.True(json.GetProperty("success").GetBoolean());
         Assert.Equal("treeview_select", json.GetProperty("method").GetString());
         Assert.Equal(funded, json.GetProperty("selectedItem").GetString());
+    }
+
+    [Fact]
+    public void Click_OpensButtonFlyout()
+    {
+        var flyout = new MenuFlyout();
+        var button = new Button { Content = "Actions", Flyout = flyout };
+
+        var result = InputHandler.Click(button);
+
+        Assert.True(flyout.IsOpen);
+        Assert.Equal(button, flyout.Target);
+
+        var json = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        Assert.True(json.GetProperty("success").GetBoolean());
+        Assert.Equal("flyout", json.GetProperty("method").GetString());
     }
 }

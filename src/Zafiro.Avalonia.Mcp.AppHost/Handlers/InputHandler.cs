@@ -53,6 +53,12 @@ public sealed class InputHandler : IRequestHandler
                 return new { success = true, nodeId, method = "command" };
             }
 
+            if (button.Flyout is PopupFlyoutBase flyout)
+            {
+                flyout.ShowAt(button);
+                return new { success = true, nodeId, method = "flyout" };
+            }
+
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             return new { success = true, nodeId, method = "click_event" };
         }

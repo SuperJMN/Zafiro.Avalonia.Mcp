@@ -1,12 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
@@ -44,79 +38,7 @@ public sealed class ClickAndWaitHandler : IRequestHandler
             var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
             if (visual is null) return error!;
 
-            if (visual is ToggleButton toggle)
-            {
-                toggle.IsChecked = visual is RadioButton ? true : toggle.IsChecked != true;
-                return new { success = true, method = "toggle", isChecked = toggle.IsChecked };
-            }
-
-            if (visual is Button button)
-            {
-                if (button.Command is { } cmd && cmd.CanExecute(button.CommandParameter))
-                {
-                    cmd.Execute(button.CommandParameter);
-                    return new { success = true, method = "command" };
-                }
-
-                button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                return new { success = true, method = "click_event" };
-            }
-
-            if (visual is MenuItem menuItem)
-            {
-                if (menuItem.Command is { } miCmd && miCmd.CanExecute(menuItem.CommandParameter))
-                {
-                    miCmd.Execute(menuItem.CommandParameter);
-                    return new { success = true, method = "menu_command" };
-                }
-
-                menuItem.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-                return new { success = true, method = "menu_click" };
-            }
-
-            if (visual is Control control)
-            {
-                if (control is ListBoxItem lbi)
-                {
-                    var lb = lbi.GetVisualAncestors().OfType<ListBox>().FirstOrDefault();
-                    if (lb is not null)
-                    {
-                        var idx = lb.IndexFromContainer(lbi);
-                        if (idx >= 0) lb.SelectedIndex = idx;
-                        return new { success = true, method = "listbox_select", selectedIndex = lb.SelectedIndex };
-                    }
-                }
-
-                if (control is TabItem ti)
-                {
-                    var tc = ti.GetVisualAncestors().OfType<TabControl>().FirstOrDefault();
-                    if (tc is not null)
-                    {
-                        var idx = tc.IndexFromContainer(ti);
-                        if (idx >= 0) tc.SelectedIndex = idx;
-                        return new { success = true, method = "tab_select", selectedIndex = tc.SelectedIndex };
-                    }
-                }
-
-                var selectingItemsControl = control.GetVisualAncestors().OfType<SelectingItemsControl>().FirstOrDefault();
-                if (selectingItemsControl is not null)
-                {
-                    var idx = selectingItemsControl.IndexFromContainer(control);
-                    if (idx >= 0)
-                    {
-                        selectingItemsControl.SelectedIndex = idx;
-                        return new { success = true, method = "item_select", selectedIndex = idx };
-                    }
-                }
-
-                if (control.Focusable) control.Focus();
-                var center = new Point(control.Bounds.Width / 2, control.Bounds.Height / 2);
-                control.RaiseEvent(new RoutedEventArgs(InputElement.PointerPressedEvent));
-                control.RaiseEvent(new RoutedEventArgs(InputElement.PointerReleasedEvent));
-                return new { success = true, method = "pointer_simulation" };
-            }
-
-            return new { error = "Cannot click this element" };
+            return InputHandler.Click(visual);
         });
 
         // If click failed, return immediately
