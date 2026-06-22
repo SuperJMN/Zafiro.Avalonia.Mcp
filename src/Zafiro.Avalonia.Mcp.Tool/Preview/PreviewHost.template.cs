@@ -38,7 +38,7 @@ internal static class PreviewHost
         var xamlAssembly = SamePath(options.AssemblyPath, options.XamlAssemblyPath)
             ? appAssembly
             : AssemblyLoadContext.Default.LoadFromAssemblyPath(options.XamlAssemblyPath);
-        var builder = PreviewAppBuilderFactory.Create(appAssembly, options.EntryType)
+        var builder = PreviewAppBuilderFactory.Create(appAssembly, options.EntryType, options.Backend)
             .UseMcpDiagnostics();
 
         builder.SetupWithClassicDesktopLifetime([], lifetime =>
@@ -120,6 +120,7 @@ internal static class PreviewHost
             ? Path.GetFullPath(explicitXamlAssemblyPath)
             : assemblyPath;
         var axamlPath = RequiredFullPath(values, "axaml");
+        var backend = ParseBackend(values);
 
         if (!File.Exists(assemblyPath))
         {
@@ -142,7 +143,20 @@ internal static class PreviewHost
             xamlAssemblyPath,
             values.GetValueOrDefault("entry-type"),
             ParsePositiveInt(values, "width", 1024),
-            ParsePositiveInt(values, "height", 768));
+            ParsePositiveInt(values, "height", 768),
+            backend);
+    }
+
+    private static string ParseBackend(Dictionary<string, string> values)
+    {
+        var backend = values.GetValueOrDefault("backend")?.Trim().ToLowerInvariant();
+        return backend switch
+        {
+            null or "" => "desktop",
+            "desktop" => "desktop",
+            "headless" => "headless",
+            _ => throw new ArgumentException("--backend must be 'desktop' or 'headless'.")
+        };
     }
 
     private static bool SamePath(string left, string right)
@@ -189,12 +203,12 @@ internal static class PreviewHost
 
 internal static class PreviewAppBuilderFactory
 {
-    public static AppBuilder Create(Assembly assembly, string? entryType)
+    public static AppBuilder Create(Assembly assembly, string? entryType, string backend)
     {
         if (!string.IsNullOrWhiteSpace(entryType))
         {
             var type = FindType(assembly, entryType);
-            return CreateFromType(type);
+            return CreateFromType(type, backend);
         }
 
         var builderTypes = assembly.GetTypes()
@@ -203,7 +217,7 @@ internal static class PreviewAppBuilderFactory
 
         if (builderTypes.Length == 1)
         {
-            return InvokeBuildAvaloniaApp(builderTypes[0]);
+            return ApplyBackend(InvokeBuildAvaloniaApp(builderTypes[0]), backend);
         }
 
         if (builderTypes.Length > 1)
@@ -219,7 +233,7 @@ internal static class PreviewAppBuilderFactory
 
         return applicationTypes.Length switch
         {
-            1 => ConfigureApplication(applicationTypes[0]).UsePlatformDetect(),
+            1 => ConfigureApplication(applicationTypes[0], backend),
             0 => throw new InvalidOperationException("No BuildAvaloniaApp method or Application subclass was found. Pass entryType."),
             _ => throw new InvalidOperationException(
                 "Multiple Application subclasses were found. Pass entryType. Candidates: " +
@@ -227,16 +241,16 @@ internal static class PreviewAppBuilderFactory
         };
     }
 
-    private static AppBuilder CreateFromType(Type type)
+    private static AppBuilder CreateFromType(Type type, string backend)
     {
         if (HasBuildAvaloniaApp(type))
         {
-            return InvokeBuildAvaloniaApp(type);
+            return ApplyBackend(InvokeBuildAvaloniaApp(type), backend);
         }
 
         if (typeof(Application).IsAssignableFrom(type))
         {
-            return ConfigureApplication(type).UsePlatformDetect();
+            return ConfigureApplication(type, backend);
         }
 
         throw new InvalidOperationException(
@@ -289,7 +303,7 @@ internal static class PreviewAppBuilderFactory
             types: [],
             modifiers: null);
 
-    private static AppBuilder ConfigureApplication(Type applicationType)
+    private static AppBuilder ConfigureApplication(Type applicationType, string backend)
     {
         var configure = typeof(AppBuilder)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -297,7 +311,44 @@ internal static class PreviewAppBuilderFactory
                               method.IsGenericMethodDefinition &&
                               method.GetParameters().Length == 0);
 
-        return (AppBuilder)configure.MakeGenericMethod(applicationType).Invoke(null, null)!;
+        var builder = (AppBuilder)configure.MakeGenericMethod(applicationType).Invoke(null, null)!;
+        return IsHeadless(backend)
+            ? UseHeadless(builder)
+            : builder.UsePlatformDetect();
+    }
+
+    private static AppBuilder ApplyBackend(AppBuilder builder, string backend) =>
+        IsHeadless(backend) ? UseHeadless(builder) : builder;
+
+    private static bool IsHeadless(string backend) =>
+        string.Equals(backend, "headless", StringComparison.OrdinalIgnoreCase);
+
+    private static AppBuilder UseHeadless(AppBuilder builder)
+    {
+        var assembly = Assembly.Load("Avalonia.Headless");
+        var optionsType = assembly.GetType("Avalonia.Headless.AvaloniaHeadlessPlatformOptions", throwOnError: true)!;
+        var options = Activator.CreateInstance(optionsType);
+        optionsType.GetProperty("UseHeadlessDrawing")?.SetValue(options, false);
+
+        var extensionType = assembly.GetType("Avalonia.Headless.AvaloniaHeadlessPlatformExtensions", throwOnError: true)!;
+        var method = extensionType
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .First(x =>
+            {
+                if (x.Name != "UseHeadless")
+                {
+                    return false;
+                }
+
+                var parameters = x.GetParameters();
+                return parameters.Length is 1 or 2 && typeof(AppBuilder).IsAssignableFrom(parameters[0].ParameterType);
+            });
+
+        var arguments = method.GetParameters().Length == 1
+            ? new object?[] { builder }
+            : new object?[] { builder, options };
+
+        return (AppBuilder)method.Invoke(null, arguments)!;
     }
 }
 
@@ -326,4 +377,5 @@ internal sealed record PreviewHostOptions(
     string XamlAssemblyPath,
     string? EntryType,
     int Width,
-    int Height);
+    int Height,
+    string Backend);

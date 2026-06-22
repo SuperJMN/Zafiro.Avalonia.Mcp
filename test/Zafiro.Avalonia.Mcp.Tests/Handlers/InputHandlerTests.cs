@@ -1,6 +1,8 @@
 using System.Text.Json;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 
@@ -73,5 +75,35 @@ public class InputHandlerTests
 
         Assert.True(json.GetProperty("success").GetBoolean());
         Assert.Equal("flyout", json.GetProperty("method").GetString());
+    }
+
+    [Fact]
+    public void Click_Fallback_RaisesTypedPointerEvents()
+    {
+        var control = new Border
+        {
+            Width = 100,
+            Height = 40,
+            Focusable = true,
+        };
+
+        PointerPressedEventArgs? pressed = null;
+        PointerReleasedEventArgs? released = null;
+        control.AddHandler(InputElement.PointerPressedEvent, (_, e) => pressed = e);
+        control.AddHandler(InputElement.PointerReleasedEvent, (_, e) => released = e);
+
+        var result = InputHandler.Click(control);
+
+        Assert.NotNull(pressed);
+        Assert.NotNull(released);
+        Assert.Equal(MouseButton.Left, released.InitialPressMouseButton);
+
+        var json = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        Assert.True(json.GetProperty("success").GetBoolean());
+        Assert.Equal("pointer_simulation", json.GetProperty("method").GetString());
     }
 }

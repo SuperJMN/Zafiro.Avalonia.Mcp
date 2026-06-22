@@ -2,6 +2,7 @@ using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
@@ -27,24 +28,27 @@ public sealed class ScreenTextHandler : IRequestHandler
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
-            Visual? root;
+            List<Visual> roots;
             if (!string.IsNullOrWhiteSpace(selector))
             {
                 var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
                 if (visual is null) return error!;
-                root = visual;
+                roots = [visual];
             }
             else
             {
-                root = NodeRegistry.GetRoots().FirstOrDefault();
-                if (root is null) return new { error = "No windows found" };
+                roots = NodeRegistry.GetInspectableRoots().ToList();
+                if (roots.Count == 0) return new { error = "No windows found" };
             }
 
-            var rootVisual = FindRootVisual(root);
-            var windowBounds = new Rect(0, 0, rootVisual.Bounds.Width, rootVisual.Bounds.Height);
             var entries = new List<ScreenTextEntry>();
 
-            CollectText(root, rootVisual, entries, visibleOnly, windowBounds);
+            foreach (var root in roots)
+            {
+                var rootVisual = FindRootVisual(root);
+                var windowBounds = new Rect(0, 0, rootVisual.Bounds.Width, rootVisual.Bounds.Height);
+                CollectText(root, rootVisual, entries, visibleOnly, windowBounds);
+            }
 
             // Deduplicate: templated controls (e.g. Button→AccessText→TextBlock)
             // produce the same text at nearly the same position. Keep only the
@@ -153,6 +157,9 @@ public sealed class ScreenTextHandler : IRequestHandler
         {
             TextBlock tb => tb.Text,
             TextBox tb => tb.Text,
+            HeaderedSelectingItemsControl hsic when hsic.Header is string s => s,
+            HeaderedItemsControl hic when hic.Header is string s => s,
+            HeaderedContentControl hcc when hcc.Header is string s => s,
             ContentPresenter cp when cp.Content is string s => s,
             ContentControl cc when cc.Content is string s => s,
             _ => null

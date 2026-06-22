@@ -39,7 +39,7 @@ public sealed class TreeHandler : IRequestHandler
             }
 
             var results = new List<NodeInfo>();
-            foreach (var window in NodeRegistry.GetRoots())
+            foreach (var window in NodeRegistry.GetInspectableRoots())
             {
                 results.Add(SerializeNode(window, treeKind, maxDepth, 0));
             }
@@ -87,4 +87,3 @@ public sealed class TreeHandler : IRequestHandler
         }
     }
 }
-

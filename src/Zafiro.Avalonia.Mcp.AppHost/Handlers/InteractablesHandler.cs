@@ -38,7 +38,7 @@ public sealed class InteractablesHandler : IRequestHandler
             }
             else
             {
-                searchScope = NodeRegistry.GetRoots()
+                searchScope = NodeRegistry.GetInspectableRoots()
                     .SelectMany(w => new[] { (Visual)w }.Concat(w.GetVisualDescendants()));
             }
 
@@ -111,6 +111,8 @@ public sealed class InteractablesHandler : IRequestHandler
     {
         TextBox tb => tb.Text,
         TextBlock tb => tb.Text,
+        HeaderedSelectingItemsControl hsic => hsic.Header as string ?? GetTextFromVisualChildren(hsic),
+        HeaderedItemsControl hic => hic.Header as string ?? GetTextFromVisualChildren(hic),
         HeaderedContentControl hcc => hcc.Header as string ?? GetContentText(hcc),
         ContentControl cc => GetContentText(cc) ?? GetTextFromVisualChildren(cc),
         _ => GetAutomationName(visual) ?? GetTextFromVisualChildren(visual),

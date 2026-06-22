@@ -38,6 +38,7 @@ internal sealed class PreviewHostProjectBuilder
         var targetFramework = string.IsNullOrWhiteSpace(target.TargetFramework)
             ? "net10.0"
             : target.TargetFramework;
+        var launchEnvironment = PrepareLaunchEnvironment(target.Backend);
         var hostDirectory = Path.Combine(hostRoot, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(hostDirectory);
 
@@ -46,7 +47,7 @@ internal sealed class PreviewHostProjectBuilder
         var nativeResolverPath = Path.Combine(hostDirectory, "PreviewNativeAssetResolver.cs");
         var dependency = dependencyResolver.Resolve();
 
-        await File.WriteAllTextAsync(projectPath, CreateProject(target, targetFramework, dependency), cancellationToken);
+        await File.WriteAllTextAsync(projectPath, CreateProject(target, targetFramework, dependency, launchEnvironment.Backend), cancellationToken);
         await File.WriteAllTextAsync(programPath, PreviewHostSource.Code, cancellationToken);
         await File.WriteAllTextAsync(nativeResolverPath, PreviewNativeAssetResolverSource.Code, cancellationToken);
 
@@ -77,14 +78,21 @@ internal sealed class PreviewHostProjectBuilder
             throw new PreviewValidationException(DiagnosticErrorCodes.Internal, $"Preview host build did not produce '{hostAssemblyPath}'.");
         }
 
-        return new PreviewHostLaunch(projectPath, CreateStartInfo(hostAssemblyPath, target, width, height));
+        return new PreviewHostLaunch(
+            projectPath,
+            CreateStartInfo(hostAssemblyPath, target, width, height, launchEnvironment),
+            launchEnvironment.Backend.ToWireValue());
     }
 
-    private static string CreateProject(PreviewTarget target, string targetFramework, PreviewHostDependency dependency)
+    private static string CreateProject(
+        PreviewTarget target,
+        string targetFramework,
+        PreviewHostDependency dependency,
+        PreviewBackend backend)
     {
         var references = CreateReferenceItems(target.AssemblyPath);
         var appHostReference = CreateAppHostReference(dependency);
-        var desktopItems = CreateDesktopItems(target.AssemblyPath);
+        var platformItems = CreatePlatformItems(target.AssemblyPath, backend);
         var xamlLoaderItems = CreateXamlLoaderItems(target.AssemblyPath);
         var runtimeContent = CreateRuntimeContent(target.AssemblyPath);
 
@@ -106,7 +114,7 @@ internal sealed class PreviewHostProjectBuilder
             {{appHostReference}}
               </ItemGroup>
 
-            {{desktopItems}}
+            {{platformItems}}
             {{xamlLoaderItems}}
             {{runtimeContent}}
             </Project>
@@ -153,6 +161,11 @@ internal sealed class PreviewHostProjectBuilder
             """;
     }
 
+    private static string CreatePlatformItems(string targetAssemblyPath, PreviewBackend backend) =>
+        backend == PreviewBackend.Headless
+            ? CreateHeadlessItems(targetAssemblyPath)
+            : CreateDesktopItems(targetAssemblyPath);
+
     private static string CreateDesktopItems(string targetAssemblyPath)
     {
         var targetDirectory = Path.GetDirectoryName(targetAssemblyPath)
@@ -174,6 +187,32 @@ internal sealed class PreviewHostProjectBuilder
         return $$"""
               <ItemGroup>
                 <PackageReference Include="Avalonia.Desktop" Version="{{Xml(avaloniaVersion)}}" PrivateAssets="all" />
+              </ItemGroup>
+
+            """;
+    }
+
+    private static string CreateHeadlessItems(string targetAssemblyPath)
+    {
+        var targetDirectory = Path.GetDirectoryName(targetAssemblyPath)
+                              ?? throw new PreviewValidationException(DiagnosticErrorCodes.InvalidParam, "Target assembly has no parent directory.");
+        var headlessPath = Path.Combine(targetDirectory, "Avalonia.Headless.dll");
+        if (File.Exists(headlessPath))
+        {
+            return string.Empty;
+        }
+
+        var avaloniaVersion = ResolveAvaloniaPackageVersion(targetAssemblyPath);
+        if (string.IsNullOrWhiteSpace(avaloniaVersion))
+        {
+            throw new PreviewValidationException(
+                DiagnosticErrorCodes.InvalidParam,
+                "Could not resolve the Avalonia package version from the target app output. Build the app before launching the AXAML preview.");
+        }
+
+        return $$"""
+              <ItemGroup>
+                <PackageReference Include="Avalonia.Headless" Version="{{Xml(avaloniaVersion)}}" PrivateAssets="all" />
               </ItemGroup>
 
             """;
@@ -287,7 +326,30 @@ internal sealed class PreviewHostProjectBuilder
             : version;
     }
 
-    private static ProcessStartInfo CreateStartInfo(string hostAssemblyPath, PreviewTarget target, int width, int height)
+    private static PreviewLaunchEnvironment PrepareLaunchEnvironment(PreviewBackend requestedBackend)
+    {
+        var startInfo = new ProcessStartInfo("dotnet");
+        var environment = startInfo.Environment;
+
+        if (requestedBackend != PreviewBackend.Headless)
+        {
+            PreviewGraphicalEnvironment.Apply(environment);
+        }
+
+        var resolvedBackend = PreviewBackendResolver.Resolve(
+            requestedBackend,
+            environment,
+            OperatingSystem.IsLinux());
+
+        return new PreviewLaunchEnvironment(resolvedBackend, new Dictionary<string, string?>(environment, StringComparer.Ordinal));
+    }
+
+    private static ProcessStartInfo CreateStartInfo(
+        string hostAssemblyPath,
+        PreviewTarget target,
+        int width,
+        int height,
+        PreviewLaunchEnvironment launchEnvironment)
     {
         var startInfo = new ProcessStartInfo("dotnet")
         {
@@ -296,6 +358,8 @@ internal sealed class PreviewHostProjectBuilder
             RedirectStandardError = true,
             WorkingDirectory = Path.GetDirectoryName(target.AssemblyPath) ?? Environment.CurrentDirectory,
         };
+
+        CopyEnvironment(launchEnvironment.Environment, startInfo.Environment);
 
         startInfo.ArgumentList.Add(hostAssemblyPath);
         startInfo.ArgumentList.Add("--assembly");
@@ -308,9 +372,8 @@ internal sealed class PreviewHostProjectBuilder
         startInfo.ArgumentList.Add(width.ToString());
         startInfo.ArgumentList.Add("--height");
         startInfo.ArgumentList.Add(height.ToString());
-
-        PreviewGraphicalEnvironment.Apply(startInfo.Environment);
-        PreviewGraphicalEnvironment.EnsureAvailable(startInfo.Environment);
+        startInfo.ArgumentList.Add("--backend");
+        startInfo.ArgumentList.Add(launchEnvironment.Backend.ToWireValue());
         startInfo.Environment[PreviewEnvironmentVariable] = "1";
 
         if (!string.IsNullOrWhiteSpace(target.EntryType))
@@ -320,6 +383,20 @@ internal sealed class PreviewHostProjectBuilder
         }
 
         return startInfo;
+    }
+
+    private static void CopyEnvironment(
+        IReadOnlyDictionary<string, string?> source,
+        IDictionary<string, string?> destination)
+    {
+        destination.Clear();
+        foreach (var (key, value) in source)
+        {
+            if (value is not null)
+            {
+                destination[key] = value;
+            }
+        }
     }
 
     private static string DefaultHostRoot()
@@ -335,7 +412,9 @@ internal sealed class PreviewHostProjectBuilder
         => SecurityElement.Escape(value) ?? string.Empty;
 }
 
-internal sealed record PreviewHostLaunch(string ProjectPath, ProcessStartInfo StartInfo);
+internal sealed record PreviewLaunchEnvironment(PreviewBackend Backend, IReadOnlyDictionary<string, string?> Environment);
+
+internal sealed record PreviewHostLaunch(string ProjectPath, ProcessStartInfo StartInfo, string Backend = "desktop");
 
 internal sealed record PreviewHostDependency(string? AppHostProjectPath, string? AppHostPackageVersion);
 

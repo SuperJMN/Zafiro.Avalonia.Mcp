@@ -45,11 +45,17 @@ public static class NodeInfoBuilder
         if (visual is TextBlock tb)
             return tb.Text;
 
-        if (visual is ContentControl cc && cc.Content is string contentStr)
-            return contentStr;
+        if (visual is HeaderedSelectingItemsControl hsic && hsic.Header is string selectingHeaderStr)
+            return selectingHeaderStr;
+
+        if (visual is HeaderedItemsControl hic && hic.Header is string headeredItemsStr)
+            return headeredItemsStr;
 
         if (visual is HeaderedContentControl hcc && hcc.Header is string headerStr)
             return headerStr;
+
+        if (visual is ContentControl cc && cc.Content is string contentStr)
+            return contentStr;
 
         if (visual is TextBox textBox)
             return textBox.Text;

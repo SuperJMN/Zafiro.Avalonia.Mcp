@@ -59,7 +59,7 @@ public sealed class PreviewProcessManager : IDisposable
 
         var output = PreviewProcessOutput.Capture(process.StandardOutput, process.StandardError);
 
-        var previewProcess = new PreviewProcess(process.Id, process, target, output, launch.ProjectPath);
+        var previewProcess = new PreviewProcess(process.Id, process, target, output, launch.ProjectPath, launch.Backend);
         processes[process.Id] = previewProcess;
 
         return previewProcess;
@@ -355,7 +355,8 @@ internal sealed record PreviewProcess(
     Process Process,
     PreviewTarget Target,
     PreviewProcessOutput Output,
-    string HostProjectPath);
+    string HostProjectPath,
+    string Backend = "desktop");
 
 internal sealed class PreviewProcessOutput
 {

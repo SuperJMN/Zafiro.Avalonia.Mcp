@@ -70,7 +70,7 @@ public sealed class SelectorEngine
         // Initial seed: descendants of scope OR descendants of all windows (and the windows themselves).
         IEnumerable<Visual> initial = scope is not null
             ? new[] { scope }.Concat(scope.GetVisualDescendants())
-            : NodeRegistry.GetRoots().SelectMany(w => new[] { (Visual)w }.Concat(w.GetVisualDescendants()));
+            : NodeRegistry.GetInspectableRoots().SelectMany(w => new[] { (Visual)w }.Concat(w.GetVisualDescendants()));
 
         IEnumerable<Visual> current = initial.Where(v => MatchesCompound(v, path.Steps[0].Compound));
 
@@ -169,6 +169,9 @@ public sealed class SelectorEngine
             {
                 TextBox tb => tb.Text,
                 TextBlock tbl => tbl.Text,
+                HeaderedSelectingItemsControl hsic => hsic.Header as string,
+                HeaderedItemsControl hic => hic.Header as string,
+                HeaderedContentControl hcc => hcc.Header as string,
                 ContentControl cc => cc.Content as string,
                 _ => null,
             };
@@ -263,6 +266,8 @@ public sealed class SelectorEngine
     {
         TextBox tb => tb.Text,
         TextBlock tbl => tbl.Text,
+        HeaderedSelectingItemsControl hsic => hsic.Header as string ?? GetTextFromChildren(hsic),
+        HeaderedItemsControl hic => hic.Header as string ?? GetTextFromChildren(hic),
         HeaderedContentControl hcc => hcc.Header as string ?? hcc.Content as string,
         ContentControl cc => cc.Content as string ?? GetTextFromChildren(cc),
         _ => GetTextFromChildren(visual),

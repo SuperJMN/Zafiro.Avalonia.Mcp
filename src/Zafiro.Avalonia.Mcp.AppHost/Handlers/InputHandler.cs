@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Input.Raw;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
@@ -137,17 +138,46 @@ public sealed class InputHandler : IRequestHandler
 
             if (control.Focusable) control.Focus();
             var center = new Point(control.Bounds.Width / 2, control.Bounds.Height / 2);
-            RaisePointerEvent(control, InputElement.PointerPressedEvent, center);
-            RaisePointerEvent(control, InputElement.PointerReleasedEvent, center);
+            SimulatePointerClick(control, center);
             return new { success = true, nodeId, method = "pointer_simulation" };
         }
 
         return new { error = "Cannot click this element", nodeId };
     }
 
-    private static void RaisePointerEvent(Control control, RoutedEvent routedEvent, Point position)
+    private static void SimulatePointerClick(Control control, Point position)
     {
-        control.RaiseEvent(new RoutedEventArgs(routedEvent));
+        var pointer = new Pointer(Pointer.GetNextFreeId(), PointerType.Mouse, isPrimary: true);
+        var rootVisual = FindRootVisual(control);
+        var rootPosition = control.TransformToVisual(rootVisual)?.Transform(position) ?? position;
+        var timestamp = unchecked((ulong)Environment.TickCount64);
+
+        control.RaiseEvent(new PointerPressedEventArgs(
+            control,
+            pointer,
+            rootVisual,
+            rootPosition,
+            timestamp,
+            new PointerPointProperties(RawInputModifiers.LeftMouseButton, PointerUpdateKind.LeftButtonPressed),
+            KeyModifiers.None));
+
+        control.RaiseEvent(new PointerReleasedEventArgs(
+            control,
+            pointer,
+            rootVisual,
+            rootPosition,
+            timestamp + 1,
+            new PointerPointProperties(RawInputModifiers.None, PointerUpdateKind.LeftButtonReleased),
+            KeyModifiers.None,
+            MouseButton.Left));
+    }
+
+    private static Visual FindRootVisual(Visual visual)
+    {
+        var current = visual;
+        while (current.GetVisualParent() is Visual parent)
+            current = parent;
+        return current;
     }
 }
 

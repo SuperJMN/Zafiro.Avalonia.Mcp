@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
 using Avalonia.VisualTree;
 
 namespace Zafiro.Avalonia.Mcp.AppHost.Handlers;
@@ -9,20 +10,37 @@ namespace Zafiro.Avalonia.Mcp.AppHost.Handlers;
 public static class NodeRegistry
 {
     private static readonly Dictionary<int, WeakReference<Visual>> Nodes = new();
+    private static readonly List<WeakReference<TopLevel>> TrackedTopLevels = [];
     private static ConditionalWeakTable<Visual, StrongBox<int>> _reverseMap = new();
     private static int _nextId;
+
+    static NodeRegistry()
+    {
+        Visual.IsVisibleProperty.Changed.AddClassHandler<TopLevel>((topLevel, _) =>
+        {
+            if (topLevel.IsVisible)
+            {
+                TrackTopLevel(topLevel);
+            }
+        });
+    }
 
     public static int Register(Visual visual)
     {
         var id = Interlocked.Increment(ref _nextId);
         Nodes[id] = new WeakReference<Visual>(visual);
         _reverseMap.AddOrUpdate(visual, new StrongBox<int>(id));
+        if (visual is TopLevel topLevel)
+        {
+            TrackTopLevel(topLevel);
+        }
         return id;
     }
 
     public static void Clear()
     {
         Nodes.Clear();
+        TrackedTopLevels.Clear();
         _reverseMap = new ConditionalWeakTable<Visual, StrongBox<int>>();
         _nextId = 0;
     }
@@ -63,12 +81,41 @@ public static class NodeRegistry
         return [];
     }
 
+    public static IEnumerable<TopLevel> GetRoots()
+    {
+        var seen = new HashSet<TopLevel>(ReferenceEqualityComparer.Instance);
+
+        foreach (var root in GetApplicationRoots())
+        {
+            if (seen.Add(root))
+            {
+                yield return root;
+            }
+        }
+
+        foreach (var root in GetFocusedTopLevels())
+        {
+            if (seen.Add(root))
+            {
+                yield return root;
+            }
+        }
+
+        foreach (var root in GetTrackedTopLevels())
+        {
+            if (root.IsVisible && seen.Add(root))
+            {
+                yield return root;
+            }
+        }
+    }
+
     /// <summary>
     /// Returns all root <see cref="TopLevel"/>s for the running app: <see cref="Window"/>s on desktop,
     /// the single hosted view on Android/iOS/Browser. Use this whenever a handler only needs visual-tree
     /// access (descendants, bounds, focus) and not <see cref="Window"/>-specific API.
     /// </summary>
-    public static IEnumerable<TopLevel> GetRoots()
+    private static IEnumerable<TopLevel> GetApplicationRoots()
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -84,9 +131,11 @@ public static class NodeRegistry
         }
     }
 
+    public static IEnumerable<Visual> GetInspectableRoots() => GetRoots();
+
     public static Visual? FindByQuery(string query)
     {
-        foreach (var window in GetRoots())
+        foreach (var window in GetInspectableRoots())
         {
             // Search by name: #Name
             if (query.StartsWith('#'))
@@ -106,5 +155,46 @@ public static class NodeRegistry
             }
         }
         return null;
+    }
+
+    private static void TrackTopLevel(TopLevel topLevel)
+    {
+        if (TrackedTopLevels.Any(reference => reference.TryGetTarget(out var existing) && ReferenceEquals(existing, topLevel)))
+        {
+            return;
+        }
+
+        TrackedTopLevels.RemoveAll(reference => !reference.TryGetTarget(out _));
+        TrackedTopLevels.Add(new WeakReference<TopLevel>(topLevel));
+    }
+
+    private static IEnumerable<TopLevel> GetTrackedTopLevels()
+    {
+        foreach (var reference in TrackedTopLevels.ToArray())
+        {
+            if (reference.TryGetTarget(out var topLevel))
+            {
+                yield return topLevel;
+            }
+        }
+
+        TrackedTopLevels.RemoveAll(reference => !reference.TryGetTarget(out _));
+    }
+
+    private static IEnumerable<TopLevel> GetFocusedTopLevels()
+    {
+        foreach (var root in GetApplicationRoots())
+        {
+            if (root.FocusManager?.GetFocusedElement() is not Visual focused)
+            {
+                continue;
+            }
+
+            var focusedTopLevel = TopLevel.GetTopLevel(focused);
+            if (focusedTopLevel is not null && !ReferenceEquals(focusedTopLevel, root))
+            {
+                yield return focusedTopLevel;
+            }
+        }
     }
 }

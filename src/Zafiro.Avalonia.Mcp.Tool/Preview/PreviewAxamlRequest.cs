@@ -11,7 +11,8 @@ internal sealed record PreviewAxamlRequest(
     string Configuration = "Debug",
     int Width = 1024,
     int Height = 768,
-    bool Build = true);
+    bool Build = true,
+    string Backend = "auto");
 
 internal sealed record PreviewTarget(
     string AxamlPath,
@@ -20,7 +21,8 @@ internal sealed record PreviewTarget(
     string? ProjectPath,
     string? EntryType,
     string? TargetFramework,
-    string Configuration);
+    string Configuration,
+    PreviewBackend Backend = PreviewBackend.Auto);
 
 internal sealed class PreviewValidationException : Exception
 {

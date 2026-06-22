@@ -220,9 +220,11 @@ internal static class ToolsCatalogue
         sb.AppendLine();
         sb.AppendLine("Finish managed app sessions with `close_app`. It disconnects MCP, removes the discovery file, and terminates the launched process tree owned by this MCP tool process.");
         sb.AppendLine();
-        sb.AppendLine("If `launch_app` cannot find a same-user local desktop display after checking the current environment, ancestor processes, and same-user graphical processes, it returns `DISPLAY_UNAVAILABLE`. Start the desktop session locally as the same user or pass the graphical session variables into the MCP process.");
+        sb.AppendLine("If `launch_app` or `preview_axaml backend='desktop'` cannot find a same-user local desktop display after checking the current environment, ancestor processes, and same-user graphical processes, it returns `DISPLAY_UNAVAILABLE`. Start the desktop session locally as the same user or pass the graphical session variables into the MCP process.");
         sb.AppendLine();
         sb.AppendLine("`preview_axaml` launches a real preview host and executes the target app's real `BuildAvaloniaApp` method when that entry point is used. That preserves UI setup, styles, resources, fonts, service registration needed by controls, and design-time resource wiring, but it can also trigger startup side effects.");
+        sb.AppendLine();
+        sb.AppendLine("`preview_axaml backend='auto'` uses the desktop backend when a display is available and falls back to `backend='headless'` on displayless Linux. Headless mode uses Avalonia.Headless and supports non-pixel inspection such as `get_snapshot`, `get_tree`, `get_screen_text`, selectors, and `get_datacontext`; screenshots are best-effort.");
         sb.AppendLine();
         sb.AppendLine("In multi-project Avalonia apps, pass `projectPath` for the executable Desktop host project, not the shared UI class library that merely contains `App.axaml` and views. If using `assemblyPath`, point it at the built executable host assembly output so the preview host sees the same copied dependencies as the real app.");
         sb.AppendLine();
@@ -236,7 +238,7 @@ internal static class ToolsCatalogue
         sb.AppendLine("## 6. Recommended call order");
         sb.AppendLine();
         sb.AppendLine("- **\"Launch this app from SSH\"** → `launch_app` with `projectPath` for the executable Desktop host, then use normal tools (`get_snapshot`, `click`, `screenshot`); finish with `close_app`.");
-        sb.AppendLine("- **\"Preview this AXAML\"** → `preview_axaml` with `axamlPath` + `projectPath` for the executable Desktop host, then use normal tools (`get_snapshot`, `screenshot`, `get_datacontext`); finish with `close_preview`.");
+        sb.AppendLine("- **\"Preview this AXAML\"** → `preview_axaml` with `axamlPath` + `projectPath` for the executable Desktop host, plus `backend='auto'` unless you specifically need `desktop` or `headless`; then use normal tools (`get_snapshot`, `screenshot`, `get_datacontext`); finish with `close_preview`.");
         sb.AppendLine("- **\"What's on screen?\"** → `get_snapshot` (cheapest), then `get_screen_text` if you only need text.");
         sb.AppendLine("- **\"Click the X button\"** → `click_by_query` (atomic find+click — avoids stale-node races).");
         sb.AppendLine("- **\"Inspect a control\"** → `get_props` + `get_styles` + `get_layout_info`.");

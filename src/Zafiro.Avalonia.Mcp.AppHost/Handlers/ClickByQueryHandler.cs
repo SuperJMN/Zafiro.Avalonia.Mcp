@@ -58,7 +58,7 @@ public sealed class ClickByQueryHandler : IRequestHandler
     {
         var results = new List<Visual>();
 
-        foreach (var window in NodeRegistry.GetRoots())
+        foreach (var window in NodeRegistry.GetInspectableRoots())
         {
             foreach (var visual in window.GetVisualDescendants())
             {
@@ -191,9 +191,7 @@ public sealed class ClickByQueryHandler : IRequestHandler
             }
 
             if (control.Focusable) control.Focus();
-            control.RaiseEvent(new RoutedEventArgs(InputElement.PointerPressedEvent));
-            control.RaiseEvent(new RoutedEventArgs(InputElement.PointerReleasedEvent));
-            return "pointer_simulation";
+            return "focus";
         }
 
         return "no_action";
@@ -212,6 +210,8 @@ public sealed class ClickByQueryHandler : IRequestHandler
     {
         TextBox tb => tb.Text,
         TextBlock tb => tb.Text,
+        HeaderedSelectingItemsControl hsic => hsic.Header as string ?? GetTextFromVisualChildren(hsic),
+        HeaderedItemsControl hic => hic.Header as string ?? GetTextFromVisualChildren(hic),
         HeaderedContentControl hcc => hcc.Header as string ?? hcc.Content as string,
         ContentControl cc => cc.Content as string ?? GetAutomationName(cc) ?? GetTextFromVisualChildren(cc),
         _ => GetAutomationName(visual) ?? GetTextFromVisualChildren(visual),

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
@@ -30,7 +31,8 @@ public sealed class ScreenshotHandler : IRequestHandler
             }
             else
             {
-                target = NodeRegistry.GetRoots().FirstOrDefault();
+                var roots = NodeRegistry.GetInspectableRoots().ToList();
+                target = roots.OfType<PopupRoot>().LastOrDefault() ?? roots.FirstOrDefault();
                 if (target is null) return new { error = "No windows available" };
             }
 

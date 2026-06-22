@@ -115,6 +115,37 @@ public sealed class PreviewHostProjectBuilderTests
     }
 
     [Fact]
+    public async Task Build_CreatesHeadlessHost_WhenBackendIsHeadless()
+    {
+        using var temp = new TempHostProject();
+        var runner = new FakeProcessRunner();
+        var builder = new PreviewHostProjectBuilder(
+            runner,
+            temp.HostRoot,
+            new FixedPreviewHostDependencyResolver(new PreviewHostDependency(temp.AppHostProjectPath, null)));
+
+        var target = new PreviewTarget(
+            temp.AxamlPath,
+            temp.TargetAssemblyPath,
+            temp.TargetAssemblyPath,
+            temp.TargetProjectPath,
+            EntryType: null,
+            TargetFramework: "net10.0",
+            Configuration: "Debug",
+            Backend: PreviewBackend.Headless);
+
+        var launch = await builder.Build(target, width: 320, height: 240, CancellationToken.None);
+
+        var projectText = File.ReadAllText(launch.ProjectPath);
+
+        Assert.Contains("<PackageReference Include=\"Avalonia.Headless\"", projectText);
+        Assert.DoesNotContain("<PackageReference Include=\"Avalonia.Desktop\"", projectText);
+        Assert.Contains(launch.StartInfo.ArgumentList, argument => argument == "--backend");
+        Assert.Contains(launch.StartInfo.ArgumentList, argument => argument == "headless");
+        Assert.Equal("headless", launch.Backend);
+    }
+
+    [Fact]
     public async Task Build_CompilesHostProject_ForApplicationOnlyTargetWithoutAvaloniaDesktop()
     {
         using var temp = new ApplicationOnlyPreviewTarget();

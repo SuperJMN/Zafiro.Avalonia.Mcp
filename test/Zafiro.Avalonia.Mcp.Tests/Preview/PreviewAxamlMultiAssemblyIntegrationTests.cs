@@ -43,6 +43,96 @@ public sealed class PreviewAxamlMultiAssemblyIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task PreviewAxaml_HeadlessBackend_ConnectsWithoutDisplay_AndSupportsNonPixelInspection()
+    {
+        using var fixture = new MultiAssemblyPreviewFixture();
+        using var displayEnvironment = DisplayEnvironmentScope.Clear();
+        using var pool = new ConnectionPool();
+        using var previews = new PreviewProcessManager(
+            discoveryTimeout: TimeSpan.FromSeconds(30),
+            pollInterval: TimeSpan.FromMilliseconds(100));
+
+        try
+        {
+            var previewResult = await PreviewTools.PreviewAxaml(
+                pool,
+                previews,
+                new PreviewTargetResolver(new DotnetProcessRunner()),
+                fixture.ViewPath,
+                projectPath: fixture.HostProjectPath,
+                entryType: "PreviewFixture.Host.Program",
+                width: 420,
+                height: 240,
+                backend: "headless");
+
+            using var previewDocument = JsonDocument.Parse(previewResult);
+            Assert.False(previewDocument.RootElement.TryGetProperty("error", out _), previewResult);
+            Assert.True(previewDocument.RootElement.GetProperty("connected").GetBoolean());
+            Assert.Equal("headless", previewDocument.RootElement.GetProperty("backend").GetString());
+
+            var screenText = await TreeTools.GetScreenText(pool);
+            var snapshot = await TreeTools.GetSnapshot(pool, visibleOnly: false);
+            var tree = await TreeTools.GetTree(pool, depth: 4);
+            var layout = await DiagnosticTools.GetLayoutInfo(pool, "TextBlock");
+
+            Assert.Contains(MultiAssemblyPreviewFixture.VisibleText, screenText);
+            Assert.Contains(MultiAssemblyPreviewFixture.VisibleText, snapshot);
+            Assert.Contains("\"type\":\"Window\"", tree);
+            Assert.Contains("\"bounds\"", layout);
+        }
+        finally
+        {
+            PreviewTools.ClosePreview(pool, previews);
+        }
+    }
+
+    private sealed class DisplayEnvironmentScope : IDisposable
+    {
+        private static readonly string[] VariableNames =
+        [
+            "DISPLAY",
+            "WAYLAND_DISPLAY",
+            "XAUTHORITY",
+            "XDG_RUNTIME_DIR",
+            "XDG_SESSION_TYPE",
+            "XDG_CURRENT_DESKTOP",
+            "DESKTOP_SESSION",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "GDK_BACKEND",
+        ];
+
+        private readonly Dictionary<string, string?> previousValues;
+
+        private DisplayEnvironmentScope(Dictionary<string, string?> previousValues)
+        {
+            this.previousValues = previousValues;
+        }
+
+        public static DisplayEnvironmentScope Clear()
+        {
+            var previousValues = VariableNames.ToDictionary(
+                variable => variable,
+                Environment.GetEnvironmentVariable,
+                StringComparer.Ordinal);
+
+            foreach (var variableName in VariableNames)
+            {
+                Environment.SetEnvironmentVariable(variableName, null);
+            }
+
+            return new DisplayEnvironmentScope(previousValues);
+        }
+
+        public void Dispose()
+        {
+            foreach (var (variableName, value) in previousValues)
+            {
+                Environment.SetEnvironmentVariable(variableName, value);
+            }
+        }
+    }
+
     private sealed class MultiAssemblyPreviewFixture : IDisposable
     {
         public const string VisibleText = "Visible from referenced UI assembly";

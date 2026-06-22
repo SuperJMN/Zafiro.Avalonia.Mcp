@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Zafiro.Avalonia.Mcp.Protocol;
@@ -39,7 +40,7 @@ public sealed class SearchHandler : IRequestHandler
             }
             else
             {
-                searchScope = NodeRegistry.GetRoots()
+                searchScope = NodeRegistry.GetInspectableRoots()
                     .SelectMany(w => new[] { (Visual)w }.Concat(w.GetVisualDescendants()));
             }
 
@@ -69,6 +70,18 @@ public sealed class SearchHandler : IRequestHandler
             return true;
 
         if (visual is TextBlock tb && tb.Text?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (visual is HeaderedSelectingItemsControl hsic && hsic.Header is string selectingHeader
+            && selectingHeader.Contains(query, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (visual is HeaderedItemsControl hic && hic.Header is string itemsHeader
+            && itemsHeader.Contains(query, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (visual is HeaderedContentControl hcc && hcc.Header is string header
+            && header.Contains(query, StringComparison.OrdinalIgnoreCase))
             return true;
 
         if (visual is ContentControl cc && cc.Content is string s

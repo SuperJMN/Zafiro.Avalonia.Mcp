@@ -33,12 +33,13 @@ public sealed class PreviewTargetResolver
         var configuration = string.IsNullOrWhiteSpace(request.Configuration)
             ? "Debug"
             : request.Configuration.Trim();
+        var backend = PreviewBackendParser.Parse(request.Backend);
 
         if (hasAssembly)
         {
             var assemblyPath = ResolveExistingFile(request.AssemblyPath!, "Assembly file does not exist");
             var xamlAssemblyPath = ResolveXamlAssemblyPath(axamlPath, assemblyPath);
-            return new PreviewTarget(axamlPath, assemblyPath, xamlAssemblyPath, null, request.EntryType, request.TargetFramework, configuration);
+            return new PreviewTarget(axamlPath, assemblyPath, xamlAssemblyPath, null, request.EntryType, request.TargetFramework, configuration, backend);
         }
 
         var projectPath = ResolveExistingFile(request.ProjectPath!, "Project file does not exist");
@@ -65,7 +66,7 @@ public sealed class PreviewTargetResolver
         }
 
         var resolvedXamlAssemblyPath = ResolveXamlAssemblyPath(axamlPath, targetPath);
-        return new PreviewTarget(axamlPath, targetPath, resolvedXamlAssemblyPath, projectPath, request.EntryType, targetFramework, configuration);
+        return new PreviewTarget(axamlPath, targetPath, resolvedXamlAssemblyPath, projectPath, request.EntryType, targetFramework, configuration, backend);
     }
 
     internal static string ResolveXamlAssemblyPath(string axamlPath, string targetAssemblyPath)

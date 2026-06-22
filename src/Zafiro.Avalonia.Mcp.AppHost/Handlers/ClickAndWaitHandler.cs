@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Avalonia;
 using Avalonia.Threading;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
@@ -38,7 +39,7 @@ public sealed class ClickAndWaitHandler : IRequestHandler
             var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
             if (visual is null) return error!;
 
-            return InputHandler.Click(visual);
+            return PerformClick(visual);
         });
 
         // If click failed, return immediately
@@ -66,4 +67,6 @@ public sealed class ClickAndWaitHandler : IRequestHandler
             elapsed_ms = totalElapsed
         };
     }
+
+    internal static object PerformClick(Visual visual) => InputHandler.Click(visual);
 }

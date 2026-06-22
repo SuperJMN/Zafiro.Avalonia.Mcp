@@ -12,8 +12,8 @@ public sealed class PreviewTools
 {
     [McpServerTool(Name = "preview_axaml"), Description("""
         Launch a single AXAML file in an isolated preview window, connect MCP to that preview process, and make normal tools (get_snapshot, screenshot, get_datacontext, selectors) operate on the preview instead of the real app.
-        Required: axamlPath plus exactly one of projectPath or assemblyPath. In multi-project apps, projectPath should usually be the executable Desktop host project, not the shared UI class library; assemblyPath should point at the built executable host assembly output. Returns: {pid,title,axamlPath,connected}.
-        Example: {"axamlPath":"src/MyApp/Views/EditView.axaml","projectPath":"src/MyApp.Desktop/MyApp.Desktop.csproj","width":390,"height":844}
+        Required: axamlPath plus exactly one of projectPath or assemblyPath. In multi-project apps, projectPath should usually be the executable Desktop host project, not the shared UI class library; assemblyPath should point at the built executable host assembly output. backend may be auto, desktop, or headless. Returns: {pid,title,axamlPath,connected,backend}.
+        Example: {"axamlPath":"src/MyApp/Views/EditView.axaml","projectPath":"src/MyApp.Desktop/MyApp.Desktop.csproj","width":390,"height":844,"backend":"auto"}
         """)]
     public static async Task<string> PreviewAxaml(
         ConnectionPool pool,
@@ -28,6 +28,7 @@ public sealed class PreviewTools
         [Description("Preview window width.")] int width = 1024,
         [Description("Preview window height.")] int height = 768,
         [Description("When projectPath is used, build before launching.")] bool build = true,
+        [Description("Preview backend: auto tries desktop then falls back to headless when no display is available; desktop requires a graphical display; headless uses Avalonia.Headless for non-pixel inspection.")] string backend = "auto",
         CancellationToken cancellationToken = default)
     {
         PreviewProcess? preview = null;
@@ -42,7 +43,8 @@ public sealed class PreviewTools
                 configuration,
                 width,
                 height,
-                build), cancellationToken);
+                build,
+                backend), cancellationToken);
 
             preview = await previews.Launch(target, Math.Max(1, width), Math.Max(1, height), cancellationToken);
             try
@@ -62,6 +64,7 @@ public sealed class PreviewTools
                 title = $"AXAML Preview - {Path.GetFileName(target.AxamlPath)}",
                 axamlPath = target.AxamlPath,
                 connected = true,
+                backend = preview.Backend,
             });
         }
         catch (PreviewValidationException ex)

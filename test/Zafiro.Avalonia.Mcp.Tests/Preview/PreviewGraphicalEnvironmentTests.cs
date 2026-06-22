@@ -7,6 +7,50 @@ namespace Zafiro.Avalonia.Mcp.Tests.Preview;
 public sealed class PreviewGraphicalEnvironmentTests
 {
     [Fact]
+    public void ResolveBackend_ReturnsHeadless_ForAutoLinuxEnvironmentWithoutDisplay()
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal);
+
+        var backend = PreviewBackendResolver.Resolve(PreviewBackend.Auto, environment, isLinux: true);
+
+        Assert.Equal(PreviewBackend.Headless, backend);
+    }
+
+    [Fact]
+    public void ResolveBackend_KeepsDesktop_ForAutoLinuxEnvironmentWithDisplay()
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["DISPLAY"] = ":1",
+        };
+
+        var backend = PreviewBackendResolver.Resolve(PreviewBackend.Auto, environment, isLinux: true);
+
+        Assert.Equal(PreviewBackend.Desktop, backend);
+    }
+
+    [Fact]
+    public void ResolveBackend_ThrowsDisplayUnavailable_ForForcedDesktopLinuxEnvironmentWithoutDisplay()
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal);
+
+        var ex = Assert.Throws<PreviewValidationException>(() =>
+            PreviewBackendResolver.Resolve(PreviewBackend.Desktop, environment, isLinux: true));
+
+        Assert.Equal(DiagnosticErrorCodes.DisplayUnavailable, ex.Code);
+    }
+
+    [Fact]
+    public void ResolveBackend_ReturnsHeadless_ForForcedHeadlessLinuxEnvironmentWithoutDisplay()
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal);
+
+        var backend = PreviewBackendResolver.Resolve(PreviewBackend.Headless, environment, isLinux: true);
+
+        Assert.Equal(PreviewBackend.Headless, backend);
+    }
+
+    [Fact]
     public void Apply_RecoversGraphicalVariablesFromAncestor_WhenToolEnvironmentIsSanitized()
     {
         var environment = new Dictionary<string, string?>(StringComparer.Ordinal);

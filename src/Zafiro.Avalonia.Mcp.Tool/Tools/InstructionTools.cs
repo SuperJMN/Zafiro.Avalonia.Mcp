@@ -40,7 +40,7 @@ public sealed class InstructionTools
         3. Use normal tools: get_snapshot, click, screenshot, wait_for, ...
         4. Use 'close_app' when finished
 
-        AXAML preview workflow (desktop-only):
+        AXAML preview workflow:
         1. Use 'preview_axaml' with axamlPath and exactly one of projectPath or assemblyPath
         2. The tool launches an isolated preview window, waits for get_snapshot, and connects to it automatically
         3. Use normal tools: get_snapshot, screenshot, get_datacontext, click, wait_for, ...
@@ -51,16 +51,18 @@ public sealed class InstructionTools
         and views. In assemblyPath mode, pass the built executable host assembly
         output so dependencies match the real app.
 
-        On Linux, launch_app and preview_axaml need access to a graphical display.
-        They recover missing DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR values from
-        the current environment, same-user ancestor processes, and same-user local
-        graphical processes. This lets an MCP process started over SSH launch and
-        test the app in the machine's local GUI; the AI agent reads the UI through
-        MCP and does not need SSH X forwarding.
+        On Linux, launch_app and preview_axaml backend='desktop' need access to a
+        graphical display. They recover missing DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR
+        values from the current environment, same-user ancestor processes, and
+        same-user local graphical processes. preview_axaml backend='auto' falls back
+        to backend='headless' when no display is available; headless uses
+        Avalonia.Headless and supports non-pixel inspection such as get_snapshot,
+        get_tree, get_screen_text, selectors, and get_datacontext. Screenshots are
+        best-effort in headless mode.
 
         Example:
           launch_app projectPath="src/MyApp.Desktop/MyApp.Desktop.csproj" build=true
-          preview_axaml axamlPath="src/MyApp/Views/EditView.axaml" projectPath="src/MyApp.Desktop/MyApp.Desktop.csproj" width=390 height=844
+          preview_axaml axamlPath="src/MyApp/Views/EditView.axaml" projectPath="src/MyApp.Desktop/MyApp.Desktop.csproj" width=390 height=844 backend=auto
 
         Connection workflow (Android via ADB):
         Avalonia.Android apps do NOT appear in 'list_apps' — discovery files live on the
@@ -155,10 +157,12 @@ public sealed class InstructionTools
         In multi-project apps, projectPath should usually be the executable
         Desktop host project, not the shared UI class library. In assemblyPath
         mode, pass the built executable host assembly output.
-        On Linux, launch_app and preview_axaml recover missing graphical session
-        variables from same-user ancestor and local graphical processes before
-        starting the target. This supports SSH-driven MCP sessions that launch
-        the app into the machine's own local GUI.
+        On Linux, launch_app and preview_axaml backend='desktop' recover missing
+        graphical session variables from same-user ancestor and local graphical
+        processes before starting the target. preview_axaml backend='auto' falls
+        back to backend='headless' when no display is available; backend='headless'
+        uses Avalonia.Headless for non-pixel inspection and treats screenshots as
+        best-effort.
 
         MCP Server setup (for AI agent integration):
 
