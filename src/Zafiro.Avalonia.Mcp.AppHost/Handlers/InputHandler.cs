@@ -66,14 +66,9 @@ public sealed class InputHandler : IRequestHandler
 
         if (visual is MenuItem menuItem)
         {
-            if (menuItem.Command is { } miCmd && miCmd.CanExecute(menuItem.CommandParameter))
-            {
-                miCmd.Execute(menuItem.CommandParameter);
-                return new { success = true, nodeId, method = "menu_command" };
-            }
-
-            menuItem.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-            return new { success = true, nodeId, method = "menu_click" };
+            var invokesCommand = menuItem.Command is { } miCmd && miCmd.CanExecute(menuItem.CommandParameter);
+            ActivateMenuItem(menuItem);
+            return new { success = true, nodeId, method = invokesCommand ? "menu_command" : "menu_click" };
         }
 
         if (visual is Control control)
@@ -170,6 +165,35 @@ public sealed class InputHandler : IRequestHandler
             new PointerPointProperties(RawInputModifiers.None, PointerUpdateKind.LeftButtonReleased),
             KeyModifiers.None,
             MouseButton.Left));
+    }
+
+    private static void ActivateMenuItem(MenuItem menuItem)
+    {
+        if (!menuItem.HasSubMenu)
+        {
+            if (menuItem.ToggleType == MenuItemToggleType.CheckBox)
+            {
+                menuItem.IsChecked = !menuItem.IsChecked;
+            }
+            else if (menuItem.ToggleType == MenuItemToggleType.Radio && !menuItem.IsChecked)
+            {
+                menuItem.IsChecked = true;
+            }
+        }
+
+        menuItem.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+
+        if (!menuItem.StaysOpenOnClick)
+        {
+            CloseMenu(menuItem);
+        }
+    }
+
+    private static void CloseMenu(MenuItem menuItem)
+    {
+        var menu = menuItem.GetLogicalAncestors().OfType<MenuBase>().FirstOrDefault()
+            ?? menuItem.GetVisualAncestors().OfType<MenuBase>().FirstOrDefault();
+        menu?.Close();
     }
 
     private static Visual FindRootVisual(Visual visual)

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -78,6 +79,34 @@ public class InputHandlerTests
     }
 
     [Fact]
+    public void Click_MenuItemCommand_ClosesOwningMenu()
+    {
+        var command = new RecordingCommand();
+        var menu = new TestMenu();
+        var menuItem = new MenuItem
+        {
+            Header = "Delete From Internal Storage",
+            Command = command
+        };
+        menu.Items.Add(menuItem);
+        menu.Open();
+
+        var result = InputHandler.Click(menuItem);
+
+        Assert.True(command.WasExecuted);
+        Assert.True(menu.WasClosed);
+        Assert.False(menu.IsOpen);
+
+        var json = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        Assert.True(json.GetProperty("success").GetBoolean());
+        Assert.Equal("menu_command", json.GetProperty("method").GetString());
+    }
+
+    [Fact]
     public void Click_Fallback_RaisesTypedPointerEvents()
     {
         var control = new Border
@@ -105,5 +134,37 @@ public class InputHandlerTests
 
         Assert.True(json.GetProperty("success").GetBoolean());
         Assert.Equal("pointer_simulation", json.GetProperty("method").GetString());
+    }
+
+    private sealed class RecordingCommand : ICommand
+    {
+        public bool WasExecuted { get; private set; }
+
+        public event EventHandler? CanExecuteChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public bool CanExecute(object? parameter) => true;
+
+        public void Execute(object? parameter) => WasExecuted = true;
+    }
+
+    private sealed class TestMenu : MenuBase
+    {
+        public bool WasClosed { get; private set; }
+
+        public override void Close()
+        {
+            WasClosed = true;
+            IsOpen = false;
+        }
+
+        public override void Open()
+        {
+            WasClosed = false;
+            IsOpen = true;
+        }
     }
 }
