@@ -15,13 +15,21 @@ public sealed class FrameRecorder : IDisposable
 
     public int FrameDelayMs { get; }
 
-    public FrameRecorder(Visual target, int fps, int maxDurationSec)
+    /// <summary>Maximum number of frames the contact sheet renders (chosen at start, applied at stop).</summary>
+    public int MaxCells { get; }
+
+    /// <summary>Upper bound for the contact sheet's longest side in pixels.</summary>
+    public int MaxSheetDimension { get; }
+
+    public FrameRecorder(Visual target, int fps, int maxDurationSec, int maxCells, int maxSheetDimension)
     {
         _target = target;
         _fps = fps;
         _maxDurationSec = maxDurationSec;
         _maxFrames = fps * maxDurationSec;
         FrameDelayMs = 1000 / fps;
+        MaxCells = maxCells;
+        MaxSheetDimension = maxSheetDimension;
     }
 
     public void Start()

@@ -243,7 +243,7 @@ When the preview host needs copied native assets from `runtimes/<rid>/native`, i
 | **Composite** *(new in v2)* | `fill_form` |
 | **Events** *(new in v2)* | `subscribe`, `poll_events`, `unsubscribe` |
 | **Visual states** | `pseudo_class` |
-| **Capture** | `screenshot`, `capture_animation`, `start_recording`, `stop_recording` |
+| **Capture** | `screenshot`, `capture_animation`, `start_recording`, `stop_recording` — recordings return one labelled contact-sheet PNG (no GIF/video) |
 | **Assets** | `list_assets`, `open_asset` |
 | **Windows** | `list_windows` |
 | **Utilities** | `wait_for`, `diff_tree`, `instructions` |

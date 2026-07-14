@@ -100,8 +100,8 @@ public sealed class InstructionTools
 
         Capture:
         - screenshot: Capture PNG of any element or window
-        - start_recording + stop_recording: Record animated GIF
-        - capture_animation: One-shot record for N seconds
+        - start_recording + stop_recording: Capture frames; stop returns one contact-sheet PNG (labelled grid of sampled frames)
+        - capture_animation: One-shot record for N seconds; returns a contact-sheet PNG
 
         Preview:
         - launch_app: Launch a real Avalonia app in the local GUI and connect to it
@@ -117,7 +117,7 @@ public sealed class InstructionTools
         Tips:
         - Node IDs from get_tree/search are used with other tools
         - All tree operations invalidate IDs — re-query after changes
-        - Screenshots/GIFs are returned as base64-encoded images
+        - Screenshots and recordings are returned as base64-encoded PNG images
         """;
 
     private const string InstallationText = """

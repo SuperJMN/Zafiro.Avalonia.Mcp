@@ -1,7 +1,5 @@
 using System.Text.Json;
 using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
@@ -20,12 +18,16 @@ public sealed class RecordingHandler : IRequestHandler
         string? selector = null;
         var fps = 15;
         var maxDurationSec = 10;
+        var maxCells = 9;
+        var maxSheetDimension = 1024;
 
         if (request.Params is JsonElement p)
         {
             if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
             if (p.TryGetProperty("fps", out var f)) fps = f.GetInt32();
             if (p.TryGetProperty("maxDurationSec", out var md)) maxDurationSec = md.GetInt32();
+            if (p.TryGetProperty("maxCells", out var mc)) maxCells = mc.GetInt32();
+            if (p.TryGetProperty("maxSheetDimension", out var msd)) maxSheetDimension = msd.GetInt32();
         }
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
@@ -49,7 +51,7 @@ public sealed class RecordingHandler : IRequestHandler
             fps = Math.Clamp(fps, 1, 30);
             maxDurationSec = Math.Clamp(maxDurationSec, 1, 30);
 
-            _activeRecorder = new FrameRecorder(target, fps, maxDurationSec);
+            _activeRecorder = new FrameRecorder(target, fps, maxDurationSec, maxCells, maxSheetDimension);
             _activeRecorder.Start();
 
             return new { success = true, fps, maxDurationSec, message = "Recording started. Call stop_recording to get the result." };
@@ -66,63 +68,52 @@ public sealed class StopRecordingHandler : IRequestHandler
 
     public async Task<object> Handle(DiagnosticRequest request)
     {
-        // Stop recording and collect frames on UI thread
-        List<RenderTargetBitmap> frames;
-        int frameDelayMs;
-
-        var uiResult = await Dispatcher.UIThread.InvokeAsync<object?>(() =>
-        {
-            var recorder = RecordingHandler.GetActiveRecorder();
-            if (recorder is null)
-                return new { error = "No active recording" };
-
-            recorder.Stop();
-            return null; // success — proceed with encoding
-        });
-
-        if (uiResult is not null)
-            return uiResult;
-
-        var recorder2 = RecordingHandler.GetActiveRecorder();
-        if (recorder2 is null)
+        var recorder = RecordingHandler.GetActiveRecorder();
+        if (recorder is null)
             return new { error = "No active recording" };
 
-        frames = recorder2.GetFrames();
-        frameDelayMs = recorder2.FrameDelayMs;
-        RecordingHandler.ClearRecorder();
+        var frameDelayMs = recorder.FrameDelayMs;
+        var maxCells = recorder.MaxCells;
+        var maxSheetDimension = recorder.MaxSheetDimension;
 
-        if (frames.Count == 0)
-            return new { error = "No frames captured" };
-
-        // Encode GIF off the UI thread to avoid blocking
-        var gifBytes = await Task.Run(() =>
+        // Stop the recorder and build the contact sheet on the UI thread: reading the captured
+        // RenderTargetBitmaps and drawing them into a new one is an Avalonia render operation.
+        return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
+            recorder.Stop();
+            var frames = recorder.GetFrames();
+            RecordingHandler.ClearRecorder();
+
+            if (frames.Count == 0)
+                return new { error = "No frames captured" };
+
             try
             {
-                return GifEncoder.Encode(frames, frameDelayMs);
+                var sheet = ContactSheetComposer.Compose(frames, frameDelayMs, maxCells, maxSheetDimension);
+
+                return new
+                {
+                    data = Convert.ToBase64String(sheet.Png),
+                    mimeType = "image/png",
+                    width = sheet.Width,
+                    height = sheet.Height,
+                    columns = sheet.Columns,
+                    rows = sheet.Rows,
+                    frameCount = frames.Count,
+                    sampledFrames = sheet.SampledFrames,
+                    durationMs = frames.Count * frameDelayMs
+                };
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.TraceError($"GIF encoding failed: {ex}");
-                return null;
+                System.Diagnostics.Trace.TraceError($"Contact sheet composition failed: {ex}");
+                return new { error = $"Contact sheet composition failed: {ex.Message}" };
+            }
+            finally
+            {
+                foreach (var frame in frames)
+                    frame.Dispose();
             }
         });
-
-        foreach (var frame in frames)
-            frame.Dispose();
-
-        if (gifBytes is null)
-            return new { error = "GIF encoding failed" };
-
-        var base64 = Convert.ToBase64String(gifBytes);
-
-        return new
-        {
-            data = base64,
-            mimeType = "image/gif",
-            frameCount = frames.Count,
-            durationMs = frames.Count * frameDelayMs,
-            sizeBytes = gifBytes.Length
-        };
     }
 }
