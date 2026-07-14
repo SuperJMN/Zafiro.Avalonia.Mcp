@@ -36,7 +36,7 @@
 | F4 | 4.3 | Optimizar tool descriptions para LLMs | ✅ Completado |
 | F5 | B1 | Fix `click_by_query` — filtro de interactividad | ✅ Implementado (v1.3.0) |
 | F5 | B2 | Fix `pseudo_class` — `IPseudoClasses.Set()` | ✅ Implementado (v1.3.0) |
-| F5 | B3 | Fix `capture_animation` — LZW, GCE, off-UI-thread | ⚠️ Parcial (v1.3.0) — PNG round-trip por mejorar |
+| F5 | B3 | `capture_animation` → contact sheet PNG (sin GIF) | ✅ Rediseñado — los modelos de visión no procesan animación |
 | F5 | 5.1 | `get_datacontext` — inspeccionar ViewModel | ✅ Implementado (v1.3.0) |
 | F5 | 5.2 | `get_bindings` — diagnosticar bindings | ✅ Implementado (v1.3.0) |
 | F5 | 5.3 | `find_view_source` — mapear control → AXAML | ✅ Implementado (v1.3.0) |
@@ -488,11 +488,13 @@ Todas las descripciones de los tools en `src/Zafiro.Avalonia.Mcp.Tool/Tools/*.cs
 
 **Archivos:** `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/PseudoClassHandler.cs`
 
-#### B3. `capture_animation` inestable ⚠️ Parcial (v1.3.0)
+#### B3. `capture_animation` — rediseñado a contact sheet PNG ✅
 
-**Síntoma:** Devuelve "Recorded 25 frames" pero el proceso se interrumpe. GIF resultante corrupto o no entregado.
+**Problema original:** devolvía un GIF animado (`image/gif`) como bloque de imagen. Los modelos de visión no procesan animaciones, así que el cliente lo rechazaba con `400 Could not process image`. Un GIF válido tampoco servía: el formato no es consumible por el agente.
 
-**Archivos:** `src/Zafiro.Avalonia.Mcp.AppHost/Handlers/RecordingHandler.cs`, `GifEncoder.cs`
+**Solución:** la grabación ya no genera GIF. `stop_recording` / `capture_animation` devuelven un único **contact sheet** PNG: una rejilla etiquetada de fotogramas muestreados uniformemente, con topes `maxCells` (nº de celdas) y `maxSheetDimension` (lado más largo) que acotan el coste de tokens con independencia del tamaño de la ventana.
+
+**Archivos:** `RecordingHandler.cs` (compone el sheet en el UI thread), `FrameRecorder.cs` (transporta `maxCells`/`maxSheetDimension`), nuevo `ContactSheetComposer.cs`. Eliminado `GifEncoder.cs`. Tool: `CaptureTools.cs` emite texto + PNG (nunca `image/gif`).
 
 ---
 
@@ -643,7 +645,7 @@ diff_snapshot(snapshot_id) → { added: [...], removed: [...], changed: [...] }
 |---|---|---|
 | **B1** Fix `click_by_query` matching | 🔴 Crítico — herramienta de conveniencia inutilizable | Pequeño |
 | **B2** Fix `pseudo_class` activation | 🟡 Medio — afecta testing visual de estados | Pequeño |
-| **B3** Fix `capture_animation` stability | 🟡 Medio — GIF recording no fiable | Medio |
+| **B3** `capture_animation` → contact sheet | ✅ Resuelto — GIF sustituido por PNG rejilla | Medio |
 | **5.5** `get_screen_text` visibleOnly | 🔴 Crítico — ScrollViews con 100+ items queman tokens | Pequeño |
 | **5.1** `get_datacontext` | 🔴 Crítico — transforma debugging MVVM | Medio |
 | **5.2** `get_bindings` | 🔴 Crítico — diagnosticar bindings rotos sin leer código | Medio |
@@ -659,7 +661,7 @@ diff_snapshot(snapshot_id) → { added: [...], removed: [...], changed: [...] }
 |---|---|---|
 | **B1** `click_by_query` | ✅ Implementado | Reescrito `FindMatchingVisuals` con filtro de interactividad (misma lógica que `InteractablesHandler.IsInteractive`), matching de texto por hijos visuales, AutomationId y AutomationName |
 | **B2** `pseudo_class` | ✅ Implementado | Cambiado `styled.Classes.Set()` → `((IPseudoClasses)styled.Classes).Set()` para pseudo-classes gestionadas por el framework |
-| **B3** `capture_animation` | ✅ Parcialmente implementado | Corregido LZW off-by-one, añadido GCE disposal method (restore-to-background), encoding GIF movido fuera del UI thread, error handling en FrameRecorder. PNG round-trip sigue como área de mejora potencial |
+| **B3** `capture_animation` | ✅ Rediseñado | Ya no genera GIF (los modelos de visión no procesan animación, y un `image/gif` es rechazado con `400 Could not process image`). `stop_recording`/`capture_animation` devuelven un único contact sheet PNG: rejilla etiquetada de fotogramas muestreados, con topes `maxCells`/`maxSheetDimension` para acotar tokens. Eliminado `GifEncoder.cs`; añadido `ContactSheetComposer.cs` |
 | **5.1** `get_datacontext` | ✅ Implementado | `DataContextHandler` — refleja propiedades públicas del DataContext con valores truncados |
 | **5.2** `get_bindings` | ✅ Implementado | `BindingsHandler` — usa `GetDiagnostic()` de Avalonia.Diagnostics para mostrar propiedades con binding activo, prioridad, valor y diagnóstico |
 | **5.3** `find_view_source` | ✅ Implementado | `FindViewSourceHandler` — mapea tipo runtime → avares:// URL probando convenciones de path comunes |
@@ -809,7 +811,7 @@ Auditar que toda la superficie de tools de input (`click`, `tap`, `text_input`, 
 
 ### 7.7 Screenshots y recordings en Android ⬜
 
-`screenshot` ya usa `Visual.RenderTo(Bitmap)` que es portable, debería funcionar tal cual. Validar que `capture_animation` / `start_recording` no asumen un timer del thread UI desktop.
+`screenshot` ya usa `Visual.RenderTo(Bitmap)` que es portable, debería funcionar tal cual. Las grabaciones (`capture_animation` / `start_recording` / `stop_recording`) ahora devuelven un contact sheet **PNG** compuesto en el AppHost y transmitido como base64, así que funcionan igual que `screenshot` sobre el transporte TCP de Android. Validar únicamente que el `DispatcherTimer` de `FrameRecorder` no asume un timer del thread UI desktop.
 
 ### 7.8 Sample y CI 🟡
 
