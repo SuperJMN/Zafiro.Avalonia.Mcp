@@ -90,12 +90,13 @@ public sealed class CommandInfoHandler : IRequestHandler
             catch (Exception ex) { commandError ??= ex.Message; }
         }
 
-        // Check own IsEnabled and parent IsEnabled explicitly so this works even without a live visual tree.
+        // Preserve reason detail while exposing Avalonia's actual effective enabled state.
         bool ownEnabled = visual is not InputElement ownIe || ownIe.IsEnabled;
-        bool parentDisabled = visual.GetVisualAncestors()
+        bool effectivelyEnabled = visual is not InputElement effectiveIe || effectiveIe.IsEffectivelyEnabled;
+        bool parentDisabled = ownEnabled && visual.GetVisualAncestors()
             .OfType<InputElement>()
-            .Any(a => !a.IsEnabled);
-        bool isEnabled = ownEnabled && !parentDisabled;
+            .Any(a => !a.IsEffectivelyEnabled);
+        bool isEnabled = effectivelyEnabled && !parentDisabled;
 
         string enableReason;
         if (command != null && canExecute == false)

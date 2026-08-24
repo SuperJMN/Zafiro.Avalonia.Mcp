@@ -285,8 +285,8 @@ public sealed class SelectorEngine
         {
             "visible" => visual.IsVisible && IsEffectivelyVisible(visual),
             "hidden" => !visual.IsVisible || !IsEffectivelyVisible(visual),
-            "enabled" => visual is not InputElement ie || ie.IsEnabled,
-            "disabled" => visual is InputElement ie && !ie.IsEnabled,
+            "enabled" => visual is not InputElement ie || ie.IsEffectivelyEnabled,
+            "disabled" => visual is InputElement ie && !ie.IsEffectivelyEnabled,
             "focused" => visual is InputElement ie2 && ie2.IsKeyboardFocusWithin,
             "checked" => visual is ToggleButton tb && tb.IsChecked == true,
             "has-text" => HasText(visual, filter.Argument ?? ""),

@@ -138,7 +138,7 @@ public sealed class LayoutInfoHandler : IRequestHandler
             bool isHitTestVisible = true;
             if (visual is InputElement ie)
             {
-                isEnabled = ie.IsEnabled;
+                isEnabled = ie.IsEffectivelyEnabled;
                 isHitTestVisible = ie.IsHitTestVisible;
             }
 

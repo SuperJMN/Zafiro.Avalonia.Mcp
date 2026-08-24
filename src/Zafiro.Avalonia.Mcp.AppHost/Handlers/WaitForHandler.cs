@@ -76,7 +76,7 @@ public sealed class WaitForHandler : IRequestHandler
                 break;
 
             case "enabled":
-                var enabledCount = matches.Count(v => v is InputElement { IsEnabled: true });
+                var enabledCount = matches.Count(v => v is InputElement { IsEffectivelyEnabled: true });
                 if (enabledCount > 0)
                     return new { success = true, elapsed_ms = elapsedMs, matchCount = enabledCount };
                 break;

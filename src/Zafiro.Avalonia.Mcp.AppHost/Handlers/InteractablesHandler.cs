@@ -59,7 +59,7 @@ public sealed class InteractablesHandler : IRequestHandler
                     Text = GetText(visual),
                     Name = control?.Name,
                     AutomationId = control is not null ? AutomationProperties.GetAutomationId(control) : null,
-                    IsEnabled = inputElement?.IsEnabled ?? true,
+                    IsEnabled = inputElement?.IsEffectivelyEnabled ?? true,
                     IsFocused = inputElement?.IsFocused ?? false,
                     Value = GetValue(visual),
                 });

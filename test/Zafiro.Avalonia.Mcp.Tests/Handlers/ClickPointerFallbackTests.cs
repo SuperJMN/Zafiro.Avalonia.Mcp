@@ -1,10 +1,12 @@
-using System.Reflection;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
+using Zafiro.Avalonia.Mcp.Protocol;
+using Zafiro.Avalonia.Mcp.Protocol.Messages;
 
 namespace Zafiro.Avalonia.Mcp.Tests.Handlers;
 
@@ -38,38 +40,69 @@ public class ClickPointerFallbackTests
 
         var result = ClickAndWaitHandler.PerformClick(target);
 
-        var json = JsonSerializer.SerializeToElement(result, JsonOptions);
-        Assert.True(json.GetProperty("success").GetBoolean());
-        Assert.Equal("pointer_simulation", json.GetProperty("method").GetString());
+        var failure = Assert.IsType<HandlerErrorResult>(result);
+        Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
         Assert.True(pressed);
         Assert.True(released);
     }
 
     [Fact]
-    public void ClickByQuery_DoesNotThrow_WhenPointerFallbackTargetsNonButtonControl()
+    public void ClickAndWait_PropagatesPointerFallbackFailureWithoutWrappingIt()
     {
-        var target = CreateTarget();
-        var pressed = false;
-        var released = false;
+        var (window, _) = CreateHostedTarget();
 
-        target.AddHandler(InputElement.PointerPressedEvent, (_, e) =>
+        try
         {
-            var pointerArgs = Assert.IsType<PointerPressedEventArgs>(e);
-            _ = pointerArgs.GetCurrentPoint(target);
-            pressed = true;
-        });
-        target.AddHandler(InputElement.PointerReleasedEvent, (_, e) =>
+            var result = Handle(new ClickAndWaitHandler(), new
+            {
+                selector = "#Issue28Card",
+                waitQuery = "TextBlock",
+                timeoutMs = 5000
+            });
+
+            var failure = Assert.IsType<HandlerErrorResult>(result);
+            Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
+        }
+        finally
         {
-            var pointerArgs = Assert.IsType<PointerReleasedEventArgs>(e);
-            Assert.Equal(MouseButton.Left, pointerArgs.InitialPressMouseButton);
-            released = true;
+            Dispatcher.UIThread.Invoke(window.Close);
+        }
+    }
+
+    [Fact]
+    public void ClickAndWait_PropagatesSelectorResolutionFailureWithoutWrappingIt()
+    {
+        var result = Handle(new ClickAndWaitHandler(), new
+        {
+            selector = "#Missing",
+            waitQuery = "TextBlock",
+            timeoutMs = 5000
         });
 
-        var result = InvokeClickByQueryPerformClick(target);
+        var json = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+        Assert.False(json.TryGetProperty("success", out _));
+        Assert.Equal(DiagnosticErrorCodes.NoMatch, json.GetProperty("code").GetString());
+    }
 
-        Assert.Equal("pointer_simulation", result);
-        Assert.True(pressed);
-        Assert.True(released);
+    [Fact]
+    public void ClickByQuery_PropagatesPointerFallbackFailureWithoutClaimingSuccess()
+    {
+        var (window, _) = CreateHostedTarget();
+
+        try
+        {
+            var result = Handle(new ClickByQueryHandler(), new { query = "Issue28Card" });
+
+            var failure = Assert.IsType<HandlerErrorResult>(result);
+            Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
+        }
+        finally
+        {
+            Dispatcher.UIThread.Invoke(window.Close);
+        }
     }
 
     private static PointerAwareControl CreateTarget()
@@ -88,18 +121,46 @@ public class ClickPointerFallbackTests
         return target;
     }
 
-    private static string InvokeClickByQueryPerformClick(PointerAwareControl target)
+    private static (Window window, PointerAwareControl target) CreateHostedTarget()
     {
-        var method = typeof(ClickByQueryHandler).GetMethod("PerformClick", BindingFlags.Static | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException("ClickByQueryHandler.PerformClick was not found.");
-        var click = method.CreateDelegate<Func<Visual, string>>();
-        return click(target);
+        return Dispatcher.UIThread.Invoke(() =>
+        {
+            var target = CreateTarget();
+            var window = new Window
+            {
+                Width = 120,
+                Height = 80,
+                IsVisible = true,
+                Content = target
+            };
+            window.ApplyTemplate();
+            window.Measure(new Size(120, 80));
+            window.Arrange(new Rect(0, 0, 120, 80));
+            NodeRegistry.GetOrRegister(window);
+            return (window, target);
+        });
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static object Handle(IRequestHandler handler, object parameters)
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
+        var task = handler.Handle(new DiagnosticRequest
+        {
+            Id = "test",
+            Method = handler.Method,
+            Params = JsonSerializer.SerializeToElement(parameters)
+        });
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (!task.IsCompleted && DateTime.UtcNow < deadline)
+        {
+            Dispatcher.UIThread.RunJobs();
+            Thread.Sleep(1);
+        }
+
+        if (!task.IsCompleted)
+            throw new TimeoutException($"{handler.GetType().Name} did not complete.");
+
+        return task.GetAwaiter().GetResult();
+    }
 
     private sealed class PointerAwareControl : Control;
 }

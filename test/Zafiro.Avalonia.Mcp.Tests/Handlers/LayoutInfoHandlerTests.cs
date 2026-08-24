@@ -176,6 +176,24 @@ public class LayoutInfoHandlerTests
     }
 
     [Fact]
+    public void CommandCannotExecute_HasIsEnabledFalse()
+    {
+        var doc = Run(() =>
+        {
+            var btn = new Button { Command = new TestCommand(canExecute: false) };
+            var window = new Window { Width = 100, Height = 60, Content = btn };
+            window.ApplyTemplate();
+            window.Measure(new Size(100, 60));
+            window.Arrange(new Rect(0, 0, 100, 60));
+            var result = Analyze(btn);
+            window.Close();
+            return result;
+        });
+
+        Assert.False(doc.GetProperty("isEnabled").GetBoolean());
+    }
+
+    [Fact]
     public void AfterMeasureArrange_IsMeasureValid()
     {
         var doc = Run(() =>

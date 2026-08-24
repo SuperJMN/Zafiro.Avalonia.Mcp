@@ -48,9 +48,19 @@ public sealed class ClickByQueryHandler : IRequestHandler
 
             var visual = candidates[occurrence];
             var nodeId = NodeRegistry.GetOrRegister(visual);
-            var clickResult = PerformClick(visual);
+            var clickResult = InputHandler.Click(visual);
 
-            return new { success = true, nodeId, type = visual.GetType().Name, text = GetText(visual), clickResult };
+            if (clickResult is HandlerErrorResult)
+                return clickResult;
+
+            return new
+            {
+                success = true,
+                nodeId,
+                type = visual.GetType().Name,
+                text = GetText(visual),
+                clickResult = TryGetResultMethod(clickResult)
+            };
         });
     }
 
@@ -63,7 +73,7 @@ public sealed class ClickByQueryHandler : IRequestHandler
             foreach (var visual in window.GetVisualDescendants())
             {
                 // Same interactivity filter as InteractablesHandler
-                if (!IsInteractive(visual)) continue;
+                if (!IsClickable(visual)) continue;
                 if (!MatchesQuery(visual, query)) continue;
                 if (role != null && !MatchesRole(visual, role)) continue;
 
@@ -75,17 +85,14 @@ public sealed class ClickByQueryHandler : IRequestHandler
     }
 
     /// <summary>
-    /// Mirrors InteractablesHandler.IsInteractive — only returns controls the user can act on.
+    /// Returns controls with click semantics. Enabled-state validation belongs to
+    /// <see cref="InputHandler.Click(Visual)"/> so failures remain structured and truthful.
     /// </summary>
-    private static bool IsInteractive(Visual visual)
+    private static bool IsClickable(Visual visual)
     {
         if (!visual.IsVisible) return false;
 
-        if (visual is InputElement input)
-        {
-            if (!input.IsEnabled) return false;
-            if (input.Focusable) return true;
-        }
+        if (visual is InputElement { Focusable: true }) return true;
 
         return visual is Button
             or MenuItem
@@ -130,72 +137,6 @@ public sealed class ClickByQueryHandler : IRequestHandler
         "togglebutton" => visual is ToggleButton,
         _ => true,
     };
-
-    private static string PerformClick(Visual visual)
-    {
-        var inputResult = InputHandler.Click(visual);
-        var method = TryGetResultMethod(inputResult);
-        if (!string.IsNullOrWhiteSpace(method))
-            return method;
-
-        if (visual is ToggleButton toggle)
-        {
-            toggle.IsChecked = visual is RadioButton ? true : toggle.IsChecked != true;
-            return "toggle";
-        }
-
-        if (visual is Button button)
-        {
-            if (button.Command is { } cmd && cmd.CanExecute(button.CommandParameter))
-            {
-                cmd.Execute(button.CommandParameter);
-                return "command";
-            }
-            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            return "click_event";
-        }
-
-        if (visual is MenuItem menuItem)
-        {
-            if (menuItem.Command is { } miCmd && miCmd.CanExecute(menuItem.CommandParameter))
-            {
-                miCmd.Execute(menuItem.CommandParameter);
-                return "menu_command";
-            }
-            menuItem.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-            return "menu_click";
-        }
-
-        if (visual is Control control)
-        {
-            if (control is ListBoxItem lbi)
-            {
-                var lb = lbi.GetVisualAncestors().OfType<ListBox>().FirstOrDefault();
-                if (lb is not null)
-                {
-                    var idx = lb.IndexFromContainer(lbi);
-                    if (idx >= 0) lb.SelectedIndex = idx;
-                    return "listbox_select";
-                }
-            }
-
-            if (control is TabItem ti)
-            {
-                var tc = ti.GetVisualAncestors().OfType<TabControl>().FirstOrDefault();
-                if (tc is not null)
-                {
-                    var idx = tc.IndexFromContainer(ti);
-                    if (idx >= 0) tc.SelectedIndex = idx;
-                    return "tab_select";
-                }
-            }
-
-            if (control.Focusable) control.Focus();
-            return "focus";
-        }
-
-        return "no_action";
-    }
 
     private static string? TryGetResultMethod(object result)
     {
