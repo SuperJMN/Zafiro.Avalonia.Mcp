@@ -6,6 +6,7 @@ namespace Zafiro.Avalonia.Mcp.Tests.Selectors;
 
 // Must be public so Roslyn scripting can access its properties when used as globalsType
 public sealed record TestVm(int Id, bool IsActive, string Name);
+public sealed record OtherVm(string Label);
 
 public class RoslynPredicateEvaluatorTests
 {
@@ -83,5 +84,31 @@ public class RoslynPredicateEvaluatorTests
         // Accessing a non-existent property produces a compile error → false
         var result = _evaluator.Evaluate("NonExistentProperty == 99", vm);
         Assert.False(result);
+    }
+
+    [Fact]
+    public void Evaluate_IncompatiblePredicateAcrossManyContexts_OnlyReportsOneCompilationFailure()
+    {
+        var evaluator = new RoslynDataContextPredicateEvaluator();
+        var incompatibleContexts = Enumerable.Range(0, 250)
+            .Select(index => new OtherVm($"item-{index}"));
+        var originalError = Console.Error;
+        using var errorWriter = new StringWriter();
+        Console.SetError(TextWriter.Synchronized(errorWriter));
+
+        try
+        {
+            foreach (var dataContext in incompatibleContexts)
+                Assert.False(evaluator.Evaluate("Id == 42", dataContext));
+
+            Assert.True(evaluator.Evaluate("Id == 42", new TestVm(42, true, "Alice")));
+        }
+        finally
+        {
+            Console.SetError(originalError);
+        }
+
+        var failures = errorWriter.ToString().Split("[RoslynEvaluator] Error evaluating 'Id == 42'", StringSplitOptions.None).Length - 1;
+        Assert.InRange(failures, 0, 1);
     }
 }

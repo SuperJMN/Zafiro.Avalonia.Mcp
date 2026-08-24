@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 
@@ -12,7 +13,7 @@ namespace Zafiro.Avalonia.Mcp.AppHost.Selectors;
 /// </summary>
 public sealed class RoslynDataContextPredicateEvaluator : IDataContextPredicateEvaluator
 {
-    private readonly ConcurrentDictionary<string, Script<bool>> _cache = new();
+    private readonly ConcurrentDictionary<string, CachedCompilation> _cache = new();
     private readonly TimeSpan _timeout;
 
     public RoslynDataContextPredicateEvaluator(TimeSpan? timeout = null)
@@ -37,13 +38,16 @@ public sealed class RoslynDataContextPredicateEvaluator : IDataContextPredicateE
     {
         var dcType = dataContext.GetType();
         var cacheKey = BuildCacheKey(dcType, expression);
-        // GetOrAdd compiles the script synchronously on first access; subsequent calls skip compilation
-        var script = _cache.GetOrAdd(cacheKey, _ => CompileScript(expression, dcType));
+        // GetOrAdd caches both valid scripts and compilation failures, so an incompatible
+        // DataContext type is only compiled once for each expression.
+        var compilation = _cache.GetOrAdd(cacheKey, _ => CompileScript(expression, dcType));
+        if (compilation.Script is null)
+            return false;
 
         // Execute on a background thread so Task.WhenAny can time out the execution
         var runTask = Task.Run(async () =>
         {
-            var state = await script.RunAsync(dataContext);
+            var state = await compilation.Script.RunAsync(dataContext);
             return state.ReturnValue;
         });
 
@@ -56,11 +60,21 @@ public sealed class RoslynDataContextPredicateEvaluator : IDataContextPredicateE
         return await runTask;
     }
 
-    private static Script<bool> CompileScript(string expression, Type dcType)
+    private static CachedCompilation CompileScript(string expression, Type dcType)
     {
-        var script = CreateScript(expression, dcType);
-        script.Compile(); // Pre-compile so RunAsync only runs execution (no compilation overhead)
-        return script;
+        try
+        {
+            var script = CreateScript(expression, dcType);
+            var diagnostics = script.Compile();
+            if (diagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
+                return new CachedCompilation(null);
+
+            return new CachedCompilation(script);
+        }
+        catch (CompilationErrorException)
+        {
+            return new CachedCompilation(null);
+        }
     }
 
     private static Script<bool> CreateScript(string expression, Type dcType)
@@ -90,4 +104,6 @@ public sealed class RoslynDataContextPredicateEvaluator : IDataContextPredicateE
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(expression));
         return $"{typeName}|{Convert.ToHexString(hash)}";
     }
+
+    private sealed record CachedCompilation(Script<bool>? Script);
 }
