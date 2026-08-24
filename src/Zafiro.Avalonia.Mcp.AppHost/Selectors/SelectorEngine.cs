@@ -77,7 +77,19 @@ public sealed class SelectorEngine
         string expression,
         Visual? scope = null)
     {
-        var candidates = await _uiDispatcher.InvokeAsync(() => Resolve(selector, scope)
+        var parsedSelector = SelectorParser.Parse(selector);
+        if (parsedSelector.Alternatives
+            .SelectMany(path => path.Steps)
+            .SelectMany(step => step.Compound.Filters)
+            .OfType<DataContextPredicateFilter>()
+            .Any())
+        {
+            throw new ArgumentException(
+                "DataContext predicates in selector are not supported here; use the predicate parameter instead.",
+                nameof(selector));
+        }
+
+        var candidates = await _uiDispatcher.InvokeAsync(() => Resolve(parsedSelector, scope)
             .OfType<StyledElement>()
             .Where(element => element.DataContext is not null)
             .Select(element => new DataContextCandidate((Visual)element, element.DataContext!))

@@ -244,6 +244,20 @@ public class SelectorEngineTests
     }
 
     [Fact]
+    public async Task ResolveDataContextAsync_RejectsSelectorDataContextPredicate_BeforeDispatching()
+    {
+        var dispatcher = new QueuedUiDispatcher();
+        var engine = new SelectorEngine(new StubPredicateEvaluator(), dispatcher);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            engine.ResolveDataContextAsync("Button[dc:'Id == 42']", "Id == 42"));
+
+        Assert.Equal("selector", exception.ParamName);
+        Assert.Contains("predicate parameter", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, dispatcher.PendingCount);
+    }
+
+    [Fact]
     public void Predicate_WithoutEvaluator_NoMatch()
     {
         var (root, _) = Run(() =>
@@ -327,6 +341,8 @@ public class SelectorEngineTests
     private sealed class QueuedUiDispatcher : IUiDispatcher
     {
         private readonly Queue<Action> _actions = new();
+
+        public int PendingCount => _actions.Count;
 
         public Task<T> InvokeAsync<T>(Func<T> action)
         {
