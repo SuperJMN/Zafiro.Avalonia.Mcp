@@ -46,14 +46,20 @@ public sealed class AdbTools
             Endpoint = $"tcp:{host}:{port}"
         };
 
+        AppConnection? conn = null;
         try
         {
-            var conn = await pool.ConnectExternal(info);
+            conn = await pool.ReconnectExternal(info);
             var result = await conn.SendAsync(ProtocolMethods.Ping);
             return $"Connected to {resolvedLabel} via tcp:{host}:{port} (PID {resolvedPid}). Ping: {result}";
         }
         catch (Exception ex)
         {
+            if (conn is not null)
+            {
+                pool.Invalidate(conn);
+            }
+
             return $"Error connecting to tcp:{host}:{port}: {ex.Message}\n" +
                    "Check that 'adb forward tcp:" + port + " tcp:<devicePort>' is active and the app is running with UseMcpDiagnostics().";
         }
