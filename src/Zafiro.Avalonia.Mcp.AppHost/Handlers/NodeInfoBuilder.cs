@@ -29,7 +29,7 @@ public static class NodeInfoBuilder
             },
             IsVisible = visual.IsVisible,
             Text = GetText(visual),
-            IsEnabled = (visual as InputElement)?.IsEnabled,
+            IsEnabled = (visual as InputElement)?.IsEffectivelyEnabled,
             IsFocused = (visual as InputElement)?.IsFocused,
             IsInteractive = GetIsInteractive(visual),
             AutomationId = GetAutomationId(visual),
@@ -95,7 +95,7 @@ public static class NodeInfoBuilder
         if (visual is not InputElement input)
             return null;
 
-        if (!input.IsEnabled || !input.IsHitTestVisible)
+        if (!input.IsEffectivelyEnabled || !input.IsHitTestVisible)
             return false;
 
         if (input.Focusable)

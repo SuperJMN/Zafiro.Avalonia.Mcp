@@ -142,6 +142,25 @@ public class FillFormHandlerTests
     }
 
     [Fact]
+    public void FillForm_Submit_Failure_WhenResolvedButtonIsDisabled()
+    {
+        var box = new TextBox();
+        var button = new Button { IsEnabled = false };
+        var resolver = ResolverFor(new()
+        {
+            ["TextBox#Email"] = box,
+            ["Button#Submit"] = button,
+        });
+
+        var fields = new[] { new FieldRequest("TextBox#Email", Value: "user@example.com") };
+        var response = FillFormHandler.FillFormCore(fields, submit: "Button#Submit", resolver);
+
+        Assert.NotNull(response.Submit);
+        Assert.False(response.Submit!.Ok);
+        Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, response.Submit.ErrorInfo!.Code);
+    }
+
+    [Fact]
     public void FillForm_RunsSubmit_EvenWhenAFieldFailed()
     {
         var box = new TextBox();

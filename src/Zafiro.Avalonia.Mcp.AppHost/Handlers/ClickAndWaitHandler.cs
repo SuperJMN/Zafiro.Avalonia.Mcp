@@ -43,12 +43,15 @@ public sealed class ClickAndWaitHandler : IRequestHandler
         });
 
         // If click failed, return immediately
+        if (clickResult is HandlerErrorResult)
+            return clickResult;
+
         if (clickResult is { } cr)
         {
             var json = System.Text.Json.JsonSerializer.Serialize(cr);
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("error", out _))
-                return new { success = false, click_result = clickResult, elapsed_ms = (int)sw.ElapsedMilliseconds };
+                return clickResult;
         }
 
         // Run the wait polling loop

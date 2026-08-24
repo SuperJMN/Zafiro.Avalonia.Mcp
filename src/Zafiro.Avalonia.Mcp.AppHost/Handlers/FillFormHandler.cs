@@ -61,8 +61,10 @@ public sealed class FillFormHandler : IRequestHandler
             {
                 try
                 {
-                    InputHandler.Click(visual);
-                    submitResult = new SubmitResult(true);
+                    var clickResult = InputHandler.Click(visual);
+                    submitResult = clickResult is HandlerErrorResult clickError
+                        ? new SubmitResult(false, clickError.Error)
+                        : new SubmitResult(true);
                 }
                 catch (Exception ex)
                 {

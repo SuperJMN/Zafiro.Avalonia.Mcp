@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using Avalonia;
 using Avalonia.Controls;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
@@ -32,11 +33,17 @@ public class CommandInfoHandlerTests
     public void CannotExecute_Returns_EnableReason_CommandCannotExecute()
     {
         var btn = new Button { Command = new TestCommand(canExecute: false) };
+        var window = new Window { Width = 100, Height = 60, Content = btn };
+        window.ApplyTemplate();
+        window.Measure(new Size(100, 60));
+        window.Arrange(new Rect(0, 0, 100, 60));
 
         var r = CommandInfoHandler.Analyze(btn);
+        window.Close();
 
         Assert.Equal("command_cannot_execute", r.enableReason);
         Assert.False(r.canExecute);
+        Assert.False(r.isEnabled);
     }
 
     [Fact]

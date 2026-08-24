@@ -208,7 +208,7 @@ public sealed class SnapshotHandler : IRequestHandler
             H = Math.Round(bounds.Height, 1),
             Level = level,
             ParentId = parentEntry?.NodeId,
-            IsEnabled = inputEl?.IsEnabled,
+            IsEnabled = inputEl?.IsEffectivelyEnabled,
             IsFocused = inputEl?.IsFocused == true ? true : null,
             Name = (visual as Control)?.Name,
             AutomationId = GetAutomationId(visual),
@@ -244,7 +244,7 @@ public sealed class SnapshotHandler : IRequestHandler
             H = Math.Round(bounds.Height, 1),
             Level = level,
             ParentId = parentEntry?.NodeId,
-            IsEnabled = inputEl?.IsEnabled,
+            IsEnabled = inputEl?.IsEffectivelyEnabled,
             IsFocused = inputEl?.IsFocused == true ? true : null,
             Name = (visual as Control)?.Name,
             AutomationId = GetAutomationId(visual),
@@ -291,7 +291,7 @@ public sealed class SnapshotHandler : IRequestHandler
 
     private static bool IsInteractiveControl(Visual visual)
     {
-        if (visual is InputElement { Focusable: true } input && input.IsEnabled)
+        if (visual is InputElement { Focusable: true } input && input.IsEffectivelyEnabled)
             return true;
         return visual is Button
             or MenuItem

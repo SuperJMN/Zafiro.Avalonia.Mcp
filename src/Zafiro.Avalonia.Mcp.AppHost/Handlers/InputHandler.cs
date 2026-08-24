@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -38,8 +39,38 @@ public sealed class InputHandler : IRequestHandler
     /// </summary>
     internal static object Click(Visual visual)
     {
-        var nodeId = NodeRegistry.GetOrRegister(visual);
+        if (visual is TextBlock)
+        {
+            var interactiveAncestor = visual.GetVisualAncestors().FirstOrDefault(IsSemanticClickTarget);
+            if (interactiveAncestor is null)
+            {
+                var textNodeId = NodeRegistry.GetOrRegister(visual);
+                return HandlerResult.Error(
+                    DiagnosticErrorCodes.UnsupportedOperation,
+                    "TextBlock has no interactive ancestor that can be clicked.",
+                    "Target the owning Button, MenuItem, or selectable item.",
+                    new { nodeId = textNodeId, elementType = visual.GetType().Name });
+            }
 
+            visual = interactiveAncestor;
+        }
+
+        var nodeId = NodeRegistry.GetOrRegister(visual);
+        ICommand? executableCommand = null;
+        object? commandParameter = null;
+
+        if (visual is InputElement { IsEffectivelyEnabled: false })
+        {
+            return DisabledClickError(visual, nodeId);
+        }
+
+        if (visual is Button { Command: { } buttonCommand } commandButton)
+        {
+            commandParameter = commandButton.CommandParameter;
+            if (!buttonCommand.CanExecute(commandParameter))
+                return DisabledClickError(visual, nodeId, " Its command cannot execute.");
+            executableCommand = buttonCommand;
+        }
         if (visual is ToggleButton toggle)
         {
             toggle.IsChecked = visual is RadioButton ? true : toggle.IsChecked != true;
@@ -48,9 +79,9 @@ public sealed class InputHandler : IRequestHandler
 
         if (visual is Button button)
         {
-            if (button.Command is { } cmd && cmd.CanExecute(button.CommandParameter))
+            if (executableCommand is not null)
             {
-                cmd.Execute(button.CommandParameter);
+                executableCommand.Execute(commandParameter);
                 return new { success = true, nodeId, method = "command" };
             }
 
@@ -66,31 +97,37 @@ public sealed class InputHandler : IRequestHandler
 
         if (visual is MenuItem menuItem)
         {
-            var invokesCommand = menuItem.Command is { } miCmd && miCmd.CanExecute(menuItem.CommandParameter);
-            ActivateMenuItem(menuItem);
-            return new { success = true, nodeId, method = invokesCommand ? "menu_command" : "menu_click" };
+            var hasCommand = menuItem.Command is not null;
+            var commandExecuted = ActivateMenuItem(menuItem);
+            if (hasCommand && !commandExecuted)
+                return DisabledClickError(visual, nodeId, " Its command did not execute.");
+            return new { success = true, nodeId, method = commandExecuted ? "menu_command" : "menu_click" };
         }
 
         if (visual is Control control)
         {
             if (control is ListBoxItem lbi)
             {
-                var lb = lbi.GetVisualAncestors().OfType<ListBox>().FirstOrDefault();
+                var lb = lbi.GetVisualAncestors().OfType<ListBox>().FirstOrDefault()
+                    ?? lbi.GetLogicalAncestors().OfType<ListBox>().FirstOrDefault();
                 if (lb is not null)
                 {
                     var idx = lb.IndexFromContainer(lbi);
-                    if (idx >= 0) lb.SelectedIndex = idx;
+                    if (idx < 0) return InvalidSelectionContainerError(lbi, lb, nodeId);
+                    lb.SelectedIndex = idx;
                     return new { success = true, nodeId, method = "listbox_select", selectedIndex = lb.SelectedIndex };
                 }
             }
 
             if (control is TabItem ti)
             {
-                var tc = ti.GetVisualAncestors().OfType<TabControl>().FirstOrDefault();
+                var tc = ti.GetVisualAncestors().OfType<TabControl>().FirstOrDefault()
+                    ?? ti.GetLogicalAncestors().OfType<TabControl>().FirstOrDefault();
                 if (tc is not null)
                 {
                     var idx = tc.IndexFromContainer(ti);
-                    if (idx >= 0) tc.SelectedIndex = idx;
+                    if (idx < 0) return InvalidSelectionContainerError(ti, tc, nodeId);
+                    tc.SelectedIndex = idx;
                     return new { success = true, nodeId, method = "tab_select", selectedIndex = tc.SelectedIndex };
                 }
             }
@@ -120,25 +157,53 @@ public sealed class InputHandler : IRequestHandler
                 return new { success = true, nodeId, method = "treeview_select", isSelected = treeViewItem.IsSelected };
             }
 
-            var itemsHost = control.GetVisualAncestors().OfType<SelectingItemsControl>().FirstOrDefault();
+            var itemsHost = control.GetVisualAncestors().OfType<SelectingItemsControl>().FirstOrDefault()
+                ?? control.GetLogicalAncestors().OfType<SelectingItemsControl>().FirstOrDefault();
             if (itemsHost is not null)
             {
                 var idx = itemsHost.IndexFromContainer(control);
-                if (idx >= 0)
-                {
-                    itemsHost.SelectedIndex = idx;
-                    return new { success = true, nodeId, method = "item_select", selectedIndex = idx };
-                }
+                if (idx < 0) return InvalidSelectionContainerError(control, itemsHost, nodeId);
+                itemsHost.SelectedIndex = idx;
+                return new { success = true, nodeId, method = "item_select", selectedIndex = itemsHost.SelectedIndex };
             }
 
             if (control.Focusable) control.Focus();
             var center = new Point(control.Bounds.Width / 2, control.Bounds.Height / 2);
             SimulatePointerClick(control, center);
-            return new { success = true, nodeId, method = "pointer_simulation" };
+            return HandlerResult.Error(
+                DiagnosticErrorCodes.UnsupportedOperation,
+                $"Pointer events were emitted for '{control.GetType().Name}', but the click result could not be verified.",
+                "Target a semantic interactive control or verify the resulting UI state explicitly.",
+                new { nodeId, elementType = control.GetType().Name, method = "pointer_simulation" });
         }
 
-        return new { error = "Cannot click this element", nodeId };
+        return HandlerResult.Error(
+            DiagnosticErrorCodes.UnsupportedOperation,
+            $"Cannot click element type '{visual.GetType().Name}'.",
+            null,
+            new { nodeId, elementType = visual.GetType().Name });
     }
+
+    private static bool IsSemanticClickTarget(Visual visual) => visual is Button
+        or MenuItem
+        or ListBoxItem
+        or TabItem
+        or ComboBoxItem
+        or TreeViewItem;
+
+    private static HandlerErrorResult DisabledClickError(Visual visual, int nodeId, string extra = "") =>
+        HandlerResult.Error(
+            DiagnosticErrorCodes.UnsupportedOperation,
+            $"Cannot click disabled element '{visual.GetType().Name}'.{extra}",
+            "Enable the element (including its command and ancestors) before clicking it.",
+            new { nodeId, elementType = visual.GetType().Name });
+
+    private static HandlerErrorResult InvalidSelectionContainerError(Control control, SelectingItemsControl owner, int nodeId) =>
+        HandlerResult.Error(
+            DiagnosticErrorCodes.UnsupportedOperation,
+            $"Element '{control.GetType().Name}' is not a generated container of '{owner.GetType().Name}'.",
+            "Target an item container returned by get_snapshot or get_tree.",
+            new { nodeId, elementType = control.GetType().Name, ownerType = owner.GetType().Name });
 
     private static void SimulatePointerClick(Control control, Point position)
     {
@@ -167,7 +232,7 @@ public sealed class InputHandler : IRequestHandler
             MouseButton.Left));
     }
 
-    private static void ActivateMenuItem(MenuItem menuItem)
+    private static bool ActivateMenuItem(MenuItem menuItem)
     {
         if (!menuItem.HasSubMenu)
         {
@@ -181,12 +246,15 @@ public sealed class InputHandler : IRequestHandler
             }
         }
 
-        menuItem.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        var clickArgs = new RoutedEventArgs(MenuItem.ClickEvent);
+        menuItem.RaiseEvent(clickArgs);
 
         if (!menuItem.StaysOpenOnClick)
         {
             CloseMenu(menuItem);
         }
+
+        return clickArgs.Handled;
     }
 
     private static void CloseMenu(MenuItem menuItem)
