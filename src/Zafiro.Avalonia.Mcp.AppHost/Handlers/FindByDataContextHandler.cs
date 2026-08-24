@@ -13,6 +13,17 @@ namespace Zafiro.Avalonia.Mcp.AppHost.Handlers;
 /// </summary>
 public sealed class FindByDataContextHandler : IRequestHandler
 {
+    private readonly SelectorEngine _selectorEngine;
+
+    public FindByDataContextHandler() : this(SelectorEngine.Default)
+    {
+    }
+
+    internal FindByDataContextHandler(SelectorEngine selectorEngine)
+    {
+        _selectorEngine = selectorEngine;
+    }
+
     public string Method => ProtocolMethods.FindByDataContext;
 
     public async Task<object> Handle(DiagnosticRequest request)
@@ -29,12 +40,10 @@ public sealed class FindByDataContextHandler : IRequestHandler
         if (string.IsNullOrEmpty(predicate))
             return new { error = "predicate is required" };
 
-        var escapedPredicate = predicate.Replace("'", "\\'");
-        var fullSelector = $"{selector}[dc:'{escapedPredicate}']";
+        var visuals = await _selectorEngine.ResolveDataContextAsync(selector, predicate);
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
-            var visuals = SelectorEngine.Default.Resolve(fullSelector);
             var items = visuals.Select(v => new
             {
                 nodeId = NodeRegistry.GetOrRegister(v),

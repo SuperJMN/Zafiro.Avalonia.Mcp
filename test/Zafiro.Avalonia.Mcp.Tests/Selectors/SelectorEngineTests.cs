@@ -16,6 +16,7 @@ public class SelectorEngineTests
     private readonly SelectorEngine _engine = new();
 
     private static T Run<T>(Func<T> f) => Dispatcher.UIThread.Invoke(f);
+    private static void Run(Action action) => Dispatcher.UIThread.Invoke(action);
 
     [Fact]
     public void Default_CanBeRead_WhenRoslynAssembliesAreUnavailable()
@@ -172,6 +173,77 @@ public class SelectorEngineTests
     }
 
     [Fact]
+    public async Task Resolves_DataContextPredicateAcrossManyIncompatibleTypes_AndFindsCompatibleMatch()
+    {
+        var compilationAttempts = 0;
+        var compilationStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var evaluator = new RoslynDataContextPredicateEvaluator(
+            () =>
+            {
+                Interlocked.Increment(ref compilationAttempts);
+                compilationStarted.TrySetResult();
+            });
+        var dispatcher = new QueuedUiDispatcher();
+        var engine = new SelectorEngine(evaluator, dispatcher);
+        var panel = new StackPanel();
+        foreach (var index in Enumerable.Range(0, 250))
+        {
+            panel.Children.Add(new Button { DataContext = new OtherVm($"item-{index}") });
+        }
+
+        var target = new Button { Name = "Match", DataContext = new TestVm(42, true, "Alice") };
+        panel.Children.Add(target);
+        var root = (Visual)panel;
+
+        var resolveTask = engine.ResolveDataContextAsync("Button", "Id == 42", root);
+        dispatcher.ExecuteNext();
+        await compilationStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var matches = await resolveTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Single(matches);
+        Assert.Same(target, matches[0]);
+        Assert.Equal(2, compilationAttempts);
+    }
+
+    [Fact]
+    public async Task ResolveDataContextAsync_AllowsDispatcherToProgressWhilePredicateIsPending()
+    {
+        var evaluator = new PendingAsyncPredicateEvaluator();
+        var dispatcher = new QueuedUiDispatcher();
+        var engine = new SelectorEngine(evaluator, dispatcher);
+        var root = (Visual)new StackPanel
+        {
+            Children = { new Button { DataContext = new TestVm(42, true, "Alice") } }
+        };
+
+        var resolveTask = engine.ResolveDataContextAsync("Button", "Id == 42", root);
+        try
+        {
+            dispatcher.ExecuteNext();
+            await evaluator.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            var dispatcherProgressed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var markerTask = dispatcher.InvokeAsync(() =>
+            {
+                dispatcherProgressed.SetResult();
+                return true;
+            });
+            dispatcher.ExecuteNext();
+            await dispatcherProgressed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await markerTask;
+
+            evaluator.Release.TrySetResult(true);
+            var matches = await resolveTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.Single(matches);
+        }
+        finally
+        {
+            evaluator.Release.TrySetResult(true);
+        }
+    }
+
+    [Fact]
     public void Predicate_WithoutEvaluator_NoMatch()
     {
         var (root, _) = Run(() =>
@@ -234,6 +306,43 @@ public class SelectorEngineTests
                 return value is int i && i == n;
             }
             return false;
+        }
+    }
+
+    private sealed class PendingAsyncPredicateEvaluator : IDataContextPredicateEvaluator, IAsyncDataContextPredicateEvaluator
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool Evaluate(string expression, object dataContext) => throw new NotSupportedException();
+
+        public async Task<bool> EvaluateAsync(string expression, object dataContext)
+        {
+            Started.TrySetResult();
+            await Release.Task.ConfigureAwait(false);
+            return true;
+        }
+    }
+
+    private sealed class QueuedUiDispatcher : IUiDispatcher
+    {
+        private readonly Queue<Action> _actions = new();
+
+        public Task<T> InvokeAsync<T>(Func<T> action)
+        {
+            var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _actions.Enqueue(() =>
+            {
+                try { completion.SetResult(action()); }
+                catch (Exception ex) { completion.SetException(ex); }
+            });
+            return completion.Task;
+        }
+
+        public void ExecuteNext()
+        {
+            Assert.NotEmpty(_actions);
+            _actions.Dequeue().Invoke();
         }
     }
 

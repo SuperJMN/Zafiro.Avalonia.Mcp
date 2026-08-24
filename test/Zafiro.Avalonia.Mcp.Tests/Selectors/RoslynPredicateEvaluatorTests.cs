@@ -87,28 +87,36 @@ public class RoslynPredicateEvaluatorTests
     }
 
     [Fact]
-    public void Evaluate_IncompatiblePredicateAcrossManyContexts_OnlyReportsOneCompilationFailure()
+    public async Task Evaluate_ConcurrentIncompatiblePredicates_CompilesOncePerTypeAndExpression()
     {
-        var evaluator = new RoslynDataContextPredicateEvaluator();
-        var incompatibleContexts = Enumerable.Range(0, 250)
-            .Select(index => new OtherVm($"item-{index}"));
-        var originalError = Console.Error;
-        using var errorWriter = new StringWriter();
-        Console.SetError(TextWriter.Synchronized(errorWriter));
+        var compilationAttempts = 0;
+        var compilationStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCompilation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var evaluator = new RoslynDataContextPredicateEvaluator(
+            () =>
+            {
+                Interlocked.Increment(ref compilationAttempts);
+                compilationStarted.TrySetResult();
+                releaseCompilation.Task.GetAwaiter().GetResult();
+            });
+
+        var leader = evaluator.EvaluateAsyncCore("Id == 42", new OtherVm("leader"));
+        await compilationStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var followers = Enumerable.Range(0, 31)
+            .Select(_ => evaluator.EvaluateAsyncCore("Id == 42", new OtherVm("follower")))
+            .ToArray();
 
         try
         {
-            foreach (var dataContext in incompatibleContexts)
-                Assert.False(evaluator.Evaluate("Id == 42", dataContext));
+            releaseCompilation.TrySetResult();
+            var results = await Task.WhenAll(followers.Append(leader));
 
-            Assert.True(evaluator.Evaluate("Id == 42", new TestVm(42, true, "Alice")));
+            Assert.All(results, Assert.False);
+            Assert.Equal(1, compilationAttempts);
         }
         finally
         {
-            Console.SetError(originalError);
+            releaseCompilation.TrySetResult();
         }
-
-        var failures = errorWriter.ToString().Split("[RoslynEvaluator] Error evaluating 'Id == 42'", StringSplitOptions.None).Length - 1;
-        Assert.InRange(failures, 0, 1);
     }
 }
