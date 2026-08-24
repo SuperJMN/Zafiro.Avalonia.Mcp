@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
+using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
 using Zafiro.Avalonia.Mcp.Protocol.Selectors;
@@ -47,6 +48,17 @@ public class RequestDispatcherErrorTests
         }
 
         public Task<object> Handle(DiagnosticRequest request) => _handle(request);
+    }
+
+    private sealed class TrackingUiDispatcher : IUiDispatcher
+    {
+        public int InvocationCount { get; private set; }
+
+        public Task<T> InvokeAsync<T>(Func<T> action)
+        {
+            InvocationCount++;
+            throw new InvalidOperationException("The predicate reached the UI dispatcher.");
+        }
     }
 
     [Fact]
@@ -186,5 +198,55 @@ public class RequestDispatcherErrorTests
         Assert.Null(response.Error);
         Assert.NotNull(response.Result);
         Assert.True(response.Result!.Value.GetProperty("ok").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData("ScriptInProgress = true")]
+    [InlineData("Counter += 1")]
+    [InlineData("++Counter > 0")]
+    [InlineData("Counter++ > 0")]
+    [InlineData("--Counter > 0")]
+    [InlineData("Counter-- > 0")]
+    public async Task MutatingPredicate_IsRejectedWithoutBreakingDispatcherSession(string predicate)
+    {
+        var dispatcher = new RequestDispatcher();
+        var uiDispatcher = new TrackingUiDispatcher();
+        InjectHandler(dispatcher, new FindByDataContextHandler(new SelectorEngine(null, uiDispatcher)));
+
+        var invalidJson = await dispatcher.Dispatch(SerializeRequest(
+            ProtocolMethods.FindByDataContext,
+            new { selector = "#160", predicate }));
+        var pingJson = await dispatcher.Dispatch(SerializeRequest(ProtocolMethods.Ping));
+        var invalidResponse = ProtocolSerializer.Deserialize<DiagnosticResponse>(invalidJson);
+        var pingResponse = ProtocolSerializer.Deserialize<DiagnosticResponse>(pingJson);
+
+        Assert.NotNull(invalidResponse);
+        Assert.NotNull(invalidResponse!.ErrorInfo);
+        Assert.Equal(DiagnosticErrorCodes.InvalidParam, invalidResponse.ErrorInfo!.Code);
+        Assert.Contains("read-only", invalidResponse.ErrorInfo.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("==", invalidResponse.ErrorInfo.Suggested!);
+        Assert.Equal(0, uiDispatcher.InvocationCount);
+        Assert.NotNull(pingResponse);
+        Assert.Null(pingResponse!.ErrorInfo);
+        Assert.Equal("ok", pingResponse.Result!.Value.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task MutatingPredicate_TakesPrecedenceOverMalformedSelector()
+    {
+        var dispatcher = new RequestDispatcher();
+        var uiDispatcher = new TrackingUiDispatcher();
+        InjectHandler(dispatcher, new FindByDataContextHandler(new SelectorEngine(null, uiDispatcher)));
+
+        var json = await dispatcher.Dispatch(SerializeRequest(
+            ProtocolMethods.FindByDataContext,
+            new { selector = "[", predicate = "ScriptInProgress = true" }));
+        var response = ProtocolSerializer.Deserialize<DiagnosticResponse>(json);
+
+        Assert.NotNull(response);
+        Assert.NotNull(response!.ErrorInfo);
+        Assert.Equal(DiagnosticErrorCodes.InvalidParam, response.ErrorInfo!.Code);
+        Assert.Contains("read-only", response.ErrorInfo.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, uiDispatcher.InvocationCount);
     }
 }

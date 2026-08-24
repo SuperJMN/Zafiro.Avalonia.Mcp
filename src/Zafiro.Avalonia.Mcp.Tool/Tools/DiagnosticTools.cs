@@ -105,15 +105,15 @@ public sealed class DiagnosticTools
     }
 
     [McpServerTool(Name = "find_by_datacontext"), Description("""
-        Find UI elements by evaluating a live C# predicate against their DataContext (ViewModel).
-        The predicate is a boolean C# expression with direct access to DataContext properties
-        (e.g. predicate="Id == 42 && IsActive"). Scope the search with selector (default "*" = all elements).
+        Query UI elements by evaluating a live C# boolean expression against their DataContext (ViewModel).
+        This is a query tool, not a DataContext mutation API: assignment operators and ++/-- are rejected;
+        use == for comparison. Scope the search with selector (default "*" = all elements).
         Returns: {count, items:[{nodeId, type, name, dataContextType}]}.
         Example: {"count":1,"items":[{"nodeId":7,"type":"ListBoxItem","name":null,"dataContextType":"MyApp.VmRow"}]}
         """)]
     public static async Task<string> FindByDataContext(
         ConnectionPool pool,
-        [Description("C# boolean expression evaluated against the DataContext, e.g. \"Id == 42 && IsActive\"")] string predicate,
+        [Description("C# boolean query evaluated against the DataContext. Assignment operators and ++/-- are rejected; use == for comparison.")] string predicate,
         [Description("Selector to scope the search (default \"*\" = all elements)")] string selector = "*")
     {
         var conn = pool.GetActive();

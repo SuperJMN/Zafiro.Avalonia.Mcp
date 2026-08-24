@@ -2,6 +2,9 @@ using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
@@ -40,6 +43,15 @@ public sealed class FindByDataContextHandler : IRequestHandler
         if (string.IsNullOrEmpty(predicate))
             return new { error = "predicate is required" };
 
+        if (ContainsExplicitMutation(predicate))
+        {
+            return HandlerResult.Error(
+                DiagnosticErrorCodes.InvalidParam,
+                "predicate must be a read-only boolean expression; assignments and increment/decrement operators are not allowed.",
+                "Use '==' to compare values (for example, ScriptInProgress == true).",
+                new { param = "predicate" });
+        }
+
         var visuals = await _selectorEngine.ResolveDataContextAsync(selector, predicate);
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
@@ -54,5 +66,17 @@ public sealed class FindByDataContextHandler : IRequestHandler
 
             return new { count = items.Count, items };
         });
+    }
+
+    private static bool ContainsExplicitMutation(string predicate)
+    {
+        var expression = SyntaxFactory.ParseExpression(predicate);
+
+        return expression.DescendantNodesAndSelf().Any(node =>
+            node is AssignmentExpressionSyntax ||
+            node.IsKind(SyntaxKind.PreIncrementExpression) ||
+            node.IsKind(SyntaxKind.PreDecrementExpression) ||
+            node.IsKind(SyntaxKind.PostIncrementExpression) ||
+            node.IsKind(SyntaxKind.PostDecrementExpression));
     }
 }
