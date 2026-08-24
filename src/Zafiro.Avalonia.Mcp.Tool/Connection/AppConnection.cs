@@ -15,8 +15,10 @@ public sealed class AppConnection : IDisposable
     private StreamWriter? _writer;
     private int _requestId;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly CancellationTokenSource _lifetimeCts = new();
     private readonly Func<CancellationToken, Task<string?>>? _connectionFailureDetailsProvider;
     private volatile bool _isConnected;
+    private int _disposed;
 
     public AppConnection(DiscoveryInfo info) : this(info, null)
     {
@@ -54,12 +56,13 @@ public sealed class AppConnection : IDisposable
 
     public async Task<JsonElement?> SendAsync(string method, object? parameters, TimeSpan timeout, CancellationToken ct = default)
     {
-        if (_writer is null || _reader is null)
-            throw new InvalidOperationException("Not connected");
-
-        await _sendLock.WaitAsync(ct);
+        using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
+        await _sendLock.WaitAsync(waitCts.Token);
         try
         {
+            var writer = _writer ?? throw new InvalidOperationException("Not connected");
+            var reader = _reader ?? throw new InvalidOperationException("Not connected");
+
             var id = Interlocked.Increment(ref _requestId).ToString();
 
             var request = new DiagnosticRequest
@@ -72,12 +75,12 @@ public sealed class AppConnection : IDisposable
             var json = ProtocolSerializer.Serialize(request);
             try
             {
-                await _writer.WriteLineAsync(json.AsMemory(), ct);
-
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
                 timeoutCts.CancelAfter(timeout);
 
-                var responseLine = await _reader.ReadLineAsync(timeoutCts.Token);
+                await writer.WriteLineAsync(json.AsMemory(), timeoutCts.Token);
+
+                var responseLine = await reader.ReadLineAsync(timeoutCts.Token);
                 if (responseLine is null)
                     throw new IOException("Connection closed");
 
@@ -114,8 +117,13 @@ public sealed class AppConnection : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
+        _lifetimeCts.Cancel();
         DisposeConnectionResources();
-        _sendLock.Dispose();
     }
 
     private void DisposeConnectionResources()
