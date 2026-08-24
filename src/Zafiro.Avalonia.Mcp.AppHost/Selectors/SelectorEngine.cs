@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 using Zafiro.Avalonia.Mcp.Protocol.Selectors;
@@ -18,6 +19,7 @@ namespace Zafiro.Avalonia.Mcp.AppHost.Selectors;
 public sealed class SelectorEngine
 {
     private readonly Lazy<IDataContextPredicateEvaluator?>? _predicateEvaluator;
+    private readonly IUiDispatcher _uiDispatcher;
 
     /// <summary>
     /// Shared default instance backed by a lazily-created Roslyn evaluator. Can be replaced in tests.
@@ -26,15 +28,22 @@ public sealed class SelectorEngine
         new Lazy<IDataContextPredicateEvaluator?>(CreateDefaultPredicateEvaluator, LazyThreadSafetyMode.ExecutionAndPublication));
 
     public SelectorEngine(IDataContextPredicateEvaluator? predicateEvaluator = null)
+        : this(predicateEvaluator, AvaloniaUiDispatcher.Instance)
+    {
+    }
+
+    internal SelectorEngine(IDataContextPredicateEvaluator? predicateEvaluator, IUiDispatcher uiDispatcher)
     {
         _predicateEvaluator = predicateEvaluator is null
             ? null
             : new Lazy<IDataContextPredicateEvaluator?>(() => predicateEvaluator, LazyThreadSafetyMode.ExecutionAndPublication);
+        _uiDispatcher = uiDispatcher;
     }
 
     private SelectorEngine(Lazy<IDataContextPredicateEvaluator?> predicateEvaluator)
     {
         _predicateEvaluator = predicateEvaluator;
+        _uiDispatcher = AvaloniaUiDispatcher.Instance;
     }
 
     public IReadOnlyList<Visual> Resolve(string selector, Visual? scope = null)
@@ -62,6 +71,47 @@ public sealed class SelectorEngine
 
     public Visual? ResolveSingle(string selector, Visual? scope = null)
         => Resolve(selector, scope).FirstOrDefault();
+
+    internal async Task<IReadOnlyList<Visual>> ResolveDataContextAsync(
+        string selector,
+        string expression,
+        Visual? scope = null)
+    {
+        var parsedSelector = SelectorParser.Parse(selector);
+        if (parsedSelector.Alternatives
+            .SelectMany(path => path.Steps)
+            .SelectMany(step => step.Compound.Filters)
+            .OfType<DataContextPredicateFilter>()
+            .Any())
+        {
+            throw new ArgumentException(
+                "DataContext predicates in selector are not supported here; use the predicate parameter instead.",
+                nameof(selector));
+        }
+
+        var candidates = await _uiDispatcher.InvokeAsync(() => Resolve(parsedSelector, scope)
+            .OfType<StyledElement>()
+            .Where(element => element.DataContext is not null)
+            .Select(element => new DataContextCandidate((Visual)element, element.DataContext!))
+            .ToList());
+
+        var evaluator = TryGetPredicateEvaluator();
+        if (evaluator is null)
+            return Array.Empty<Visual>();
+
+        var matches = new List<Visual>();
+        foreach (var candidate in candidates)
+        {
+            var isMatch = evaluator is IAsyncDataContextPredicateEvaluator asyncEvaluator
+                ? await asyncEvaluator.EvaluateAsync(expression, candidate.DataContext).ConfigureAwait(false)
+                : await Task.Run(() => evaluator.Evaluate(expression, candidate.DataContext)).ConfigureAwait(false);
+
+            if (isMatch)
+                matches.Add(candidate.Visual);
+        }
+
+        return matches;
+    }
 
     private IReadOnlyList<Visual> ResolvePath(SelectorPath path, Visual? scope)
     {
@@ -313,6 +363,20 @@ public sealed class SelectorEngine
         Slider => "slider",
         _ => visual.GetType().Name.ToLowerInvariant(),
     };
+
+    private sealed record DataContextCandidate(Visual Visual, object DataContext);
+}
+
+internal interface IUiDispatcher
+{
+    Task<T> InvokeAsync<T>(Func<T> action);
+}
+
+internal sealed class AvaloniaUiDispatcher : IUiDispatcher
+{
+    public static AvaloniaUiDispatcher Instance { get; } = new();
+
+    public async Task<T> InvokeAsync<T>(Func<T> action) => await Dispatcher.UIThread.InvokeAsync(action);
 }
 
 /// <summary>
@@ -323,4 +387,9 @@ public sealed class SelectorEngine
 public interface IDataContextPredicateEvaluator
 {
     bool Evaluate(string expression, object dataContext);
+}
+
+internal interface IAsyncDataContextPredicateEvaluator
+{
+    Task<bool> EvaluateAsync(string expression, object dataContext);
 }

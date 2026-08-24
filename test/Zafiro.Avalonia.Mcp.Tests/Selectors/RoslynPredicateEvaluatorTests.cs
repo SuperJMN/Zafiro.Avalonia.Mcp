@@ -6,6 +6,7 @@ namespace Zafiro.Avalonia.Mcp.Tests.Selectors;
 
 // Must be public so Roslyn scripting can access its properties when used as globalsType
 public sealed record TestVm(int Id, bool IsActive, string Name);
+public sealed record OtherVm(string Label);
 
 public class RoslynPredicateEvaluatorTests
 {
@@ -83,5 +84,39 @@ public class RoslynPredicateEvaluatorTests
         // Accessing a non-existent property produces a compile error → false
         var result = _evaluator.Evaluate("NonExistentProperty == 99", vm);
         Assert.False(result);
+    }
+
+    [Fact]
+    public async Task Evaluate_ConcurrentIncompatiblePredicates_CompilesOncePerTypeAndExpression()
+    {
+        var compilationAttempts = 0;
+        var compilationStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCompilation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var evaluator = new RoslynDataContextPredicateEvaluator(
+            () =>
+            {
+                Interlocked.Increment(ref compilationAttempts);
+                compilationStarted.TrySetResult();
+                releaseCompilation.Task.GetAwaiter().GetResult();
+            });
+
+        var leader = evaluator.EvaluateAsyncCore("Id == 42", new OtherVm("leader"));
+        await compilationStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var followers = Enumerable.Range(0, 31)
+            .Select(_ => evaluator.EvaluateAsyncCore("Id == 42", new OtherVm("follower")))
+            .ToArray();
+
+        try
+        {
+            releaseCompilation.TrySetResult();
+            var results = await Task.WhenAll(followers.Append(leader));
+
+            Assert.All(results, Assert.False);
+            Assert.Equal(1, compilationAttempts);
+        }
+        finally
+        {
+            releaseCompilation.TrySetResult();
+        }
     }
 }
