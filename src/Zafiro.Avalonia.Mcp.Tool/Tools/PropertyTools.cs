@@ -9,14 +9,14 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 public sealed class PropertyTools
 {
     [McpServerTool(Name = "get_props"), Description("""
-        Get Avalonia property values for an element. Pass propertyNames="Width,Height,Background" to limit output. For applied styles use get_styles, for bindings use get_bindings.
-        Returns: array of {name, value, type}.
-        Example: [{"name":"Width","value":"200","type":"Double"},{"name":"IsEnabled","value":"True","type":"Boolean"}]
+        Get Avalonia property values for an element. Pass propertyNames="Width,Height,Background" to limit output. Attached properties use the qualified Owner.Name form (for example Grid.Row), which can also be used in propertyNames. For applied styles use get_styles, for bindings use get_bindings.
+        Returns: array of {name, owner, value, type, priority}.
+        Example: [{"name":"Width","owner":"Layoutable","value":"200","type":"Double","priority":"LocalValue"},{"name":"Grid.Row","owner":"Grid","value":"1","type":"Int32","priority":"LocalValue"}]
         """)]
     public static async Task<string> GetProps(
         ConnectionPool pool,
         [Description("CSS-like selector identifying the element")] string selector,
-        [Description("Optional property names to filter (comma-separated)")] string? propertyNames = null)
+        [Description("Optional property names to filter (comma-separated); qualify attached properties as Owner.Name")] string? propertyNames = null)
     {
         var conn = pool.GetActive();
         var parms = new Dictionary<string, object> { ["selector"] = selector };

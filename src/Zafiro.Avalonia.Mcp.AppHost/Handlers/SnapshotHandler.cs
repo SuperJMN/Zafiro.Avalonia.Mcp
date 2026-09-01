@@ -40,25 +40,27 @@ public sealed class SnapshotHandler : IRequestHandler
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
-            Visual root;
+            IReadOnlyList<Visual> roots;
             if (!string.IsNullOrWhiteSpace(selector))
             {
                 var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
                 if (visual is null) return error!;
-                root = visual;
+                roots = [visual];
             }
             else
             {
-                var window = NodeRegistry.GetRoots().FirstOrDefault();
-                if (window is null) return (object)new { error = "No windows found" };
-                root = window;
+                roots = NodeRegistry.GetInspectableRoots().ToList();
+                if (roots.Count == 0) return (object)new { error = "No windows found" };
             }
 
-            return BuildSnapshot(root, visibleOnly, detail);
+            return BuildSnapshot(roots, visibleOnly, detail);
         });
     }
 
-    internal static object BuildSnapshot(Visual root, bool visibleOnly, string detail = "smart")
+    internal static object BuildSnapshot(Visual root, bool visibleOnly, string detail = "smart") =>
+        BuildSnapshot([root], visibleOnly, detail);
+
+    private static object BuildSnapshot(IReadOnlyList<Visual> roots, bool visibleOnly, string detail)
     {
         if (!TryParseDetail(detail, out var parsedDetail))
         {
@@ -66,8 +68,8 @@ public sealed class SnapshotHandler : IRequestHandler
         }
 
         return parsedDetail == SnapshotDetail.Verbose
-            ? BuildVerboseSnapshot(root, visibleOnly)
-            : BuildSmartSnapshot(root, visibleOnly);
+            ? BuildVerboseSnapshot(roots, visibleOnly)
+            : BuildSmartSnapshot(roots, visibleOnly);
     }
 
     private static bool TryParseDetail(string? detail, out SnapshotDetail parsed)
@@ -88,40 +90,63 @@ public sealed class SnapshotHandler : IRequestHandler
         return false;
     }
 
-    private static object BuildSmartSnapshot(Visual root, bool visibleOnly)
+    private static object BuildSmartSnapshot(IReadOnlyList<Visual> roots, bool visibleOnly)
     {
-        var rootVisual = FindRoot(root);
-        var windowBounds = new Rect(0, 0, rootVisual.Bounds.Width, rootVisual.Bounds.Height);
+        var snapshots = new List<SnapshotRoot>();
+        foreach (var root in roots)
+        {
+            var rootVisual = FindRoot(root);
+            var reportedRoot = TopLevel.GetTopLevel(root) ?? root;
+            var rootId = NodeRegistry.GetOrRegister(reportedRoot);
+            var windowBounds = new Rect(0, 0, rootVisual.Bounds.Width, rootVisual.Bounds.Height);
 
-        var entries = new List<SnapshotEntry>();
-        CollectSmart(root, rootVisual, entries, visibleOnly, windowBounds, parentEntry: null, level: 0);
-        var deduped = Deduplicate(entries);
+            var entries = new List<SnapshotEntry>();
+            CollectSmart(root, rootVisual, rootId, entries, visibleOnly, windowBounds, parentEntry: null, level: 0);
+            snapshots.Add(new SnapshotRoot(root, reportedRoot, Deduplicate(entries)));
+        }
 
-        return BuildResult(root, rootVisual, deduped, "smart");
+        return BuildResult(snapshots, "smart");
     }
 
-    private static object BuildVerboseSnapshot(Visual root, bool visibleOnly)
+    private static object BuildVerboseSnapshot(IReadOnlyList<Visual> roots, bool visibleOnly)
     {
-        var rootVisual = FindRoot(root);
-        var windowBounds = new Rect(0, 0, rootVisual.Bounds.Width, rootVisual.Bounds.Height);
+        var snapshots = new List<SnapshotRoot>();
+        foreach (var root in roots)
+        {
+            var rootVisual = FindRoot(root);
+            var reportedRoot = TopLevel.GetTopLevel(root) ?? root;
+            var rootId = NodeRegistry.GetOrRegister(reportedRoot);
+            var windowBounds = new Rect(0, 0, rootVisual.Bounds.Width, rootVisual.Bounds.Height);
 
-        var entries = new List<SnapshotEntry>();
-        CollectVerbose(root, rootVisual, entries, visibleOnly, windowBounds, parentEntry: null, level: 0);
-        var deduped = DeduplicateVerbose(entries);
+            var entries = new List<SnapshotEntry>();
+            CollectVerbose(root, rootVisual, rootId, entries, visibleOnly, windowBounds, parentEntry: null, level: 0);
+            snapshots.Add(new SnapshotRoot(root, reportedRoot, DeduplicateVerbose(entries)));
+        }
 
-        return BuildResult(root, rootVisual, deduped, "verbose");
+        return BuildResult(snapshots, "verbose");
     }
 
-    private static object BuildResult(Visual root, Visual rootVisual, List<SnapshotEntry> elements, string detail)
+    private static object BuildResult(IReadOnlyList<SnapshotRoot> snapshots, string detail)
     {
+        var first = snapshots[0];
+        var elements = snapshots.SelectMany(snapshot => snapshot.Elements).ToList();
         var focused = elements.FirstOrDefault(e => e.IsFocused == true);
-        var windowTitle = (root as Window)?.Title ?? (rootVisual as Window)?.Title;
-        var windowSize = $"{rootVisual.Bounds.Width}x{rootVisual.Bounds.Height}";
+        var windowTitle = (first.Root as Window)?.Title ?? (first.ReportedRoot as Window)?.Title;
+        var windowSize = $"{first.ReportedRoot.Bounds.Width}x{first.ReportedRoot.Bounds.Height}";
+        var roots = snapshots.Select(snapshot => new SnapshotRootInfo
+        {
+            NodeId = NodeRegistry.GetOrRegister(snapshot.ReportedRoot),
+            Type = snapshot.ReportedRoot.GetType().Name,
+            Title = (snapshot.ReportedRoot as Window)?.Title,
+            Width = Math.Round(snapshot.ReportedRoot.Bounds.Width, 1),
+            Height = Math.Round(snapshot.ReportedRoot.Bounds.Height, 1)
+        }).ToList();
 
         return new
         {
             window = windowTitle is not null ? $"{windowTitle} ({windowSize})" : windowSize,
             detail,
+            roots,
             focusedId = focused?.NodeId,
             elements
         };
@@ -135,12 +160,12 @@ public sealed class SnapshotHandler : IRequestHandler
         return current;
     }
 
-    private static void CollectSmart(Visual visual, Visual rootVisual, List<SnapshotEntry> entries,
+    private static void CollectSmart(Visual visual, Visual rootVisual, int rootId, List<SnapshotEntry> entries,
         bool visibleOnly, Rect windowBounds, SnapshotEntry? parentEntry, int level)
     {
         if (!visual.IsVisible) return;
 
-        var entry = TryBuild(visual, rootVisual, parentEntry, level);
+        var entry = TryBuild(visual, rootVisual, rootId, parentEntry, level);
         var nextParent = parentEntry;
         var nextLevel = level;
 
@@ -155,15 +180,15 @@ public sealed class SnapshotHandler : IRequestHandler
         }
 
         foreach (var child in visual.GetVisualChildren())
-            CollectSmart(child, rootVisual, entries, visibleOnly, windowBounds, nextParent, nextLevel);
+            CollectSmart(child, rootVisual, rootId, entries, visibleOnly, windowBounds, nextParent, nextLevel);
     }
 
-    private static void CollectVerbose(Visual visual, Visual rootVisual, List<SnapshotEntry> entries,
+    private static void CollectVerbose(Visual visual, Visual rootVisual, int rootId, List<SnapshotEntry> entries,
         bool visibleOnly, Rect windowBounds, SnapshotEntry? parentEntry, int level)
     {
         if (!visual.IsVisible) return;
 
-        var entry = TryBuildVerbose(visual, rootVisual, parentEntry, level);
+        var entry = TryBuildVerbose(visual, rootVisual, rootId, parentEntry, level);
         var nextParent = parentEntry;
         var nextLevel = level;
 
@@ -178,10 +203,10 @@ public sealed class SnapshotHandler : IRequestHandler
         }
 
         foreach (var child in visual.GetVisualChildren())
-            CollectVerbose(child, rootVisual, entries, visibleOnly, windowBounds, nextParent, nextLevel);
+            CollectVerbose(child, rootVisual, rootId, entries, visibleOnly, windowBounds, nextParent, nextLevel);
     }
 
-    private static SnapshotEntry? TryBuild(Visual visual, Visual rootVisual, SnapshotEntry? parentEntry, int level)
+    private static SnapshotEntry? TryBuild(Visual visual, Visual rootVisual, int rootId, SnapshotEntry? parentEntry, int level)
     {
         var descriptor = Describe(visual, parentEntry);
         if (descriptor is null)
@@ -198,6 +223,7 @@ public sealed class SnapshotHandler : IRequestHandler
         return new SnapshotEntry
         {
             NodeId = NodeRegistry.GetOrRegister(visual),
+            RootId = rootId,
             Type = visual.GetType().Name,
             Role = descriptor.Role,
             Text = descriptor.Text,
@@ -215,7 +241,7 @@ public sealed class SnapshotHandler : IRequestHandler
         };
     }
 
-    private static SnapshotEntry? TryBuildVerbose(Visual visual, Visual rootVisual, SnapshotEntry? parentEntry, int level)
+    private static SnapshotEntry? TryBuildVerbose(Visual visual, Visual rootVisual, int rootId, SnapshotEntry? parentEntry, int level)
     {
         var role = GetRole(visual);
         var text = GetVerboseText(visual);
@@ -234,6 +260,7 @@ public sealed class SnapshotHandler : IRequestHandler
         return new SnapshotEntry
         {
             NodeId = NodeRegistry.GetOrRegister(visual),
+            RootId = rootId,
             Type = visual.GetType().Name,
             Role = role ?? (isInteractive ? "interactive" : "text"),
             Text = text,
@@ -568,6 +595,17 @@ public sealed class SnapshotHandler : IRequestHandler
 
     private sealed record SnapshotDescriptor(string Role, string? Text);
 
+    private sealed record SnapshotRoot(Visual Root, Visual ReportedRoot, List<SnapshotEntry> Elements);
+
+    private sealed class SnapshotRootInfo
+    {
+        [JsonPropertyName("nodeId")] public int NodeId { get; init; }
+        [JsonPropertyName("type")] public required string Type { get; init; }
+        [JsonPropertyName("title")] public string? Title { get; init; }
+        [JsonPropertyName("width")] public double Width { get; init; }
+        [JsonPropertyName("height")] public double Height { get; init; }
+    }
+
     private enum SnapshotDetail
     {
         Smart,
@@ -577,6 +615,7 @@ public sealed class SnapshotHandler : IRequestHandler
     private sealed class SnapshotEntry
     {
         [JsonPropertyName("nodeId")] public int NodeId { get; init; }
+        [JsonPropertyName("rootId")] public int RootId { get; init; }
         [JsonPropertyName("type")] public required string Type { get; init; }
         [JsonPropertyName("role")] public required string Role { get; init; }
         [JsonPropertyName("text")] public string? Text { get; init; }

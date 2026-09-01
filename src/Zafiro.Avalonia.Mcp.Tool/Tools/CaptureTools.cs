@@ -10,9 +10,9 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 public sealed class CaptureTools
 {
     [McpServerTool(Name = "screenshot"), Description("""
-        Capture a PNG screenshot of an element (or whole window if selector omitted). EXPENSIVE — prefer get_snapshot/get_screen_text/get_interactables when you only need text or actions. Use screenshots only for visual verification.
-        Returns: {width, height, base64} PNG.
-        Example: {"width":1280,"height":720,"base64":"iVBORw0KGgo..."}
+        Capture a PNG screenshot of an element. With no selector, captures the topmost open popup when present; otherwise captures the first app root. Pass a window selector when you need the whole window while a popup is open. EXPENSIVE — prefer get_snapshot/get_screen_text/get_interactables when you only need text or actions. Use screenshots only for visual verification.
+        Returns: text identifying the resolved target and dimensions, plus the PNG image.
+        Example: "Screenshot captured from PopupRoot #42 (320×120)" + <image/png>
         """)]
     public static async Task<IReadOnlyList<ContentBlock>> Screenshot(
         ConnectionPool pool,
@@ -25,12 +25,22 @@ public sealed class CaptureTools
             var data = result.GetProperty("data").GetString();
             var width = result.GetProperty("width").GetInt32();
             var height = result.GetProperty("height").GetInt32();
+            var targetType = result.TryGetProperty("targetType", out var targetTypeElement)
+                ? targetTypeElement.GetString()
+                : null;
+            var nodeId = result.TryGetProperty("nodeId", out var nodeIdElement)
+                ? nodeIdElement.GetInt32()
+                : (int?)null;
 
             if (data is null) return [new TextContentBlock { Text = "Screenshot data was empty" }];
 
+            var target = targetType is not null && nodeId is not null
+                ? $" from {targetType} #{nodeId}"
+                : string.Empty;
+
             return
             [
-                new TextContentBlock { Text = $"Screenshot captured ({width}×{height})" },
+                new TextContentBlock { Text = $"Screenshot captured{target} ({width}×{height})" },
                 ImageContentBlock.FromBytes(Convert.FromBase64String(data), "image/png")
             ];
         });

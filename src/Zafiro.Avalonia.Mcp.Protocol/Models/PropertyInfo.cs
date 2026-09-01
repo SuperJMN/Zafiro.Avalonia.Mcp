@@ -7,6 +7,9 @@ public sealed class PropertyInfo
     [JsonPropertyName("name")]
     public required string Name { get; init; }
 
+    [JsonPropertyName("owner")]
+    public string? Owner { get; init; }
+
     [JsonPropertyName("type")]
     public required string Type { get; init; }
 

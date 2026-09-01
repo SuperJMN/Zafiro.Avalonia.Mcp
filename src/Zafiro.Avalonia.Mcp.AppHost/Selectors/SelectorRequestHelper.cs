@@ -25,7 +25,13 @@ public static class SelectorRequestHelper
             return (null, new { error = "no element matched selector", code = DiagnosticErrorCodes.NoMatch, selector });
 
         if (requireSingle && matches.Count > 1)
-            return (null, new { error = "selector matched more than one element", code = DiagnosticErrorCodes.AmbiguousSelector, count = matches.Count, selector });
+            return (null, new
+            {
+                error = $"Selector '{selector}' matched {matches.Count} elements.",
+                code = DiagnosticErrorCodes.AmbiguousSelector,
+                matchCount = matches.Count,
+                selector
+            });
 
         return (matches[0], null);
     }

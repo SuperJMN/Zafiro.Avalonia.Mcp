@@ -39,12 +39,14 @@ public sealed class PropertyHandler : IRequestHandler
             return HandlerResult.Unsupported("get_props", visual.GetType().Name);
 
         var registeredProps = AvaloniaPropertyRegistry.Instance.GetRegistered(ao)
-            .Concat(AvaloniaPropertyRegistry.Instance.GetRegisteredAttached(ao.GetType()));
+            .Concat(AvaloniaPropertyRegistry.Instance.GetRegisteredAttached(ao.GetType()))
+            .Distinct();
 
         var result = new List<Protocol.Models.PropertyInfo>();
         foreach (var prop in registeredProps)
         {
-            if (filterNames is not null && !filterNames.Contains(prop.Name, StringComparer.OrdinalIgnoreCase))
+            var propertyName = prop.IsAttached ? $"{prop.OwnerType.Name}.{prop.Name}" : prop.Name;
+            if (filterNames is not null && !filterNames.Contains(propertyName, StringComparer.OrdinalIgnoreCase))
                 continue;
 
             try
@@ -54,7 +56,8 @@ public sealed class PropertyHandler : IRequestHandler
 
                 result.Add(new Protocol.Models.PropertyInfo
                 {
-                    Name = prop.Name,
+                    Name = propertyName,
+                    Owner = prop.OwnerType.Name,
                     Type = prop.PropertyType.Name,
                     Value = value?.ToString(),
                     Priority = diag?.Priority.ToString()

@@ -162,6 +162,30 @@ public class RequestDispatcherErrorTests
     }
 
     [Fact]
+    public async Task LegacyAmbiguousSelectorError_SuggestsValidNthRange()
+    {
+        var handler = new StubHandler("test_legacy_ambiguous_selector",
+            _ => Task.FromResult<object>(new
+            {
+                error = "Selector 'Button' matched 3 elements.",
+                code = DiagnosticErrorCodes.AmbiguousSelector,
+                matchCount = 3,
+                selector = "Button"
+            }));
+
+        var response = await Dispatch(handler, "test_legacy_ambiguous_selector");
+
+        Assert.NotNull(response.ErrorInfo);
+        Assert.Equal(DiagnosticErrorCodes.AmbiguousSelector, response.ErrorInfo!.Code);
+        Assert.Contains(":nth(0)", response.ErrorInfo.Suggested);
+        Assert.Contains(":nth(2)", response.ErrorInfo.Suggested);
+        Assert.Contains("#name", response.ErrorInfo.Suggested);
+        var details = Assert.IsType<JsonElement>(response.ErrorInfo.Details);
+        Assert.Equal(3, details.GetProperty("matchCount").GetInt32());
+        Assert.Equal("Button", details.GetProperty("selector").GetString());
+    }
+
+    [Fact]
     public async Task LegacyArbitraryError_DefaultsToInternal()
     {
         var handler = new StubHandler("test_legacy_other",

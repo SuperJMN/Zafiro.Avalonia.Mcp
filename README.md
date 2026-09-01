@@ -279,10 +279,12 @@ Every failure response carries a structured `DiagnosticError`:
 
 ```json
 {
-  "error": {
+  "id": "request-42",
+  "error": "Selector 'Button' matched 4 elements.",
+  "errorInfo": {
     "code": "AMBIGUOUS_SELECTOR",
     "message": "Selector 'Button' matched 4 elements.",
-    "suggested": "Add ':nth(N)' or a more specific predicate (e.g. Button[Content=\"Save\"]).",
+    "suggested": "Use :nth(0) through :nth(3), or narrow the selector with #name, .class, or [Property=Value].",
     "details": { "matchCount": 4, "selector": "Button" }
   }
 }
@@ -358,3 +360,7 @@ connect_adb port=9999
 (`host` defaults to `127.0.0.1`, `label` is optional.) After that, every other MCP tool (`get_snapshot`, `click_by_query`, `text_input`, `screenshot`, …) works exactly as on desktop.
 
 Out of scope for the MVP: auto-discovery of devices, automatic `adb forward` cleanup, TLS, non-loopback bindings. Tracked in [`ROADMAP.md`](ROADMAP.md) Fase 7.
+
+## License
+
+Zafiro.Avalonia.Mcp is available under the [MIT License](LICENSE).
