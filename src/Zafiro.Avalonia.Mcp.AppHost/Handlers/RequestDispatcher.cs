@@ -211,8 +211,8 @@ public sealed class RequestDispatcher
             return new DiagnosticError(
                 message,
                 explicitCode,
-                GetLegacySuggestion(explicitCode),
-                result);
+                GetLegacySuggestion(explicitCode, result),
+                GetLegacyDetails(explicitCode, result));
         }
 
         var lower = message.ToLowerInvariant();
@@ -234,13 +234,45 @@ public sealed class RequestDispatcher
         return property?.GetValue(result) as string;
     }
 
-    private static string? GetLegacySuggestion(string code) => code switch
+    private static string? GetLegacySuggestion(string code, object details) => code switch
     {
         DiagnosticErrorCodes.MissingSelector => "Provide the selector parameter.",
         DiagnosticErrorCodes.NoMatch => "Check the selector or call get_snapshot to inspect available elements.",
-        DiagnosticErrorCodes.AmbiguousSelector => "Use a more specific selector.",
+        DiagnosticErrorCodes.AmbiguousSelector => GetAmbiguousSelectorSuggestion(details),
         DiagnosticErrorCodes.InvalidSelector => "Check selector syntax (e.g. type, #name, .class, [property=value]).",
         DiagnosticErrorCodes.StaleNode => "Call get_snapshot, search, or get_interactables to refresh node IDs.",
         _ => null,
     };
+
+    private static string GetAmbiguousSelectorSuggestion(object details)
+    {
+        var count = TryReadInt32Property(details, "matchCount")
+                    ?? TryReadInt32Property(details, "count");
+        var nthHint = count is > 1
+            ? $"Use :nth(0) through :nth({count - 1})"
+            : "Use :nth(N)";
+
+        return $"{nthHint}, or narrow the selector with #name, .class, or [Property=Value].";
+    }
+
+    private static object GetLegacyDetails(string code, object details)
+    {
+        if (code != DiagnosticErrorCodes.AmbiguousSelector)
+        {
+            return details;
+        }
+
+        return new
+        {
+            matchCount = TryReadInt32Property(details, "matchCount")
+                         ?? TryReadInt32Property(details, "count"),
+            selector = TryReadStringProperty(details, "selector")
+        };
+    }
+
+    private static int? TryReadInt32Property(object result, string name)
+    {
+        var property = result.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+        return property?.GetValue(result) as int?;
+    }
 }

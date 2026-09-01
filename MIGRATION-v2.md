@@ -70,10 +70,10 @@ Sources of truth: commits `2dbb35b` (action tools) and `bf87161` (read tools).
 | `get_bindings` | `{ "nodeId": 12 }` | `{ "selector": "TextBox#Email" }` |
 | `find_view_source` | `{ "nodeId": 1 }` | `{ "selector": "Window:nth(0)" }` |
 | `get_xaml` | `{ "nodeId": 1 }` | `{ "selector": "Window:nth(0)" }` |
-| `screenshot` | `{ "nodeId": 42 }` *(or omitted for first window)* | `{ "selector": "#Hero" }` *(or omitted for first window)* |
+| `screenshot` | `{ "nodeId": 42 }` *(or omitted for the active root)* | `{ "selector": "#Hero" }` *(or omitted for the topmost popup, then first app root)* |
 | `get_tree` | `{ "nodeId": 1, "depth": 10 }` *(or omitted)* | `{ "selector": "Window:nth(0)", "depth": 10 }` *(or omitted)* |
-| `get_snapshot` | `{ "nodeId": 1 }` *(or omitted for first window)* | `{ "selector": "#Hero" }` *(or omitted for first window)* |
-| `get_screen_text` | `{ "nodeId": 1 }` *(or omitted for first window)* | `{ "selector": "#Hero" }` *(or omitted for first window)* |
+| `get_snapshot` | `{ "nodeId": 1 }` *(or omitted for roots)* | `{ "selector": "#Hero" }` *(or omitted for all app roots, including popups)* |
+| `get_screen_text` | `{ "nodeId": 1 }` *(or omitted for roots)* | `{ "selector": "#Hero" }` *(or omitted for all app roots, including popups)* |
 | `get_interactables` | `{ "nodeId": 1 }` *(or omitted for all windows)* | `{ "selector": "Window:nth(0)" }` *(or omitted for all windows)* |
 | `get_resources` | `{ "nodeId": 1, "onlySelf": false }` *(or omitted for Application)* | `{ "selector": "Window:nth(0)", "onlySelf": false }` *(or omitted for Application)* |
 | `start_recording` | `{ "nodeId": 1, "fps": 15 }` *(or omitted for first window)* | `{ "selector": "Window:nth(0)", "fps": 15 }` *(or omitted for first window)* |

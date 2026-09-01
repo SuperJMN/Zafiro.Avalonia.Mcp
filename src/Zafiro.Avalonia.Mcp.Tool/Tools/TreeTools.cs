@@ -55,12 +55,13 @@ public sealed class TreeTools
 
     [McpServerTool(Name = "get_snapshot"), Description("""
         BEST FIRST CALL to understand the UI. Human-oriented spatial snapshot. detail='smart' (default) returns Avalonia automation roles, semantic regions, standalone visible text, and actionable controls in a flattened hierarchy while suppressing template text and generic container summaries. Use detail='verbose' only when you need exhaustive diagnostics and can tolerate noise.
-        Returns: {window, detail, focusedId?, elements:[{nodeId, type, role, text?, value?, level, parentId?, x, y, w, h}, ...]}.
-        Example: {"window":"Main (800x600)","elements":[{"nodeId":5,"type":"TextBlock","role":"text","text":"Login","level":0},{"nodeId":12,"type":"TextBox","role":"textbox","value":"user@x","level":0,"x":50,"y":80,"w":200,"h":24},{"nodeId":15,"type":"Button","role":"button","text":"Sign in","level":0}]}
+        With no selector, includes every inspectable app root, including open popup roots. Each element carries rootId so root-relative coordinates remain unambiguous.
+        Returns: {window, detail, roots:[{nodeId,type,title?,width,height}], focusedId?, elements:[{nodeId,rootId,type,role,text?,value?,level,parentId?,x,y,w,h}, ...]}.
+        Example: {"window":"Main (800x600)","roots":[{"nodeId":1,"type":"MainWindow","title":"Main","width":800,"height":600}],"elements":[{"nodeId":5,"rootId":1,"type":"TextBlock","role":"text","text":"Login","level":0}]}
         """)]
     public static async Task<string> GetSnapshot(
         ConnectionPool pool,
-        [Description("CSS-like selector to scope the snapshot to a single element. Omit for the first window.")] string? selector = null,
+        [Description("CSS-like selector to scope the snapshot to a single element. Omit to inspect every app root, including open popups.")] string? selector = null,
         [Description("When true (default), only returns elements within the visible viewport.")] bool visibleOnly = true,
         [Description("Snapshot detail: 'smart' (default) for low-noise navigation, or 'verbose' for exhaustive diagnostics with container/template text.")] string detail = "smart")
     {
@@ -77,7 +78,7 @@ public sealed class TreeTools
         """)]
     public static async Task<string> GetScreenText(
         ConnectionPool pool,
-        [Description("CSS-like selector to scope. Omit for the first window.")] string? selector = null,
+        [Description("CSS-like selector to scope. Omit to inspect every app root, including open popups.")] string? selector = null,
         [Description("When true, only returns text that is within the visible viewport (not scrolled off-screen). Default: false.")] bool visibleOnly = false)
     {
         var conn = pool.GetActive();

@@ -90,6 +90,7 @@ public class SerializationTests
         var prop = new PropertyInfo
         {
             Name = "Width",
+            Owner = "Layoutable",
             Type = "Double",
             Value = "200",
             Priority = "LocalValue"
@@ -100,6 +101,7 @@ public class SerializationTests
 
         Assert.NotNull(result);
         Assert.Equal("Width", result.Name);
+        Assert.Equal("Layoutable", result.Owner);
         Assert.Equal("Double", result.Type);
         Assert.Equal("200", result.Value);
         Assert.Equal("LocalValue", result.Priority);

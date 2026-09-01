@@ -55,6 +55,7 @@ public sealed class ScreenshotHandler : IRequestHandler
         return new
         {
             nodeId,
+            targetType = target.GetType().Name,
             data = base64,
             mimeType = "image/png",
             width = pixelSize.Width,

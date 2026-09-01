@@ -215,6 +215,33 @@ public class PopupRootExposureTests
 
             Assert.False(json.TryGetProperty("error", out var error), error.ToString());
             Assert.Equal(NodeRegistry.GetOrRegister(popup), json.GetProperty("nodeId").GetInt32());
+            Assert.Equal(nameof(PopupRoot), json.GetProperty("targetType").GetString());
+        }
+        finally
+        {
+            DisposePopup(fixture);
+        }
+    }
+
+    [Fact]
+    public void SnapshotWithoutSelector_IncludesOpenPopupRootAndItsElements()
+    {
+        var fixture = Dispatcher.UIThread.Invoke(CreateInspectableWindowAndPopupRoot);
+        var popup = fixture.Popup;
+
+        try
+        {
+            var result = Handle(new SnapshotHandler(), Request(ProtocolMethods.GetSnapshot, new { }));
+            var json = Serialize(result);
+
+            var popupRoot = Assert.Single(json.GetProperty("roots").EnumerateArray(), root =>
+                root.GetProperty("type").GetString() == nameof(PopupRoot));
+            var popupRootId = popupRoot.GetProperty("nodeId").GetInt32();
+            Assert.Equal(NodeRegistry.GetOrRegister(popup), popupRootId);
+
+            Assert.Contains(json.GetProperty("elements").EnumerateArray(), element =>
+                element.GetProperty("rootId").GetInt32() == popupRootId &&
+                element.GetProperty("type").GetString() == nameof(MenuItem));
         }
         finally
         {

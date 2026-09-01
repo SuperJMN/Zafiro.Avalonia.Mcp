@@ -31,14 +31,13 @@ public sealed class AncestorsHandler : IRequestHandler
     internal static object GetAncestors(Visual visual)
     {
         var chain = new List<NodeInfo>();
-        Visual? current = visual;
+        var current = visual.GetVisualParent();
         while (current is not null)
         {
             chain.Add(NodeInfoBuilder.Create(current));
             current = current.GetVisualParent();
         }
 
-        chain.Reverse();
         return chain;
     }
 }
