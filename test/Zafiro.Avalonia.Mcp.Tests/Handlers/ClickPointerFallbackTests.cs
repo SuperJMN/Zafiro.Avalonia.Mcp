@@ -149,17 +149,7 @@ public class ClickPointerFallbackTests
             Method = handler.Method,
             Params = JsonSerializer.SerializeToElement(parameters)
         });
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-        while (!task.IsCompleted && DateTime.UtcNow < deadline)
-        {
-            Dispatcher.UIThread.RunJobs();
-            Thread.Sleep(1);
-        }
-
-        if (!task.IsCompleted)
-            throw new TimeoutException($"{handler.GetType().Name} did not complete.");
-
-        return task.GetAwaiter().GetResult();
+        return task.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
     }
 
     private sealed class PointerAwareControl : Control;

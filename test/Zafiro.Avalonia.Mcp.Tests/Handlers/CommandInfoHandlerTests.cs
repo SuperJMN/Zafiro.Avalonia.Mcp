@@ -1,13 +1,14 @@
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 
 namespace Zafiro.Avalonia.Mcp.Tests.Handlers;
 
 /// <summary>
-/// Tests for CommandInfoHandler.Analyze — runs entirely without the dispatcher.
+/// Tests for CommandInfoHandler.Analyze.
 /// </summary>
 [Collection("Avalonia")]
 public class CommandInfoHandlerTests
@@ -32,14 +33,22 @@ public class CommandInfoHandlerTests
     [Fact]
     public void CannotExecute_Returns_EnableReason_CommandCannotExecute()
     {
-        var btn = new Button { Command = new TestCommand(canExecute: false) };
-        var window = new Window { Width = 100, Height = 60, Content = btn };
-        window.ApplyTemplate();
-        window.Measure(new Size(100, 60));
-        window.Arrange(new Rect(0, 0, 100, 60));
-
-        var r = CommandInfoHandler.Analyze(btn);
-        window.Close();
+        var r = Dispatcher.UIThread.Invoke(() =>
+        {
+            var btn = new Button { Command = new TestCommand(canExecute: false) };
+            var window = new Window { Width = 100, Height = 60, Content = btn };
+            try
+            {
+                window.ApplyTemplate();
+                window.Measure(new Size(100, 60));
+                window.Arrange(new Rect(0, 0, 100, 60));
+                return CommandInfoHandler.Analyze(btn);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
 
         Assert.Equal("command_cannot_execute", r.enableReason);
         Assert.False(r.canExecute);
