@@ -1,3 +1,4 @@
+using System.Reflection;
 using Xunit;
 using Zafiro.Avalonia.Mcp.Tool.Preview;
 
@@ -180,6 +181,45 @@ public sealed class PreviewHostProjectBuilderTests
         Assert.Contains("Avalonia.Desktop", projectText);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Build_PreservesTargetAvaloniaVersion_WhenPlatformAssembliesAreAlreadyPresent(bool headless)
+    {
+        using var temp = new ApplicationOnlyPreviewTarget(includePlatformAssemblies: true);
+        await temp.BuildTarget();
+
+        var builder = new PreviewHostProjectBuilder(
+            new DotnetProcessRunner(),
+            temp.HostRoot,
+            new FixedPreviewHostDependencyResolver(new PreviewHostDependency(FindRepositoryFile("src/Zafiro.Avalonia.Mcp.AppHost/Zafiro.Avalonia.Mcp.AppHost.csproj"), null)));
+        var target = new PreviewTarget(
+            temp.AxamlPath,
+            temp.TargetAssemblyPath,
+            temp.TargetAssemblyPath,
+            temp.TargetProjectPath,
+            EntryType: null,
+            TargetFramework: "net10.0",
+            Configuration: "Debug",
+            Backend: headless ? PreviewBackend.Headless : PreviewBackend.Desktop);
+        var previousDisplay = Environment.GetEnvironmentVariable("DISPLAY");
+
+        PreviewHostLaunch launch;
+        try
+        {
+            Environment.SetEnvironmentVariable("DISPLAY", previousDisplay ?? ":1");
+            launch = await builder.Build(target, width: 320, height: 240, CancellationToken.None);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DISPLAY", previousDisplay);
+        }
+
+        var targetAvalonia = Path.Combine(Path.GetDirectoryName(temp.TargetAssemblyPath)!, "Avalonia.Base.dll");
+        var hostAvalonia = Path.Combine(Path.GetDirectoryName(launch.ProjectPath)!, "bin", "Release", "net10.0", "Avalonia.Base.dll");
+        Assert.Equal(AssemblyName.GetAssemblyName(targetAvalonia).Version, AssemblyName.GetAssemblyName(hostAvalonia).Version);
+    }
+
     private static string FindRepositoryFile(string relativePath)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -291,7 +331,7 @@ public sealed class PreviewHostProjectBuilderTests
 
     private sealed class ApplicationOnlyPreviewTarget : IDisposable
     {
-        public ApplicationOnlyPreviewTarget()
+        public ApplicationOnlyPreviewTarget(bool includePlatformAssemblies = false)
         {
             Root = Path.Combine(Path.GetTempPath(), "avalonia-mcp-application-only-preview", Guid.NewGuid().ToString("N"));
             HostRoot = Path.Combine(Root, "hosts");
@@ -304,7 +344,13 @@ public sealed class PreviewHostProjectBuilderTests
             AxamlPath = Path.Combine(appDirectory, "Views", "PreviewView.axaml");
             TargetAssemblyPath = Path.Combine(appDirectory, "bin", "Debug", "net10.0", "PreviewFixture.ApplicationOnly.dll");
 
-            File.WriteAllText(TargetProjectPath, """
+            var platformReferences = includePlatformAssemblies
+                ? """
+                    <PackageReference Include="Avalonia.Desktop" Version="12.0.2" />
+                    <PackageReference Include="Avalonia.Headless" Version="12.0.2" />
+                  """
+                : string.Empty;
+            File.WriteAllText(TargetProjectPath, $$"""
                 <Project Sdk="Microsoft.NET.Sdk">
                   <PropertyGroup>
                     <TargetFramework>net10.0</TargetFramework>
@@ -316,6 +362,7 @@ public sealed class PreviewHostProjectBuilderTests
                   <ItemGroup>
                     <PackageReference Include="Avalonia" Version="12.0.2" />
                     <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="12.0.2" />
+                    {{platformReferences}}
                   </ItemGroup>
                 </Project>
                 """);

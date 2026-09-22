@@ -92,6 +92,7 @@ internal sealed class PreviewHostProjectBuilder
     {
         var references = CreateReferenceItems(target.AssemblyPath);
         var appHostReference = CreateAppHostReference(dependency);
+        var avaloniaVersionItems = CreateAvaloniaVersionItems(target.AssemblyPath);
         var platformItems = CreatePlatformItems(target.AssemblyPath, backend);
         var xamlLoaderItems = CreateXamlLoaderItems(target.AssemblyPath);
         var runtimeContent = CreateRuntimeContent(target.AssemblyPath);
@@ -114,6 +115,7 @@ internal sealed class PreviewHostProjectBuilder
             {{appHostReference}}
               </ItemGroup>
 
+            {{avaloniaVersionItems}}
             {{platformItems}}
             {{xamlLoaderItems}}
             {{runtimeContent}}
@@ -158,6 +160,24 @@ internal sealed class PreviewHostProjectBuilder
 
         return $$"""
                 <PackageReference Include="Zafiro.Avalonia.Mcp.AppHost" Version="{{Xml(dependency.AppHostPackageVersion)}}" />
+            """;
+    }
+
+    private static string CreateAvaloniaVersionItems(string targetAssemblyPath)
+    {
+        var avaloniaVersion = ResolveAvaloniaPackageVersion(targetAssemblyPath);
+        if (string.IsNullOrWhiteSpace(avaloniaVersion))
+        {
+            throw new PreviewValidationException(
+                DiagnosticErrorCodes.InvalidParam,
+                "Could not resolve the Avalonia package version from the target app output. Build the app before launching the AXAML preview.");
+        }
+
+        return $$"""
+              <ItemGroup>
+                <PackageReference Include="Avalonia" Version="{{Xml(avaloniaVersion)}}" PrivateAssets="all" ExcludeAssets="all" />
+              </ItemGroup>
+
             """;
     }
 

@@ -199,9 +199,11 @@ For layout work, an agent can open a single desktop AXAML document without navig
 }
 ```
 
-Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assemblyPath`. In `projectPath` mode the tool builds/evaluates the app by default, launches a hidden preview host process, loads the AXAML in design mode, connects MCP to that preview, waits until the preview answers `get_snapshot`, and returns `{ pid, title, axamlPath, connected, backend }`. The global dotnet tool does not embed Avalonia desktop binaries; the temporary preview host is built from the target app output and restores only the runtime XAML loader when that DLL is not already present.
+Call `preview_axaml` with `axamlPath` and exactly one of `projectPath` or `assemblyPath`. In `projectPath` mode the tool builds/evaluates the app by default, launches a hidden preview host process, loads the AXAML in design mode, connects MCP to that preview, waits until the preview answers `get_snapshot`, and returns `{ pid, title, axamlPath, connected, backend }`. The global dotnet tool does not embed Avalonia desktop binaries; the temporary preview host references the target app output and restores matching platform and runtime XAML loader packages when those assemblies are missing.
 
 For multi-project Avalonia apps, pass the executable Desktop host project as `projectPath`, not the shared UI class library that only contains `App.axaml` and views. In `assemblyPath` mode, pass the built executable host assembly output so the preview process sees the same copied dependencies as the real app.
+
+The generated preview project pins Avalonia to the target app's version while referencing the app's copied assemblies. This also applies when the desktop, headless, and XAML loader assemblies are already present, so the diagnostics host's minimum Avalonia dependency cannot replace the app's version.
 
 `backend` can be `auto`, `desktop`, or `headless`. `desktop` keeps the original graphical preview behavior and requires a desktop display. `headless` forces `Avalonia.Headless`, which is intended for displayless SSH/CI/container environments and prioritizes non-pixel inspection: `get_snapshot`, `get_screen_text`, `get_tree`, `get_interactables`, `get_layout_info`, `get_bindings`, `get_styles`, and `get_props`. `auto` uses desktop when a display is available or recoverable, then falls back to headless on Linux when no display is found.
 
