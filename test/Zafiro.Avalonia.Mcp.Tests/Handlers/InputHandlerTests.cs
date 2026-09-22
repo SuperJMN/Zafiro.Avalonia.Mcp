@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
+using Avalonia.Threading;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
@@ -38,7 +39,7 @@ public class InputHandlerTests
     }
 
     [Fact]
-    public void Click_SelectsTreeViewOwnerItem()
+    public void Click_SelectsTreeViewOwnerItem() => Dispatcher.UIThread.Invoke(() =>
     {
         const string funded = "funded";
         var item = new TreeViewItem { Header = "Funded", DataContext = funded };
@@ -58,7 +59,7 @@ public class InputHandlerTests
         Assert.True(json.GetProperty("success").GetBoolean());
         Assert.Equal("treeview_select", json.GetProperty("method").GetString());
         Assert.Equal(funded, json.GetProperty("selectedItem").GetString());
-    }
+    });
 
     [Fact]
     public void Click_OpensButtonFlyout()
@@ -81,7 +82,7 @@ public class InputHandlerTests
     }
 
     [Fact]
-    public void Click_MenuItemCommand_ClosesOwningMenu()
+    public void Click_MenuItemCommand_ClosesOwningMenu() => Dispatcher.UIThread.Invoke(() =>
     {
         var command = new RecordingCommand();
         var menu = new TestMenu();
@@ -106,7 +107,7 @@ public class InputHandlerTests
 
         Assert.True(json.GetProperty("success").GetBoolean());
         Assert.Equal("menu_command", json.GetProperty("method").GetString());
-    }
+    });
 
     [Fact]
     public void Click_MenuItemCommand_EvaluatesCanExecuteOnceAndReportsObservedExecution()
@@ -194,7 +195,7 @@ public class InputHandlerTests
     }
 
     [Fact]
-    public void Click_ButtonUnderDisabledAncestor_ReturnsStructuredFailureWithoutRaisingClick()
+    public void Click_ButtonUnderDisabledAncestor_ReturnsStructuredFailureWithoutRaisingClick() => Dispatcher.UIThread.Invoke(() =>
     {
         var clicked = false;
         var button = new Button();
@@ -217,7 +218,7 @@ public class InputHandlerTests
         {
             window.Close();
         }
-    }
+    });
 
     [Fact]
     public void Click_TextBlockInsideButton_InvokesInteractiveAncestor()

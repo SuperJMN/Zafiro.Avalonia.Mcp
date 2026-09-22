@@ -21,9 +21,8 @@ public class ClickByQueryTruthfulnessTests
     [Fact]
     public void ClickByQuery_IsEnabledFalse_ReturnsStructuredDisabledFailure()
     {
-        var button = new Button { Name = "DisabledAction", IsEnabled = false };
-
-        var result = HandleWithHosted(button, "DisabledAction");
+        var result = HandleWithHosted(
+            () => new Button { Name = "DisabledAction", IsEnabled = false }, "DisabledAction");
 
         var failure = Assert.IsType<HandlerErrorResult>(result);
         Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
@@ -33,20 +32,18 @@ public class ClickByQueryTruthfulnessTests
     [Fact]
     public void ClickByQuery_CommandCannotExecute_ReturnsStructuredDisabledFailure()
     {
-        var button = new Button
+        var result = HandleWithHosted(() => new Button
         {
             Name = "BlockedCommand",
             Command = new FixedCommand(canExecute: false)
-        };
-
-        var result = HandleWithHosted(button, "BlockedCommand");
+        }, "BlockedCommand");
 
         var failure = Assert.IsType<HandlerErrorResult>(result);
         Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
         Assert.Contains("disabled", failure.Error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static object HandleWithHosted(Control target, string query)
+    private static object HandleWithHosted(Func<Control> createTarget, string query)
     {
         var window = Dispatcher.UIThread.Invoke(() =>
         {
@@ -55,7 +52,7 @@ public class ClickByQueryTruthfulnessTests
                 Width = 120,
                 Height = 80,
                 IsVisible = true,
-                Content = target
+                Content = createTarget()
             };
             host.ApplyTemplate();
             host.Measure(new Size(120, 80));
@@ -72,17 +69,7 @@ public class ClickByQueryTruthfulnessTests
                 Method = ProtocolMethods.ClickByQuery,
                 Params = JsonSerializer.SerializeToElement(new { query })
             });
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-            while (!task.IsCompleted && DateTime.UtcNow < deadline)
-            {
-                Dispatcher.UIThread.RunJobs();
-                Thread.Sleep(1);
-            }
-
-            if (!task.IsCompleted)
-                throw new TimeoutException("ClickByQueryHandler did not complete.");
-
-            return task.GetAwaiter().GetResult();
+            return task.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
         }
         finally
         {

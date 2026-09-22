@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 using Zafiro.Avalonia.Mcp.Protocol;
@@ -58,9 +59,7 @@ public class ValidationErrorsHandlerTests
     [Fact]
     public void Scope_IsApp_WhenScanningWithoutOverride()
     {
-        // When no overrideCandidates, ScanForErrors falls through to GetWindows()
-        // which returns [] in headless mode → scope is "app"
-        var result = Scan(null, null);
+        var result = Dispatcher.UIThread.Invoke(() => Scan(null, null));
 
         Assert.Equal("app", result.GetProperty("scope").GetString());
     }
@@ -80,4 +79,3 @@ public class ValidationErrorsHandlerTests
     private static JsonElement Scan(string? selector, IEnumerable<Control>? candidates) =>
         JsonSerializer.SerializeToElement(ValidationErrorsHandler.ScanForErrors(selector, candidates));
 }
-

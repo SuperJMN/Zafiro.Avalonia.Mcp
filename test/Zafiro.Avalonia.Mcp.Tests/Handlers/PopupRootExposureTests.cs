@@ -252,7 +252,6 @@ public class PopupRootExposureTests
     private static void DisposePopup(PopupFixture fixture)
     {
         Dispatcher.UIThread.Invoke(fixture.Dispose);
-        Dispatcher.UIThread.RunJobs();
     }
 
     private static PopupFixture CreateInspectableWindowAndPopupRoot()
@@ -302,20 +301,7 @@ public class PopupRootExposureTests
 
     private static object Handle(IRequestHandler handler, DiagnosticRequest request)
     {
-        var task = handler.Handle(request);
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-        while (!task.IsCompleted && DateTime.UtcNow < deadline)
-        {
-            Dispatcher.UIThread.RunJobs();
-            Thread.Sleep(1);
-        }
-
-        if (!task.IsCompleted)
-        {
-            throw new TimeoutException($"{handler.GetType().Name} did not complete.");
-        }
-
-        return task.GetAwaiter().GetResult();
+        return handler.Handle(request).WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
     }
 
     private static DiagnosticRequest Request(string method, object parameters) => new()

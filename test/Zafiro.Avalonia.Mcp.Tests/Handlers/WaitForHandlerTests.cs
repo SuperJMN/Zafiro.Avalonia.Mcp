@@ -45,17 +45,6 @@ public class WaitForHandlerTests
         }
     }
 
-    private static object? Complete(Task<object?> task)
-    {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-        while (!task.IsCompleted && DateTime.UtcNow < deadline)
-        {
-            Dispatcher.UIThread.RunJobs();
-            Thread.Sleep(1);
-        }
-
-        if (!task.IsCompleted)
-            throw new TimeoutException("wait_for polling did not complete");
-        return task.GetAwaiter().GetResult();
-    }
+    private static object? Complete(Task<object?> task) =>
+        task.WaitAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
 }
