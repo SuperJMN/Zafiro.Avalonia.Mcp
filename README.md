@@ -238,7 +238,7 @@ When the preview host needs copied native assets from `runtimes/<rid>/native`, i
 | **Preview** | `preview_axaml`, `close_preview` |
 | **Inspection** | `get_snapshot`, `get_tree`, `get_screen_text`, `get_interactables`, `search`, `get_ancestors` |
 | **Diagnostics** *(new in v2)* | `get_focus`, `get_active_window`, `get_open_dialogs`, `get_command_info`, `get_validation_errors`, `get_layout_info`, `find_by_datacontext`, `get_item` |
-| **Properties** | `get_props`, `set_prop`, `get_prop_values`, `get_styles`, `get_resources` |
+| **Properties** | `get_props`, `explain_property`, `set_prop`, `get_prop_values`, `get_styles`, `get_resources` |
 | **MVVM / XAML** | `get_datacontext`, `get_bindings`, `find_view_source`, `get_xaml` |
 | **Input** | `click`, `click_by_query`, `click_and_wait`, `key_down`, `key_up`, `text_input`, `tap` |
 | **Interaction** | `select_item`, `toggle`, `set_value`, `scroll`, `action` |
@@ -249,6 +249,20 @@ When the preview host needs copied native assets from `runtimes/<rid>/native`, i
 | **Assets** | `list_assets`, `open_asset` |
 | **Windows** | `list_windows` |
 | **Utilities** | `wait_for`, `diff_tree`, `instructions` |
+
+## Property and style provenance
+
+Use `get_props` for inexpensive effective values. Use `get_styles(selector, includeInactive=false, propertyNames=null)` to inspect actual attached style and control-theme instances, or `explain_property(selector, propertyName, includeCandidates=false, maxDepth=8)` to explain one property's selected source. Both deeper operations require exactly one element. Property names can be qualified with the short or full registration owner, including attached properties such as `Grid.Row`; ambiguous names return `AMBIGUOUS_PROPERTY`.
+
+`get_styles` returns `{ target, timestamp, classState, styles, resolution }`. `classState` separates regular `classes` from active `pseudoClasses`. Each style has a session-scoped `sourceId`, its selector and owning scope when retained, attachment/activation state, runtime frame order, and declared setter providers. A setter's `wins` flag is separate from the style's `active` state. Inactive attached triggers are optional; unknown activation is reported rather than treated as inactive. The old top-level `classes`/`setters` output and `includeDefaults` parameter have been replaced; effective values remain available through `get_props`.
+
+`explain_property` returns the exact property registration, effective value, priority, selected `origin`, class state and a timestamp. Optional `candidates` describe retained competing entries and their precedence. Style/theme source IDs are the same IDs used by `get_styles`. Inheritance follows Avalonia's property-inheritance parent, not an approximation using visual ancestors. Animations include their retained base value/source; `SetCurrentValue` and coercion are reported separately from the original provider. Direct properties are explicitly identified and do not get a styled-property priority stack.
+
+The order is **Animation > LocalValue > StyleTrigger > Template > Style > Inherited > Unset/default**. `framePriority` and `frameOrder` preserve Avalonia's actual frame ordering, including theme scopes; higher frame order is considered first within the same frame priority. Setter `declarationOrder` is its index inside the source style. More classes or pseudoclasses do not increase priority as CSS specificity would.
+
+Bindings and resources describe their retained providers, not a value-based guess. Dynamic-resource explanations trace loaded dictionaries, overrides and theme variants without evaluating deferred resources. Inspection never starts a dormant binding, dumps a binding source object, or toggles pseudoclasses. Unsupported value types are represented by type name rather than invoking application-defined formatting.
+
+The diagnostics adapter supports the retained value-store shapes in Avalonia 11.3 and 12. Source file/line mappings, literal versus resolved static-resource/programmatic assignment syntax, static-resource alias history and original animation timelines are not generally retained. They are reported in `resolution.unavailable`, not invented. Unsupported runtime shapes also produce explicit partial results. `resolution.truncated` reports limits: up to 256 frames, styles, setters, candidates or class names; up to 1024 inspected entries; trace depth defaults to 8 and accepts 1-32. Display values are capped at 256 characters.
 
 ## Selector cheat-sheet
 
@@ -298,6 +312,7 @@ Stable codes you can switch on:
 |---|---|
 | `NO_MATCH` | Selector matched nothing. Re-read the snapshot or relax the predicate. |
 | `AMBIGUOUS_SELECTOR` | Selector matched >1 element where exactly one was required. Add `:nth(N)`. |
+| `AMBIGUOUS_PROPERTY` | A property name identifies multiple registrations. Use its full owner-qualified name. |
 | `STALE_NODE` | A previously-cached `nodeId` is no longer in the tree. Re-resolve via selector. |
 | `INVALID_PARAM` | An argument failed validation. Re-read the tool's parameter list. |
 | `INVALID_SELECTOR` | Selector failed to parse. See the cheat-sheet above. |

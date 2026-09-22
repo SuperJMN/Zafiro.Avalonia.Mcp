@@ -11,6 +11,7 @@ public static class ProtocolMethods
 
     // Properties
     public const string GetProperties = "get_properties";
+    public const string ExplainProperty = "explain_property";
     public const string SetProperty = "set_property";
     public const string GetStyles = "get_styles";
     public const string GetPropertyValues = "get_property_values";

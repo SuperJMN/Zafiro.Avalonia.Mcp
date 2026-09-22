@@ -9,6 +9,7 @@ public static class DiagnosticErrorCodes
     public const string MissingSelector = "MISSING_SELECTOR";
     public const string NoMatch = "NO_MATCH";
     public const string AmbiguousSelector = "AMBIGUOUS_SELECTOR";
+    public const string AmbiguousProperty = "AMBIGUOUS_PROPERTY";
     public const string StaleNode = "STALE_NODE";
     public const string InvalidParam = "INVALID_PARAM";
     public const string InvalidSelector = "INVALID_SELECTOR";

@@ -242,6 +242,7 @@ internal static class ToolsCatalogue
         sb.AppendLine("- **\"What's on screen?\"** → `get_snapshot` (cheapest), then `get_screen_text` if you only need text.");
         sb.AppendLine("- **\"Click the X button\"** → `click_by_query` (atomic find+click — avoids stale-node races).");
         sb.AppendLine("- **\"Inspect a control\"** → `get_props` + `get_styles` + `get_layout_info`.");
+        sb.AppendLine("- **\"Why does this property have this value?\"** → `explain_property`; request `includeCandidates=true` for competing entries. Use `get_styles` for attached style/theme sources and class state.");
         sb.AppendLine("- **\"Verify after action\"** → `wait_for` or `click_and_wait`. NEVER poll with `screenshot`.");
         sb.AppendLine();
 
@@ -276,6 +277,7 @@ internal static class ToolsCatalogue
         {
             [DiagnosticErrorCodes.NoMatch]             = "The selector matched nothing — re-call `get_snapshot` or relax the selector.",
             [DiagnosticErrorCodes.AmbiguousSelector]   = "Selector matched multiple nodes — add `:nth(N)` or a more specific predicate.",
+            [DiagnosticErrorCodes.AmbiguousProperty]   = "Property name matched multiple registrations — use its full owner-qualified name.",
             [DiagnosticErrorCodes.StaleNode]           = "NodeId no longer valid (tree changed) — re-resolve via `search` / `get_snapshot`.",
             [DiagnosticErrorCodes.InvalidParam]        = "Argument failed validation — re-read the tool's parameter list above.",
             [DiagnosticErrorCodes.InvalidSelector]     = "Selector failed to parse — see the selector cheat-sheet in section 3.",

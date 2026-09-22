@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Diagnostics;
 using Avalonia.Threading;
+using Zafiro.Avalonia.Mcp.AppHost.Provenance;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
@@ -38,15 +39,13 @@ public sealed class PropertyHandler : IRequestHandler
         if (visual is not AvaloniaObject ao)
             return HandlerResult.Unsupported("get_props", visual.GetType().Name);
 
-        var registeredProps = AvaloniaPropertyRegistry.Instance.GetRegistered(ao)
-            .Concat(AvaloniaPropertyRegistry.Instance.GetRegisteredAttached(ao.GetType()))
-            .Distinct();
+        var registeredProps = PropertyLookup.Registered(ao);
 
         var result = new List<Protocol.Models.PropertyInfo>();
         foreach (var prop in registeredProps)
         {
-            var propertyName = prop.IsAttached ? $"{prop.OwnerType.Name}.{prop.Name}" : prop.Name;
-            if (filterNames is not null && !filterNames.Contains(propertyName, StringComparer.OrdinalIgnoreCase))
+            var propertyName = PropertyLookup.DisplayName(prop);
+            if (filterNames is not null && !filterNames.Any(name => PropertyLookup.Matches(prop, name)))
                 continue;
 
             try

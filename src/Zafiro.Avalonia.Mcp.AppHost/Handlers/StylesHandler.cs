@@ -1,9 +1,7 @@
 using System.Text.Json;
 using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Diagnostics;
-using Avalonia.Styling;
 using Avalonia.Threading;
+using Zafiro.Avalonia.Mcp.AppHost.Provenance;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
 using Zafiro.Avalonia.Mcp.Protocol.Messages;
@@ -17,67 +15,54 @@ public sealed class StylesHandler : IRequestHandler
     public async Task<object> Handle(DiagnosticRequest request)
     {
         string? selector = null;
-        var includeDefaults = false;
+        var includeInactive = false;
         List<string>? filterNames = null;
-
-        if (request.Params is JsonElement p)
+        if (request.Params is JsonElement parameters)
         {
-            if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
-            if (p.TryGetProperty("includeDefaults", out var id)) includeDefaults = id.GetBoolean();
-            if (p.TryGetProperty("propertyNames", out var names) && names.ValueKind == JsonValueKind.Array)
-                filterNames = names.EnumerateArray().Select(e => e.GetString()!).ToList();
+            if (parameters.ValueKind != JsonValueKind.Object)
+                return HandlerResult.InvalidParam("params", "Parameters must be an object.");
+            if (parameters.TryGetProperty("selector", out var selected))
+            {
+                if (selected.ValueKind != JsonValueKind.String)
+                    return HandlerResult.InvalidParam("selector", "The selector must be a string.");
+                selector = selected.GetString();
+            }
+            if (parameters.TryGetProperty("includeInactive", out var inactive))
+            {
+                if (inactive.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    return HandlerResult.InvalidParam("includeInactive", "includeInactive must be a boolean.");
+                includeInactive = inactive.GetBoolean();
+            }
+            if (parameters.TryGetProperty("propertyNames", out var names))
+            {
+                if (names.ValueKind != JsonValueKind.Array || names.GetArrayLength() > 64 ||
+                    names.EnumerateArray().Any(name => name.ValueKind != JsonValueKind.String))
+                    return HandlerResult.InvalidParam("propertyNames", "Supply an array of at most 64 property names.");
+                filterNames = names.EnumerateArray().Select(name => name.GetString()!).ToList();
+            }
         }
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
-            var (visual, error) = SelectorRequestHelper.ResolveSingle(selector, requireSingle: false);
-            if (visual is null) return error!;
-            return GetStyles(visual, includeDefaults, filterNames);
+            var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
+            return visual is null ? error! : GetStyles(visual, includeInactive, filterNames);
         });
     }
 
-    internal static object GetStyles(Visual visual, bool includeDefaults, List<string>? filterNames)
+    internal static object GetStyles(Visual visual, bool includeInactive, List<string>? filterNames)
     {
-        var nodeId = NodeRegistry.GetOrRegister(visual);
-        if (visual is not StyledElement styled)
-            return new { error = "selector did not resolve to a StyledElement", nodeId };
-
-        var styles = new List<object>();
-
-        if (styled is AvaloniaObject ao)
+        HashSet<AvaloniaProperty>? filter = null;
+        if (filterNames is not null)
         {
-            var props = AvaloniaPropertyRegistry.Instance.GetRegistered(ao);
-            foreach (var prop in props)
+            filter = [];
+            foreach (var name in filterNames)
             {
-                if (filterNames is not null && !filterNames.Contains(prop.Name, StringComparer.OrdinalIgnoreCase))
-                    continue;
-
-                try
-                {
-                    var diag = ao.GetDiagnostic(prop);
-                    if (!includeDefaults && !ao.IsSet(prop))
-                        continue;
-
-                    var value = ao.GetValue(prop);
-                    styles.Add(new
-                    {
-                        property = prop.Name,
-                        value = value?.ToString(),
-                        type = prop.PropertyType.Name,
-                        source = diag?.Priority.ToString() ?? "unknown"
-                    });
-                }
-                catch { }
+                var (property, error) = PropertyLookup.Resolve(visual, name);
+                if (error is not null)
+                    return error;
+                filter.Add(property!);
             }
         }
-
-        var appliedClasses = styled.Classes.ToList();
-
-        return new
-        {
-            nodeId,
-            classes = appliedClasses,
-            setters = styles
-        };
+        return PropertyProvenanceInspector.Styles(visual, includeInactive, filter);
     }
 }

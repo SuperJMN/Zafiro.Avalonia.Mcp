@@ -24,6 +24,7 @@ public sealed class RequestDispatcher
 
         // Properties & Styles
         Register(new PropertyHandler());
+        Register(new ExplainPropertyHandler());
         Register(new SetPropertyHandler());
         Register(new StylesHandler());
         Register(new PropertyValuesHandler());

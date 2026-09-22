@@ -9,7 +9,7 @@ namespace Zafiro.Avalonia.Mcp.Tool.Tools;
 public sealed class PropertyTools
 {
     [McpServerTool(Name = "get_props"), Description("""
-        Get Avalonia property values for an element. Pass propertyNames="Width,Height,Background" to limit output. Attached properties use the qualified Owner.Name form (for example Grid.Row), which can also be used in propertyNames. For applied styles use get_styles, for bindings use get_bindings.
+        Get Avalonia effective property values for an element. Pass propertyNames="Width,Height,Background" to limit output. Owner-qualified names, including attached properties such as Grid.Row, are supported. This is the inexpensive value query; use explain_property for provenance and get_styles for actual attached styles.
         Returns: array of {name, owner, value, type, priority}.
         Example: [{"name":"Width","owner":"Layoutable","value":"200","type":"Double","priority":"LocalValue"},{"name":"Grid.Row","owner":"Grid","value":"1","type":"Int32","priority":"LocalValue"}]
         """)]
@@ -58,21 +58,38 @@ public sealed class PropertyTools
     }
 
     [McpServerTool(Name = "get_styles"), Description("""
-        Get the styles currently applied to an element with their selectors and setters. Use to debug "why does this control look like that?". Set includeDefaults=true to also see unset/default values; filter via propertyNames.
-        Returns: array of {selector, setters:[{property, value}]}.
-        Example: [{"selector":"Button.primary","setters":[{"property":"Background","value":"#0066CC"}]}]
+        Inspect actual attached style and control-theme sources in one UI-thread snapshot, with normal classes separated from pseudoclasses. Set includeInactive=true to include inactive attached triggers; unknown activation is always reported. propertyNames filters setters by unambiguous owner-qualified property registration. Does not simulate selector matching or activate bindings.
+        Returns: {target:{sourceId,type,nodeId},timestamp,classState:{classes,pseudoClasses},styles:[{sourceId,kind,selector,scope,active,applicationState,priority,framePriority,frameOrder,setters:[{property,provider,wins,declarationOrder}]}],resolution:{status,unavailable,truncated}}. Providers describe declared/cached entries, not the target's overriding effective value. Results are bounded; unavailable source evidence is explicit.
+        Example: get_styles(selector="#Save",includeInactive=true,propertyNames="TemplatedControl.Background")
         """)]
     public static async Task<string> GetStyles(
         ConnectionPool pool,
         [Description("CSS-like selector identifying the element")] string selector,
-        [Description("Include default/unset values")] bool includeDefaults = false,
-        [Description("Optional property names to filter (comma-separated)")] string? propertyNames = null)
+        [Description("Include attached inactive styles and themes")] bool includeInactive = false,
+        [Description("Optional unambiguous property names to filter (comma-separated, at most 64)")] string? propertyNames = null)
     {
         var conn = pool.GetActive();
-        var parms = new Dictionary<string, object> { ["selector"] = selector, ["includeDefaults"] = includeDefaults };
+        var parms = new Dictionary<string, object> { ["selector"] = selector, ["includeInactive"] = includeInactive };
         if (propertyNames is not null)
             parms["propertyNames"] = propertyNames.Split(',', StringSplitOptions.TrimEntries);
 
         return await conn.InvokeAsync(ProtocolMethods.GetStyles, parms, "No styles");
+    }
+
+    [McpServerTool(Name = "explain_property"), Description("""
+        Explain why one Avalonia property has its effective value, using retained runtime entry identity rather than comparing values. Owner-qualified and attached property names are supported; ambiguous properties or elements are errors. Read-only, bounded, and captured with class/pseudoclass state in one timestamped UI-thread snapshot.
+        Returns: {target, timestamp, property:{id,name,owner,type,registrationKind,inherits},effectiveValue,priority,classState,origin,baseValue,isCurrentValueOverride,hasCoercion,isCoercedDefault,defaultValue,candidates?,resolution:{status,unavailable,truncated}}. origin/provider distinguish styles, themes, local bindings, template bindings, dynamic resources, inheritance, defaults and animations when retained. Direct properties have no styled priority stack. Lost AXAML locations, static-resource origins, assignment history and unsupported evidence are explicitly partial. Source IDs are shared with get_styles.
+        Example: explain_property(selector="#Save",propertyName="TemplatedControl.Background",includeCandidates=true,maxDepth=8)
+        """)]
+    public static async Task<string> ExplainProperty(
+        ConnectionPool pool,
+        [Description("Selector identifying exactly one element")] string selector,
+        [Description("Property name, qualified by its owner when ambiguous (for example Grid.Row)")] string propertyName,
+        [Description("Include competing retained runtime entries and why they did not win")] bool includeCandidates = false,
+        [Description("Maximum inheritance/resource trace depth, between 1 and 32")] int maxDepth = 8)
+    {
+        var connection = pool.GetActive();
+        return await connection.InvokeAsync(ProtocolMethods.ExplainProperty,
+            new { selector, propertyName, includeCandidates, maxDepth });
     }
 }
