@@ -88,7 +88,8 @@ public sealed class InstructionTools
         - search: Find elements by type or name
         - get_ancestors: Get parent chain to root
         - get_props: Read properties of an element
-        - get_styles: Get applied styles and classes
+        - get_styles: Inspect actual attached styles/themes, declared providers, classes and pseudoclasses
+        - explain_property: Explain a property's selected runtime source, competing entries and unavailable evidence
 
         Interaction:
         - click: Click a button or control
