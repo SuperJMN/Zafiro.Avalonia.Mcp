@@ -1,7 +1,9 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/SampleApp/SampleApp.csproj" />
-    <Project Path="samples/SampleApp.Android/SampleApp.Android.csproj" />
+    <Project Path="samples/SampleApp.Android/SampleApp.Android.csproj">
+      <Build Solution="Release|*" Project="false" />
+    </Project>
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Zafiro.Avalonia.Mcp.AppHost/Zafiro.Avalonia.Mcp.AppHost.csproj" />
