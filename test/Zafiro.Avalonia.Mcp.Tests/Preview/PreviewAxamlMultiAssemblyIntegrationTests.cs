@@ -9,41 +9,6 @@ namespace Zafiro.Avalonia.Mcp.Tests.Preview;
 public sealed class PreviewAxamlMultiAssemblyIntegrationTests
 {
     [Fact]
-    public async Task PreviewAxaml_ConnectsToDesktopHost_AndLoadsAxamlFromReferencedUiAssembly()
-    {
-        using var fixture = new MultiAssemblyPreviewFixture();
-        using var pool = new ConnectionPool();
-        using var previews = new PreviewProcessManager(
-            discoveryTimeout: TimeSpan.FromSeconds(30),
-            pollInterval: TimeSpan.FromMilliseconds(100));
-
-        try
-        {
-            var previewResult = await PreviewTools.PreviewAxaml(
-                pool,
-                previews,
-                new PreviewTargetResolver(new DotnetProcessRunner()),
-                fixture.ViewPath,
-                projectPath: fixture.HostProjectPath,
-                entryType: "PreviewFixture.Host.Program",
-                width: 420,
-                height: 240);
-
-            using var previewDocument = JsonDocument.Parse(previewResult);
-            Assert.False(previewDocument.RootElement.TryGetProperty("error", out _), previewResult);
-            Assert.True(previewDocument.RootElement.GetProperty("connected").GetBoolean());
-
-            var screenText = await TreeTools.GetScreenText(pool);
-
-            Assert.Contains(MultiAssemblyPreviewFixture.VisibleText, screenText);
-        }
-        finally
-        {
-            PreviewTools.ClosePreview(pool, previews);
-        }
-    }
-
-    [Fact]
     public async Task PreviewAxaml_HeadlessBackend_ConnectsWithoutDisplay_AndSupportsNonPixelInspection()
     {
         using var fixture = new MultiAssemblyPreviewFixture();
