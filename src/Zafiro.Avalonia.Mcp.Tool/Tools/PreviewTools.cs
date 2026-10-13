@@ -95,7 +95,9 @@ public sealed class PreviewTools
 internal static class PreviewErrorSerializer
 {
     public static string Serialize(string code, string message, string? suggested = null, object? details = null)
-        => JsonSerializer.Serialize(new
+    {
+        ToolFailure.Mark();
+        return JsonSerializer.Serialize(new
         {
             error = new
             {
@@ -105,4 +107,5 @@ internal static class PreviewErrorSerializer
                 details,
             },
         });
+    }
 }

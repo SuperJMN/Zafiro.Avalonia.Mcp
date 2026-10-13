@@ -33,6 +33,7 @@ builder.Services
         };
     })
     .WithStdioServerTransport()
+    .WithToolFailureTracking()
     .WithRegisteredTools();
 
 await builder.Build().RunAsync();

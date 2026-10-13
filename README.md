@@ -293,7 +293,9 @@ For the full grammar and recommended workflows, call `instructions` with `page='
 
 ## Error handling
 
-Every failure response carries a structured `DiagnosticError`:
+Failed tool calls return an MCP `CallToolResult` with `isError: true`; the text keeps the code and hint (`Error [NO_MATCH]: ... Hint: ...`), so clients can branch on `isError` without parsing it.
+
+Inside the AppHost protocol, every failure response carries a structured `DiagnosticError`:
 
 ```json
 {
