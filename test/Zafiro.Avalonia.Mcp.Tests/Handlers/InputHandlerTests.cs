@@ -21,7 +21,7 @@ public class InputHandlerTests
     }
 
     [Fact]
-    public void Click_SelectsTreeViewItem()
+    public void Click_SelectsTreeViewItem() => Dispatcher.UIThread.Invoke(() =>
     {
         var item = new TreeViewItem { Header = "Funded" };
 
@@ -36,7 +36,7 @@ public class InputHandlerTests
 
         Assert.True(json.GetProperty("success").GetBoolean());
         Assert.Equal("treeview_select", json.GetProperty("method").GetString());
-    }
+    });
 
     [Fact]
     public void Click_SelectsTreeViewOwnerItem() => Dispatcher.UIThread.Invoke(() =>
@@ -62,7 +62,7 @@ public class InputHandlerTests
     });
 
     [Fact]
-    public void Click_OpensButtonFlyout()
+    public void Click_OpensButtonFlyout() => Dispatcher.UIThread.Invoke(() =>
     {
         var flyout = new MenuFlyout();
         var button = new Button { Content = "Actions", Flyout = flyout };
@@ -79,7 +79,7 @@ public class InputHandlerTests
 
         Assert.True(json.GetProperty("success").GetBoolean());
         Assert.Equal("flyout", json.GetProperty("method").GetString());
-    }
+    });
 
     [Fact]
     public void Click_MenuItemCommand_ClosesOwningMenu() => Dispatcher.UIThread.Invoke(() =>
@@ -110,7 +110,7 @@ public class InputHandlerTests
     });
 
     [Fact]
-    public void Click_MenuItemCommand_EvaluatesCanExecuteOnceAndReportsObservedExecution()
+    public void Click_MenuItemCommand_EvaluatesCanExecuteOnceAndReportsObservedExecution() => Dispatcher.UIThread.Invoke(() =>
     {
         var command = new ChangingCanExecuteCommand();
         var menuItem = new MenuItem { Header = "Run", Command = command };
@@ -122,10 +122,10 @@ public class InputHandlerTests
         Assert.True(command.WasExecuted);
         var json = JsonSerializer.SerializeToElement(result, JsonOptions);
         Assert.Equal("menu_command", json.GetProperty("method").GetString());
-    }
+    });
 
     [Fact]
-    public void Click_Fallback_RaisesTypedPointerEvents()
+    public void Click_Fallback_RaisesTypedPointerEvents() => Dispatcher.UIThread.Invoke(() =>
     {
         var control = new Border
         {
@@ -148,10 +148,10 @@ public class InputHandlerTests
         var failure = Assert.IsType<HandlerErrorResult>(result);
         Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
         Assert.Contains("could not be verified", failure.Error.Message, StringComparison.OrdinalIgnoreCase);
-    }
+    });
 
     [Fact]
-    public void Click_DisabledButton_ReturnsStructuredFailureWithoutRaisingClick()
+    public void Click_DisabledButton_ReturnsStructuredFailureWithoutRaisingClick() => Dispatcher.UIThread.Invoke(() =>
     {
         var clicked = false;
         var button = new Button { IsEnabled = false };
@@ -163,10 +163,10 @@ public class InputHandlerTests
         Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
         Assert.Contains("disabled", failure.Error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(clicked);
-    }
+    });
 
     [Fact]
-    public void Click_CommandCannotExecute_ReturnsStructuredFailureWithoutExecuting()
+    public void Click_CommandCannotExecute_ReturnsStructuredFailureWithoutExecuting() => Dispatcher.UIThread.Invoke(() =>
     {
         var command = new RecordingCommand(canExecute: false);
         var button = new Button { Command = command };
@@ -177,10 +177,10 @@ public class InputHandlerTests
         Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
         Assert.Contains("disabled", failure.Error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(command.WasExecuted);
-    }
+    });
 
     [Fact]
-    public void Click_ButtonCommand_EvaluatesCanExecuteOnceAndReusesTheDecision()
+    public void Click_ButtonCommand_EvaluatesCanExecuteOnceAndReusesTheDecision() => Dispatcher.UIThread.Invoke(() =>
     {
         var command = new ChangingCanExecuteCommand();
         var button = new Button { Command = command };
@@ -192,7 +192,7 @@ public class InputHandlerTests
         Assert.True(command.WasExecuted);
         var json = JsonSerializer.SerializeToElement(result, JsonOptions);
         Assert.Equal("command", json.GetProperty("method").GetString());
-    }
+    });
 
     [Fact]
     public void Click_ButtonUnderDisabledAncestor_ReturnsStructuredFailureWithoutRaisingClick() => Dispatcher.UIThread.Invoke(() =>
@@ -221,7 +221,7 @@ public class InputHandlerTests
     });
 
     [Fact]
-    public void Click_TextBlockInsideButton_InvokesInteractiveAncestor()
+    public void Click_TextBlockInsideButton_InvokesInteractiveAncestor() => Dispatcher.UIThread.Invoke(() =>
     {
         var text = new TextBlock { Text = "Save" };
         var clicked = false;
@@ -241,20 +241,20 @@ public class InputHandlerTests
         Assert.True(json.GetProperty("success").GetBoolean());
         Assert.Equal(NodeRegistry.GetOrRegister(button), json.GetProperty("nodeId").GetInt32());
         Assert.Equal("click_event", json.GetProperty("method").GetString());
-    }
+    });
 
     [Fact]
-    public void Click_StandaloneTextBlock_ReturnsClearStructuredFailure()
+    public void Click_StandaloneTextBlock_ReturnsClearStructuredFailure() => Dispatcher.UIThread.Invoke(() =>
     {
         var result = InputHandler.Click(new TextBlock { Text = "Just text" });
 
         var failure = Assert.IsType<HandlerErrorResult>(result);
         Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
         Assert.Contains("interactive ancestor", failure.Error.Message, StringComparison.OrdinalIgnoreCase);
-    }
+    });
 
     [Fact]
-    public void Select_ReportsActualIndexAfterSynchronousSelectionEffects()
+    public void Select_ReportsActualIndexAfterSynchronousSelectionEffects() => Dispatcher.UIThread.Invoke(() =>
     {
         var list = new ListBox { ItemsSource = new[] { "First", "Second" } };
         list.SelectedIndex = 0;
@@ -270,10 +270,10 @@ public class InputHandlerTests
         var json = JsonSerializer.SerializeToElement(result, JsonOptions);
         Assert.True(json.GetProperty("success").GetBoolean());
         Assert.Equal(0, json.GetProperty("selectedIndex").GetInt32());
-    }
+    });
 
     [Fact]
-    public void Click_ListBoxItemThatIsNotAContainer_DoesNotClaimSelection()
+    public void Click_ListBoxItemThatIsNotAContainer_DoesNotClaimSelection() => Dispatcher.UIThread.Invoke(() =>
     {
         var item = new ListBoxItem { Content = "Detached container" };
         var list = new ListBox
@@ -290,7 +290,7 @@ public class InputHandlerTests
         var failure = Assert.IsType<HandlerErrorResult>(result);
         Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
         Assert.Contains("container", failure.Error.Message, StringComparison.OrdinalIgnoreCase);
-    }
+    });
 
     private sealed class RecordingCommand : ICommand
     {

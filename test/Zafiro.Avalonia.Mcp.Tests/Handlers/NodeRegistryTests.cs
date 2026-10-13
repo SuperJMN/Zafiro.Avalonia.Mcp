@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 using Xunit;
 
@@ -13,7 +14,7 @@ public class NodeRegistryTests
     }
 
     [Fact]
-    public void Register_AssignsUniqueIds()
+    public void Register_AssignsUniqueIds() => Dispatcher.UIThread.Invoke(() =>
     {
         var a = new Control();
         var b = new Control();
@@ -26,10 +27,10 @@ public class NodeRegistryTests
         Assert.NotEqual(idA, idB);
         Assert.NotEqual(idB, idC);
         Assert.NotEqual(idA, idC);
-    }
+    });
 
     [Fact]
-    public void Resolve_ReturnsRegisteredVisual()
+    public void Resolve_ReturnsRegisteredVisual() => Dispatcher.UIThread.Invoke(() =>
     {
         var control = new Control();
         var id = NodeRegistry.Register(control);
@@ -37,38 +38,38 @@ public class NodeRegistryTests
         var resolved = NodeRegistry.Resolve(id);
 
         Assert.Same(control, resolved);
-    }
+    });
 
     [Fact]
-    public void Resolve_ReturnsNull_ForUnknownId()
+    public void Resolve_ReturnsNull_ForUnknownId() => Dispatcher.UIThread.Invoke(() =>
     {
         var result = NodeRegistry.Resolve(99999);
 
         Assert.Null(result);
-    }
+    });
 
     [Fact]
-    public void GetOrRegister_ReturnsSameId_ForSameVisual()
+    public void GetOrRegister_ReturnsSameId_ForSameVisual() => Dispatcher.UIThread.Invoke(() =>
     {
         var control = new Control();
         var id1 = NodeRegistry.Register(control);
         var id2 = NodeRegistry.GetOrRegister(control);
 
         Assert.Equal(id1, id2);
-    }
+    });
 
     [Fact]
-    public void GetOrRegister_RegistersNew_ForNewVisual()
+    public void GetOrRegister_RegistersNew_ForNewVisual() => Dispatcher.UIThread.Invoke(() =>
     {
         var control = new Control();
         var id = NodeRegistry.GetOrRegister(control);
 
         var resolved = NodeRegistry.Resolve(id);
         Assert.Same(control, resolved);
-    }
+    });
 
     [Fact]
-    public void Clear_RemovesAllNodes()
+    public void Clear_RemovesAllNodes() => Dispatcher.UIThread.Invoke(() =>
     {
         var a = new Control();
         var b = new Control();
@@ -79,5 +80,5 @@ public class NodeRegistryTests
 
         Assert.Null(NodeRegistry.Resolve(idA));
         Assert.Null(NodeRegistry.Resolve(idB));
-    }
+    });
 }

@@ -75,20 +75,20 @@ public class ProvenanceProtocolTests
     [Theory]
     [InlineData(0)]
     [InlineData(33)]
-    public void InvalidDepth_IsRejectedBeforeTargetInspection(int maxDepth)
+    public void InvalidDepth_IsRejectedBeforeTargetInspection(int maxDepth) => Dispatcher.UIThread.Invoke(() =>
     {
         var result = Dispatch(ProtocolMethods.ExplainProperty, new { selector = "Border", propertyName = "Width", maxDepth });
         Assert.Equal(DiagnosticErrorCodes.InvalidParam, result.ErrorInfo!.Code);
-    }
+    });
 
     [Theory]
     [InlineData(ProtocolMethods.ExplainProperty)]
     [InlineData(ProtocolMethods.GetStyles)]
-    public void NonObjectParameters_AreExplicitlyRejected(string method)
+    public void NonObjectParameters_AreExplicitlyRejected(string method) => Dispatcher.UIThread.Invoke(() =>
     {
         var result = Dispatch(method, new[] { "not", "parameters" });
         Assert.Equal(DiagnosticErrorCodes.InvalidParam, result.ErrorInfo!.Code);
-    }
+    });
 
     private static DiagnosticResponse Dispatch(string method, object parameters)
     {

@@ -19,7 +19,7 @@ public class ClickPointerFallbackTests
     }
 
     [Fact]
-    public void ClickAndWait_DoesNotThrow_WhenPointerFallbackTargetsNonButtonControl()
+    public void ClickAndWait_DoesNotThrow_WhenPointerFallbackTargetsNonButtonControl() => Dispatcher.UIThread.Invoke(() =>
     {
         var target = CreateTarget();
         var pressed = false;
@@ -44,7 +44,7 @@ public class ClickPointerFallbackTests
         Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, failure.Error.Code);
         Assert.True(pressed);
         Assert.True(released);
-    }
+    });
 
     [Fact]
     public void ClickAndWait_PropagatesPointerFallbackFailureWithoutWrappingIt()

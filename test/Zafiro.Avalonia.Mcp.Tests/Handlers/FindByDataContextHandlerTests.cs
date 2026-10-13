@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
@@ -32,7 +33,7 @@ public class FindByDataContextHandlerTests
     }
 
     [Fact]
-    public void FindByDataContext_StubEvaluator_FiltersCorrectly()
+    public void FindByDataContext_StubEvaluator_FiltersCorrectly() => Dispatcher.UIThread.Invoke(() =>
     {
         // Build a scoped visual tree directly on the test thread (no window or dispatcher needed)
         var b1 = new Button { Name = "B1", DataContext = new VmItem(1, "First") };
@@ -48,10 +49,10 @@ public class FindByDataContextHandlerTests
 
         Assert.Single(matches);
         Assert.Same(b2, matches[0]);
-    }
+    });
 
     [Fact]
-    public void FindByDataContext_StubEvaluator_ReturnsBothWhenNoFilter()
+    public void FindByDataContext_StubEvaluator_ReturnsBothWhenNoFilter() => Dispatcher.UIThread.Invoke(() =>
     {
         var b1 = new Button { Name = "B1", DataContext = new VmItem(1, "First") };
         var b2 = new Button { Name = "B2", DataContext = new VmItem(2, "Second") };
@@ -65,7 +66,7 @@ public class FindByDataContextHandlerTests
         var matches = engine.Resolve("Button[dc:'Id > 0']", sp);
 
         Assert.Equal(2, matches.Count);
-    }
+    });
 
     private sealed class StubEvaluator : IDataContextPredicateEvaluator
     {
