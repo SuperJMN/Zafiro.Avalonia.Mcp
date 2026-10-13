@@ -445,6 +445,13 @@ internal interface IPreviewHostDependencyResolver
 
 internal sealed class PreviewHostDependencyResolver : IPreviewHostDependencyResolver
 {
+    private readonly string? currentDirectory;
+
+    public PreviewHostDependencyResolver(string? currentDirectory = null)
+    {
+        this.currentDirectory = currentDirectory;
+    }
+
     public PreviewHostDependency Resolve()
     {
         var sourceProject = FindSourceAppHostProject();
@@ -453,7 +460,7 @@ internal sealed class PreviewHostDependencyResolver : IPreviewHostDependencyReso
             : new PreviewHostDependency(null, ResolvePackageVersion());
     }
 
-    private static string? FindSourceAppHostProject()
+    private string? FindSourceAppHostProject()
     {
         foreach (var root in SourceSearchRoots())
         {
@@ -478,9 +485,9 @@ internal sealed class PreviewHostDependencyResolver : IPreviewHostDependencyReso
         return null;
     }
 
-    private static IEnumerable<string> SourceSearchRoots()
+    private IEnumerable<string> SourceSearchRoots()
     {
-        yield return Environment.CurrentDirectory;
+        yield return currentDirectory ?? Environment.CurrentDirectory;
         yield return AppContext.BaseDirectory;
 
         var assemblyDirectory = Path.GetDirectoryName(typeof(PreviewHostDependencyResolver).Assembly.Location);

@@ -10,21 +10,12 @@ public sealed class PreviewHostProjectBuilderTests
     public void DependencyResolver_FindsSourceAppHostProject_FromCurrentDirectory()
     {
         using var temp = new TempHostProject();
-        var previousDirectory = Environment.CurrentDirectory;
 
-        try
-        {
-            Environment.CurrentDirectory = temp.Root;
+        // Inject the directory instead of changing the process-wide one: tests that start processes run in parallel.
+        var dependency = new PreviewHostDependencyResolver(temp.Root).Resolve();
 
-            var dependency = new PreviewHostDependencyResolver().Resolve();
-
-            Assert.Equal(temp.AppHostProjectPath, dependency.AppHostProjectPath);
-            Assert.Null(dependency.AppHostPackageVersion);
-        }
-        finally
-        {
-            Environment.CurrentDirectory = previousDirectory;
-        }
+        Assert.Equal(temp.AppHostProjectPath, dependency.AppHostProjectPath);
+        Assert.Null(dependency.AppHostPackageVersion);
     }
 
     [Fact]

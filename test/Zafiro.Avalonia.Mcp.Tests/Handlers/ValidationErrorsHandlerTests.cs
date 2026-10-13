@@ -14,7 +14,7 @@ public class ValidationErrorsHandlerTests
     public ValidationErrorsHandlerTests(AvaloniaTestFixture _) { }
 
     [Fact]
-    public void Returns_EmptyList_WhenNoErrors()
+    public void Returns_EmptyList_WhenNoErrors() => Dispatcher.UIThread.Invoke(() =>
     {
         var clean = new TextBox { Name = "clean" };
 
@@ -22,10 +22,10 @@ public class ValidationErrorsHandlerTests
 
         Assert.Equal(0, result.GetProperty("count").GetInt32());
         Assert.Equal(0, result.GetProperty("items").GetArrayLength());
-    }
+    });
 
     [Fact]
-    public void Returns_Item_WhenControlHasValidationError()
+    public void Returns_Item_WhenControlHasValidationError() => Dispatcher.UIThread.Invoke(() =>
     {
         var textBox = new TextBox { Name = "emailBox" };
         DataValidationErrors.SetErrors(textBox, [new Exception("required")]);
@@ -41,10 +41,10 @@ public class ValidationErrorsHandlerTests
         Assert.Equal(1, errors.GetArrayLength());
         Assert.Equal("required", errors[0].GetProperty("message").GetString());
         Assert.Equal("Exception", errors[0].GetProperty("source").GetString());
-    }
+    });
 
     [Fact]
-    public void Returns_Only_ErrorControls_Not_CleanOnes()
+    public void Returns_Only_ErrorControls_Not_CleanOnes() => Dispatcher.UIThread.Invoke(() =>
     {
         var clean = new TextBox { Name = "clean" };
         var dirty = new TextBox { Name = "dirty" };
@@ -54,7 +54,7 @@ public class ValidationErrorsHandlerTests
 
         Assert.Equal(1, result.GetProperty("count").GetInt32());
         Assert.Equal("dirty", result.GetProperty("items")[0].GetProperty("name").GetString());
-    }
+    });
 
     [Fact]
     public void Scope_IsApp_WhenScanningWithoutOverride()
@@ -65,7 +65,7 @@ public class ValidationErrorsHandlerTests
     }
 
     [Fact]
-    public void MultipleErrors_AllReported()
+    public void MultipleErrors_AllReported() => Dispatcher.UIThread.Invoke(() =>
     {
         var textBox = new TextBox { Name = "field" };
         DataValidationErrors.SetErrors(textBox, [new Exception("error1"), new Exception("error2")]);
@@ -74,7 +74,7 @@ public class ValidationErrorsHandlerTests
 
         Assert.Equal(1, result.GetProperty("count").GetInt32());
         Assert.Equal(2, result.GetProperty("items")[0].GetProperty("errors").GetArrayLength());
-    }
+    });
 
     private static JsonElement Scan(string? selector, IEnumerable<Control>? candidates) =>
         JsonSerializer.SerializeToElement(ValidationErrorsHandler.ScanForErrors(selector, candidates));

@@ -19,7 +19,7 @@ public class CommandInfoHandlerTests
     }
 
     [Fact]
-    public void EnabledCommand_Returns_EnableReason_Enabled()
+    public void EnabledCommand_Returns_EnableReason_Enabled() => Dispatcher.UIThread.Invoke(() =>
     {
         var btn = new Button { Command = new TestCommand(canExecute: true) };
 
@@ -28,7 +28,7 @@ public class CommandInfoHandlerTests
         Assert.Equal("enabled", r.enableReason);
         Assert.True(r.canExecute);
         Assert.True(r.isEnabled);
-    }
+    });
 
     [Fact]
     public void CannotExecute_Returns_EnableReason_CommandCannotExecute()
@@ -56,7 +56,7 @@ public class CommandInfoHandlerTests
     }
 
     [Fact]
-    public void IsEnabledFalse_NoCommand_Returns_EnableReason_IsEnabledFalse()
+    public void IsEnabledFalse_NoCommand_Returns_EnableReason_IsEnabledFalse() => Dispatcher.UIThread.Invoke(() =>
     {
         var btn = new Button { IsEnabled = false };
 
@@ -64,10 +64,10 @@ public class CommandInfoHandlerTests
 
         Assert.Equal("is_enabled_false", r.enableReason);
         Assert.False(r.isEnabled);
-    }
+    });
 
     [Fact]
-    public void ParentPanelDisabled_Returns_EnableReason_ParentDisabled()
+    public void ParentPanelDisabled_Returns_EnableReason_ParentDisabled() => Dispatcher.UIThread.Invoke(() =>
     {
         var btn = new Button { Command = new TestCommand(canExecute: true) };
         var panel = new StackPanel { IsEnabled = false };
@@ -76,10 +76,10 @@ public class CommandInfoHandlerTests
         var r = CommandInfoHandler.Analyze(btn);
 
         Assert.Equal("parent_disabled", r.enableReason);
-    }
+    });
 
     [Fact]
-    public void NoCommand_Returns_NullCommandType_AndEnabledReason()
+    public void NoCommand_Returns_NullCommandType_AndEnabledReason() => Dispatcher.UIThread.Invoke(() =>
     {
         var btn = new Button();
 
@@ -89,10 +89,10 @@ public class CommandInfoHandlerTests
         Assert.Null(r.canExecute);
         Assert.True(r.isEnabled);
         Assert.Equal("enabled", r.enableReason);
-    }
+    });
 
     [Fact]
-    public void CommandWithParameter_Passes_ParameterStringToResult()
+    public void CommandWithParameter_Passes_ParameterStringToResult() => Dispatcher.UIThread.Invoke(() =>
     {
         var btn = new Button
         {
@@ -104,7 +104,7 @@ public class CommandInfoHandlerTests
 
         Assert.Equal("hello", r.parameter);
         Assert.True(r.canExecute);
-    }
+    });
 }
 
 internal sealed class TestCommand : ICommand

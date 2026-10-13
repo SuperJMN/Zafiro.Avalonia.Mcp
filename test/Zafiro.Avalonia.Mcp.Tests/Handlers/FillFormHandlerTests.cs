@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Avalonia.Controls.Primitives;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
@@ -8,8 +9,8 @@ using Zafiro.Avalonia.Mcp.Protocol.Messages;
 namespace Zafiro.Avalonia.Mcp.Tests.Handlers;
 
 /// <summary>
-/// Tests for FillFormHandler.FillFormCore — driven through a synthetic resolver so the
-/// dispatcher is never engaged (avoids the headless SetupWithoutStarting() deadlock).
+/// Tests for FillFormHandler.FillFormCore — driven through a synthetic resolver. Controls are
+/// created on the UI thread because Avalonia binds every object to the dispatcher of its creating thread.
 /// </summary>
 [Collection("Avalonia")]
 public class FillFormHandlerTests
@@ -35,7 +36,7 @@ public class FillFormHandlerTests
     }
 
     [Fact]
-    public void FillForm_AllSucceed_ForTextBoxCheckBoxAndSlider()
+    public void FillForm_AllSucceed_ForTextBoxCheckBoxAndSlider() => Dispatcher.UIThread.Invoke(() =>
     {
         var email = new TextBox();
         var remember = new CheckBox();
@@ -67,10 +68,10 @@ public class FillFormHandlerTests
         Assert.True(remember.IsChecked);
         Assert.Equal(75, volume.Value);
         Assert.Null(response.Submit);
-    }
+    });
 
     [Fact]
-    public void FillForm_MixedOutcomes_DoesNotAbort_AndReportsEachField()
+    public void FillForm_MixedOutcomes_DoesNotAbort_AndReportsEachField() => Dispatcher.UIThread.Invoke(() =>
     {
         var goodBox = new TextBox();
         var slider = new Slider { Minimum = 0, Maximum = 100 };
@@ -103,10 +104,10 @@ public class FillFormHandlerTests
 
         Assert.False(response.Results[2].Ok);
         Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, response.Results[2].ErrorInfo!.Code);
-    }
+    });
 
     [Fact]
-    public void FillForm_Submit_Click_Succeeds_WhenSelectorResolves()
+    public void FillForm_Submit_Click_Succeeds_WhenSelectorResolves() => Dispatcher.UIThread.Invoke(() =>
     {
         var box = new TextBox();
         var clicked = false;
@@ -125,10 +126,10 @@ public class FillFormHandlerTests
         Assert.NotNull(response.Submit);
         Assert.True(response.Submit!.Ok);
         Assert.True(clicked);
-    }
+    });
 
     [Fact]
-    public void FillForm_Submit_Failure_WhenSelectorMatchesNothing()
+    public void FillForm_Submit_Failure_WhenSelectorMatchesNothing() => Dispatcher.UIThread.Invoke(() =>
     {
         var box = new TextBox();
         var resolver = ResolverFor(new() { ["TextBox#Email"] = box });
@@ -139,10 +140,10 @@ public class FillFormHandlerTests
         Assert.NotNull(response.Submit);
         Assert.False(response.Submit!.Ok);
         Assert.Equal(DiagnosticErrorCodes.NoMatch, response.Submit.ErrorInfo!.Code);
-    }
+    });
 
     [Fact]
-    public void FillForm_Submit_Failure_WhenResolvedButtonIsDisabled()
+    public void FillForm_Submit_Failure_WhenResolvedButtonIsDisabled() => Dispatcher.UIThread.Invoke(() =>
     {
         var box = new TextBox();
         var button = new Button { IsEnabled = false };
@@ -158,10 +159,10 @@ public class FillFormHandlerTests
         Assert.NotNull(response.Submit);
         Assert.False(response.Submit!.Ok);
         Assert.Equal(DiagnosticErrorCodes.UnsupportedOperation, response.Submit.ErrorInfo!.Code);
-    }
+    });
 
     [Fact]
-    public void FillForm_RunsSubmit_EvenWhenAFieldFailed()
+    public void FillForm_RunsSubmit_EvenWhenAFieldFailed() => Dispatcher.UIThread.Invoke(() =>
     {
         var box = new TextBox();
         var clicked = false;
@@ -185,10 +186,10 @@ public class FillFormHandlerTests
         Assert.Equal(1, response.FailureCount);
         Assert.True(response.Submit!.Ok);
         Assert.True(clicked);
-    }
+    });
 
     [Fact]
-    public void FillForm_Secret_Redacts_AppliedValue()
+    public void FillForm_Secret_Redacts_AppliedValue() => Dispatcher.UIThread.Invoke(() =>
     {
         var pwd = new TextBox();
         var resolver = ResolverFor(new() { ["TextBox#Password"] = pwd });
@@ -200,10 +201,10 @@ public class FillFormHandlerTests
         Assert.Equal("value (redacted)", response.Results[0].Applied);
         // The actual value still gets applied to the control:
         Assert.Equal("hunter2", pwd.Text);
-    }
+    });
 
     [Fact]
-    public void FillForm_Field_WithNoValueKey_ReturnsInvalidParam()
+    public void FillForm_Field_WithNoValueKey_ReturnsInvalidParam() => Dispatcher.UIThread.Invoke(() =>
     {
         var box = new TextBox();
         var resolver = ResolverFor(new() { ["TextBox#X"] = box });
@@ -213,10 +214,10 @@ public class FillFormHandlerTests
 
         Assert.False(response.Results[0].Ok);
         Assert.Equal(DiagnosticErrorCodes.InvalidParam, response.Results[0].ErrorInfo!.Code);
-    }
+    });
 
     [Fact]
-    public void FillForm_Select_ByText_MatchesItem()
+    public void FillForm_Select_ByText_MatchesItem() => Dispatcher.UIThread.Invoke(() =>
     {
         var combo = new ComboBox();
         combo.ItemsSource = new[] { "France", "Spain", "Germany" };
@@ -228,5 +229,5 @@ public class FillFormHandlerTests
         Assert.True(response.Results[0].Ok);
         Assert.Equal("select", response.Results[0].Applied);
         Assert.Equal(1, combo.SelectedIndex);
-    }
+    });
 }
