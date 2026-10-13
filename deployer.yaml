@@ -1,3 +1,8 @@
+# DotnetDeployer configuration
+# Publishes the Zafiro.Avalonia.Mcp packages (AppHost, Protocol and Tool) to NuGet.
+# Run locally with `dnx dotnetdeployer.tool` (dry run: add `--dry-run`),
+# or let a DotnetDeployer.Fleet worker run it automatically on every commit.
+
 nuget:
   enabled: true
   source: https://api.nuget.org/v3/index.json

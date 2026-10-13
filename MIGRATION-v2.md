@@ -159,4 +159,4 @@ git tag -a v2.0.0 -m "v2.0.0 — universal selector API, structured errors, diag
 git push origin v2.0.0
 ```
 
-The CI pipeline (`azure-pipelines.yml`) and `deployer.yaml` pick up the tag and publish the NuGet packages.
+The DotnetDeployer.Fleet worker runs `deployer.yaml`, picks up the tag and publishes the NuGet packages.
