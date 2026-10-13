@@ -288,6 +288,22 @@ public class SelectorEngineTests
     }
 
     [Fact]
+    public void Resolves_ByClass_ScopedAndCaseSensitive()
+    {
+        var (root, primary) = Run(() =>
+        {
+            var primary = new Button { Content = "Save", Classes = { "Primary" } };
+            var plain = new Button { Content = "Cancel" };
+            var inner = new StackPanel { Children = { primary, plain } };
+            return ((Visual)new Border { Child = inner }, primary);
+        });
+
+        Assert.Equal(new Visual[] { primary }, Run(() => _engine.Resolve("Button.Primary", root)));
+        Assert.Equal(new Visual[] { primary }, Run(() => _engine.Resolve("StackPanel .Primary", root)));
+        Assert.Empty(Run(() => _engine.Resolve(".primary", root)));
+    }
+
+    [Fact]
     public void NoMatch_Empty()
     {
         var (root, _) = BuildTree();

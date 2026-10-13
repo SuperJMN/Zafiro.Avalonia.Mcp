@@ -191,6 +191,7 @@ internal static class ToolsCatalogue
         sb.AppendLine("```");
         sb.AppendLine("TextBox#42                          → by nodeId");
         sb.AppendLine("TextBox#Username                    → by x:Name");
+        sb.AppendLine("Button.Primary                      → by style class (case-sensitive)");
         sb.AppendLine("Button:has-text(\"Sign in\")          → by visible text");
         sb.AppendLine("Button:enabled:visible              → by state pseudo-classes");
         sb.AppendLine("ListBoxItem[dc.Id=42]               → by DataContext property");
