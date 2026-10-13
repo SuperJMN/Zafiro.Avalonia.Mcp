@@ -1,8 +1,6 @@
-using System.Globalization;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Media;
 using Avalonia.Threading;
 using Zafiro.Avalonia.Mcp.AppHost.Selectors;
 using Zafiro.Avalonia.Mcp.Protocol;
@@ -40,59 +38,39 @@ public sealed class SetPropertyHandler : IRequestHandler
         var nodeId = NodeRegistry.GetOrRegister(visual);
         if (visual is not AvaloniaObject ao) return new { error = $"selector did not resolve to AvaloniaObject", nodeId };
 
-        if (value is null or "unset")
+        var prop = FindProperty(ao, propName);
+        if (prop is null)
+            return HandlerResult.InvalidParam("propertyName", $"Property '{propName}' not found on {visual.GetType().Name}");
+
+        if (value is null or PropertyValueConverter.UnsetToken)
         {
-            var propToUnset = FindProperty(ao, propName);
-            if (propToUnset is not null)
-            {
-                ao.ClearValue(propToUnset);
-                return new { success = true, nodeId, property = propName, action = "unset" };
-            }
-            return new { error = $"Property '{propName}' not found", nodeId };
+            ao.ClearValue(prop);
+            return new { success = true, nodeId, property = prop.Name, action = "unset" };
         }
 
-        var prop = FindProperty(ao, propName);
-        if (prop is null) return new { error = $"Property '{propName}' not found", nodeId };
-
-        var converted = ConvertValue(value, prop.PropertyType);
-        if (converted is null) return new { error = $"Cannot convert '{value}' to {prop.PropertyType.Name}", nodeId };
+        if (!PropertyValueConverter.TryConvert(value, prop.PropertyType, out var converted))
+        {
+            var typeName = PropertyValueConverter.DisplayName(prop.PropertyType);
+            var hint = PropertyValueConverter.FormatHint(prop.PropertyType) is { } format
+                ? $"Expected {format}."
+                : $"Call get_prop_values for the accepted values of {prop.Name}.";
+            if (PropertyValueConverter.AcceptsNull(prop.PropertyType))
+                hint += $" Use '{PropertyValueConverter.NullToken}' to assign null or 'unset' to clear the local value.";
+            return HandlerResult.Error(
+                DiagnosticErrorCodes.InvalidParam,
+                $"Cannot convert '{value}' to {typeName}",
+                hint,
+                new { param = "value", property = prop.Name, type = typeName });
+        }
 
         ao.SetValue(prop, converted);
-        return new { success = true, nodeId, property = propName, value };
+        return converted is null
+            ? new { success = true, nodeId, property = prop.Name, action = "null" }
+            : (object)new { success = true, nodeId, property = prop.Name, value };
     }
 
     private static AvaloniaProperty? FindProperty(AvaloniaObject ao, string name) =>
         AvaloniaPropertyRegistry.Instance.GetRegistered(ao)
             .Concat(AvaloniaPropertyRegistry.Instance.GetRegisteredAttached(ao.GetType()))
             .FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-
-    private static object? ConvertValue(string value, Type targetType)
-    {
-        if (targetType == typeof(string) || targetType == typeof(object)) return value;
-        if (targetType == typeof(bool)) return bool.TryParse(value, out var b) ? b : null;
-        if (targetType == typeof(int)) return int.TryParse(value, out var i) ? i : null;
-        if (targetType == typeof(double)) return double.TryParse(value, CultureInfo.InvariantCulture, out var d) ? d : null;
-        if (targetType == typeof(float)) return float.TryParse(value, CultureInfo.InvariantCulture, out var f) ? f : null;
-        if (targetType.IsEnum) return Enum.TryParse(targetType, value, true, out var e) ? e : null;
-
-        if (targetType == typeof(Thickness))
-        {
-            var parts = value.Split(',').Select(s => double.Parse(s.Trim(), CultureInfo.InvariantCulture)).ToArray();
-            return parts.Length switch
-            {
-                1 => new Thickness(parts[0]),
-                2 => new Thickness(parts[0], parts[1]),
-                4 => new Thickness(parts[0], parts[1], parts[2], parts[3]),
-                _ => null
-            };
-        }
-
-        if (targetType == typeof(IBrush) || targetType == typeof(ISolidColorBrush) || targetType == typeof(Brush))
-        {
-            if (Color.TryParse(value, out var color))
-                return new SolidColorBrush(color);
-        }
-
-        return null;
-    }
 }

@@ -27,7 +27,7 @@ public sealed class PropertyTools
     }
 
     [McpServerTool(Name = "set_prop"), Description("""
-        Set a property value. Strings are parsed to the property's type; pass value="unset" to clear. Set isXamlValue=true for XAML markup like brushes ("#FF0000") or transforms. For numeric Slider/NumericUpDown values prefer set_value. Use get_prop_values first to know valid options.
+        Set a property value. Strings are parsed to the property's type (nullable types accept their underlying values; dates use ISO 8601 such as 2026-01-15). Pass value="unset" to clear the local value, or value="{x:Null}" to assign null when the type is nullable. Set isXamlValue=true for XAML markup like brushes ("#FF0000") or transforms. For numeric Slider/NumericUpDown values prefer set_value. Use get_prop_values first to know valid options.
         Returns: confirmation with the new value.
         Example: "Set Background = #FF0000 on Border#7"
         """)]
@@ -44,9 +44,9 @@ public sealed class PropertyTools
     }
 
     [McpServerTool(Name = "get_prop_values"), Description("""
-        Get the allowed values for a property: enum members, true/false for booleans, or TypeConverter standard values. Call BEFORE set_prop to discover valid input.
-        Returns: array of allowed string values, or null if unconstrained.
-        Example: ["Left","Center","Right","Stretch"]
+        Get the allowed values for a property: enum members, true/false for booleans, or TypeConverter standard values. Call BEFORE set_prop to discover valid input; set_prop accepts exactly this contract.
+        Returns: {propertyName, type, nullable, nullValue?, values, format?, note?}. values is null if unconstrained; nullValue is the token that assigns null.
+        Example: {"propertyName":"IsChecked","type":"Boolean","nullable":true,"nullValue":"{x:Null}","values":["true","false"]}
         """)]
     public static async Task<string> GetPropertyValues(
         ConnectionPool pool,
