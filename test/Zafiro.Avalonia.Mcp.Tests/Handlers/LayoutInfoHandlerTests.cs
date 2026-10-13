@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Xunit;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
 
@@ -207,5 +208,55 @@ public class LayoutInfoHandlerTests
 
         Assert.True(doc.GetProperty("isMeasureValid").GetBoolean());
         Assert.True(doc.GetProperty("isArrangeValid").GetBoolean());
+    }
+
+    [Fact]
+    public void Placement_SeparatesRootRelativeAndScreenBounds()
+    {
+        var (doc, windowId, origin) = Run(() =>
+        {
+            var marker = new Border { Width = 30, Height = 20 };
+            Canvas.SetLeft(marker, 80);
+            Canvas.SetTop(marker, 40);
+            var window = new Window
+            {
+                Width = 300,
+                Height = 200,
+                Content = new Canvas { Children = { marker } },
+            };
+            window.Show();
+            try
+            {
+                return (Analyze(marker), NodeRegistry.GetOrRegister(window), window.PointToScreen(default));
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+
+        var root = doc.GetProperty("root");
+        Assert.Equal(windowId, root.GetProperty("nodeId").GetInt32());
+        var scaling = root.GetProperty("renderScaling").GetDouble();
+
+        var rootBounds = doc.GetProperty("rootBounds");
+        Assert.Equal((80d, 40d, 30d, 20d), (
+            rootBounds.GetProperty("x").GetDouble(), rootBounds.GetProperty("y").GetDouble(),
+            rootBounds.GetProperty("w").GetDouble(), rootBounds.GetProperty("h").GetDouble()));
+
+        var screenBounds = doc.GetProperty("screenBounds");
+        Assert.Equal("px", screenBounds.GetProperty("unit").GetString());
+        // Offset by the root's own screen origin, so popups and windows share one space.
+        Assert.Equal(origin.X + (int)(80 * scaling), screenBounds.GetProperty("x").GetInt32());
+        Assert.Equal(origin.Y + (int)(40 * scaling), screenBounds.GetProperty("y").GetInt32());
+    }
+
+    [Fact]
+    public void Placement_IsNullWithoutTopLevel()
+    {
+        var doc = Run(() => Analyze(new Button()));
+
+        Assert.Equal(JsonValueKind.Null, doc.GetProperty("rootBounds").ValueKind);
+        Assert.Equal(JsonValueKind.Null, doc.GetProperty("screenBounds").ValueKind);
     }
 }

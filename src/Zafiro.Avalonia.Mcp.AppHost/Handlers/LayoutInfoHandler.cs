@@ -37,7 +37,11 @@ public sealed class LayoutInfoHandler : IRequestHandler
         var engine = new SelectorEngine();
         var matches = engine.Resolve(selector);
         if (matches.Count == 0)
-            return new { error = $"No element matched selector '{selector}'" };
+            return HandlerResult.Error(
+                DiagnosticErrorCodes.NoMatch,
+                $"No element matched selector '{selector}'",
+                "Check the selector or call get_snapshot to inspect available elements.",
+                new { selector });
 
         var visual = matches[0];
         var matchedCount = matches.Count;
@@ -47,30 +51,52 @@ public sealed class LayoutInfoHandler : IRequestHandler
     /// <summary>
     /// Builds the layout snapshot for a visual. Can be called directly in tests without a dispatcher.
     /// </summary>
+    /// <summary>
+    /// <c>rootBounds</c> are device-independent pixels relative to the containing window or popup
+    /// (<c>root</c>); they are only comparable between elements of the same root. <c>screenBounds</c>
+    /// are physical screen pixels, comparable across windows and popups.
+    /// </summary>
+    private static (object? root, object? rootBounds, object? screenBounds) GetPlacement(Visual visual, Rect bounds)
+    {
+        var topLevel = TopLevel.GetTopLevel(visual);
+        if (topLevel is null || visual.TransformToVisual(topLevel) is not { } transform)
+            return (null, null, null);
+
+        var local = new Rect(bounds.Size).TransformToAABB(transform);
+        var root = new
+        {
+            nodeId = NodeRegistry.GetOrRegister(topLevel),
+            type = topLevel.GetType().Name,
+            renderScaling = topLevel.RenderScaling,
+        };
+        var rootBounds = new { x = local.X, y = local.Y, w = local.Width, h = local.Height, unit = "dip" };
+
+        object? screenBounds = null;
+        try
+        {
+            var topLeft = topLevel.PointToScreen(local.TopLeft);
+            var bottomRight = topLevel.PointToScreen(local.BottomRight);
+            screenBounds = new
+            {
+                x = topLeft.X,
+                y = topLeft.Y,
+                w = bottomRight.X - topLeft.X,
+                h = bottomRight.Y - topLeft.Y,
+                unit = "px",
+            };
+        }
+        catch
+        {
+            // Platforms without screen placement still get root-relative bounds.
+        }
+
+        return (root, rootBounds, screenBounds);
+    }
+
     internal static object BuildResult(Visual visual, int? matchedCount = null)
     {
         var bounds = visual.Bounds;
-            object? screenBounds = null;
-            try
-            {
-                var topLevel = TopLevel.GetTopLevel(visual as Control);
-                if (topLevel is not null)
-                {
-                    var transform = visual.TransformToVisual(topLevel);
-                    if (transform.HasValue)
-                    {
-                        var origin = transform.Value.Transform(new Point(0, 0));
-                        screenBounds = new
-                        {
-                            x = origin.X,
-                            y = origin.Y,
-                            w = bounds.Width,
-                            h = bounds.Height
-                        };
-                    }
-                }
-            }
-            catch { }
+            var (root, rootBounds, screenBounds) = GetPlacement(visual, bounds);
 
             object? margin = null;
             object? padding = null;
@@ -155,6 +181,8 @@ public sealed class LayoutInfoHandler : IRequestHandler
             {
                 matchedCount,
                 bounds = new { x = bounds.X, y = bounds.Y, w = bounds.Width, h = bounds.Height },
+                root,
+                rootBounds,
                 screenBounds,
                 desiredSize = desiredSizeVal,
                 renderSize = new { w = bounds.Width, h = bounds.Height },
