@@ -27,6 +27,9 @@ public sealed record DataContextPredicateFilter(string Expression) : SelectorFil
 
 public sealed record PseudoFilter(string Name, string? Argument) : SelectorFilter;
 
+/// <summary>Matches a style class in Avalonia's <c>Classes</c> collection (case-sensitive, like Avalonia selectors).</summary>
+public sealed record ClassFilter(string Name) : SelectorFilter;
+
 public sealed record CompoundSelector(
     string? TypeName,
     int? NodeId,

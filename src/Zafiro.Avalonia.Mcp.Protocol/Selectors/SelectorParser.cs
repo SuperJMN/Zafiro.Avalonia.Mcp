@@ -7,10 +7,11 @@ namespace Zafiro.Avalonia.Mcp.Protocol.Selectors;
 ///   selectorList   := path ( "," path )*
 ///   path           := compound ( combinator compound )*
 ///   combinator     := ">>" | ">"     // descendant or direct child; whitespace = descendant
-///   compound       := ( type | "*" )? ( "#" id )? filter*
+///   compound       := ( type | "*" )? ( "#" id )? filter*   // no whitespace inside a compound
 ///   type           := IDENT
 ///   id             := DIGITS | IDENT
-///   filter         := "[" attr "]" | ":" pseudoClass
+///   filter         := "[" attr "]" | ":" pseudoClass | "." className
+///   className      := IDENT ( "-" IDENT )*                  // matches Avalonia's Classes
 ///   attr           := path op value
 ///                  | "dc:" predicateString
 ///   path           := IDENT ( "." IDENT )*
@@ -22,6 +23,8 @@ namespace Zafiro.Avalonia.Mcp.Protocol.Selectors;
 ///   Button
 ///   Button#42
 ///   #42
+///   Button.primary
+///   Panel .primary      // descendant with class "primary"
 ///   Button[Name=Save]
 ///   Button:has-text("Sign in"):enabled
 ///   ListBoxItem[dc.Id=42]
@@ -72,6 +75,7 @@ public static class SelectorParser
         string? typeName = null;
         int? nodeId = null;
         var filters = new List<SelectorFilter>();
+        var start = p.Index;
 
         if (p.Match(TokenKind.Star))
         {
@@ -84,6 +88,10 @@ public static class SelectorParser
 
         while (true)
         {
+            // Whitespace ends the compound: "Panel .primary" is a descendant step, not "Panel.primary".
+            if (p.Index > start && p.Current.PrecededByWs)
+                break;
+
             if (p.Match(TokenKind.Hash))
             {
                 var idTok = p.Current;
@@ -110,6 +118,10 @@ public static class SelectorParser
             else if (p.Match(TokenKind.Colon))
             {
                 filters.Add(ParsePseudoFilter(p));
+            }
+            else if (p.Match(TokenKind.Dot))
+            {
+                filters.Add(new ClassFilter(ParseHyphenatedIdent(p, "class name")));
             }
             else
             {
@@ -177,17 +189,8 @@ public static class SelectorParser
 
     private static SelectorFilter ParsePseudoFilter(ParserState p)
     {
-        if (p.Current.Kind != TokenKind.Ident)
-            throw new SelectorParseException("expected pseudo-class name", p.Current.Position);
-        var name = p.Consume(TokenKind.Ident).Text;
         // hyphenated names (has-text, nth-child)
-        while (p.Current.Kind == TokenKind.Minus)
-        {
-            p.Advance();
-            if (p.Current.Kind != TokenKind.Ident)
-                throw new SelectorParseException("expected identifier after '-'", p.Current.Position);
-            name += "-" + p.Consume(TokenKind.Ident).Text;
-        }
+        var name = ParseHyphenatedIdent(p, "pseudo-class name");
         string? arg = null;
         if (p.Match(TokenKind.LParen))
         {
@@ -200,6 +203,21 @@ public static class SelectorParser
             p.Consume(TokenKind.RParen);
         }
         return new PseudoFilter(name, arg);
+    }
+
+    private static string ParseHyphenatedIdent(ParserState p, string what)
+    {
+        if (p.Current.Kind != TokenKind.Ident)
+            throw new SelectorParseException($"expected {what}", p.Current.Position);
+        var name = p.Consume(TokenKind.Ident).Text;
+        while (p.Current.Kind == TokenKind.Minus)
+        {
+            p.Advance();
+            if (p.Current.Kind != TokenKind.Ident)
+                throw new SelectorParseException("expected identifier after '-'", p.Current.Position);
+            name += "-" + p.Consume(TokenKind.Ident).Text;
+        }
+        return name;
     }
 
     // ---------- tokenizer ----------

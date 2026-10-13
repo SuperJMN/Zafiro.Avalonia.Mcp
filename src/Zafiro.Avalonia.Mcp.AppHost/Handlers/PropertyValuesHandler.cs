@@ -46,17 +46,20 @@ public sealed class PropertyValuesHandler : IRequestHandler
             return new { error = $"Property '{propertyName}' not found on this element" };
 
         var type = prop.PropertyType;
-        var underlying = Nullable.GetUnderlyingType(type) ?? type;
+        var underlying = PropertyValueConverter.Underlying(type);
+        var nullable = PropertyValueConverter.AcceptsNull(type);
+        var nullValue = nullable ? PropertyValueConverter.NullToken : null;
+        var format = PropertyValueConverter.FormatHint(type);
 
         if (underlying.IsEnum)
         {
             var values = Enum.GetNames(underlying);
-            return new { propertyName = prop.Name, type = underlying.Name, values };
+            return new { propertyName = prop.Name, type = underlying.Name, nullable, nullValue, values };
         }
 
         if (underlying == typeof(bool))
         {
-            return new { propertyName = prop.Name, type = "Boolean", values = new[] { "true", "false" } };
+            return new { propertyName = prop.Name, type = "Boolean", nullable, nullValue, values = new[] { "true", "false" } };
         }
 
         var converter = TypeDescriptor.GetConverter(underlying);
@@ -69,10 +72,19 @@ public sealed class PropertyValuesHandler : IRequestHandler
                     .Select(v => v?.ToString())
                     .Where(v => v is not null)
                     .ToArray();
-                return new { propertyName = prop.Name, type = underlying.Name, values };
+                return new { propertyName = prop.Name, type = underlying.Name, nullable, nullValue, values };
             }
         }
 
-        return new { propertyName = prop.Name, type = underlying.Name, values = (string[]?)null, note = "No predefined values — accepts any value of this type" };
+        return new
+        {
+            propertyName = prop.Name,
+            type = underlying.Name,
+            nullable,
+            nullValue,
+            format,
+            values = (string[]?)null,
+            note = "No predefined values — accepts any value of this type",
+        };
     }
 }

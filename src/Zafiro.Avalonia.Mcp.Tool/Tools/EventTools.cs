@@ -55,6 +55,7 @@ public sealed class EventTools
         }
         catch (Exception ex)
         {
+            ToolFailure.Mark();
             return $"Error: {ex.Message}";
         }
     }

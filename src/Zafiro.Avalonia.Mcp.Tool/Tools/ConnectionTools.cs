@@ -70,6 +70,7 @@ public sealed class ConnectionTools
                 pool.Invalidate(conn);
             }
 
+            ToolFailure.Mark();
             return $"Error connecting: {ex.Message}";
         }
     }

@@ -77,6 +77,11 @@ public sealed class InputHandler : IRequestHandler
             return new { success = true, nodeId, method = "toggle", isChecked = toggle.IsChecked };
         }
 
+        if (visual is CalendarDayButton dayButton)
+        {
+            return ClickCalendarDay(dayButton, nodeId);
+        }
+
         if (visual is Button button)
         {
             if (executableCommand is not null)
@@ -106,6 +111,14 @@ public sealed class InputHandler : IRequestHandler
 
         if (visual is Control control)
         {
+            // A ComboBox is itself a SelectingItemsControl; handle it before the ancestor item-selection
+            // fallback, which would otherwise treat a ComboBox nested in a ListBoxItem as an outer item.
+            if (control is ComboBox comboBox)
+            {
+                comboBox.IsDropDownOpen = !comboBox.IsDropDownOpen;
+                return new { success = true, nodeId, method = "combobox_toggle", isDropDownOpen = comboBox.IsDropDownOpen };
+            }
+
             if (control is ListBoxItem lbi)
             {
                 var lb = lbi.GetVisualAncestors().OfType<ListBox>().FirstOrDefault()
@@ -184,6 +197,62 @@ public sealed class InputHandler : IRequestHandler
             new { nodeId, elementType = visual.GetType().Name });
     }
 
+    /// <summary>
+    /// Calendar selects dates from the day button's pointer press/release handlers, not from its Click
+    /// event, so raising <see cref="Button.ClickEvent"/> would report success without selecting anything.
+    /// Emit the pointer gesture the calendar listens to and verify the resulting selection.
+    /// </summary>
+    private static object ClickCalendarDay(CalendarDayButton dayButton, int nodeId)
+    {
+        var calendar = dayButton.GetVisualAncestors().OfType<Calendar>().FirstOrDefault();
+        if (calendar is null || dayButton.DataContext is not DateTime date)
+        {
+            return HandlerResult.Error(
+                DiagnosticErrorCodes.UnsupportedOperation,
+                "CalendarDayButton is not a day cell of a loaded Calendar.",
+                "Open the calendar and target a visible day cell.",
+                new { nodeId, elementType = nameof(CalendarDayButton) });
+        }
+
+        var day = date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        if (calendar.SelectionMode == CalendarSelectionMode.None || calendar.BlackoutDates.Contains(date))
+        {
+            return HandlerResult.Error(
+                DiagnosticErrorCodes.UnsupportedOperation,
+                calendar.SelectionMode == CalendarSelectionMode.None
+                    ? $"Calendar does not allow selection (SelectionMode=None); {day} cannot be selected."
+                    : $"{day} is a blackout date and cannot be selected.",
+                null,
+                new { nodeId, elementType = nameof(CalendarDayButton), date = day });
+        }
+
+        // CalendarDatePicker syncs its text asynchronously after the press selects the date and re-parses
+        // that text when focus moves on release; let it settle in between, as real input would.
+        SimulatePointerClick(
+            dayButton,
+            new Point(dayButton.Bounds.Width / 2, dayButton.Bounds.Height / 2),
+            betweenPressAndRelease: () => Dispatcher.UIThread.RunJobs(DispatcherPriority.Default));
+
+        if (!calendar.SelectedDates.Contains(date))
+        {
+            return HandlerResult.Error(
+                DiagnosticErrorCodes.UnsupportedOperation,
+                $"Pointer events were emitted on the {day} day cell, but the calendar did not select it.",
+                "Focus the calendar and use the arrow keys followed by Enter, or set SelectedDate with set_prop.",
+                new { nodeId, elementType = nameof(CalendarDayButton), date = day, method = "pointer_simulation" });
+        }
+
+        var picker = calendar.TemplatedParent as CalendarDatePicker;
+        return new
+        {
+            success = true,
+            nodeId,
+            method = "calendar_day_select",
+            selectedDate = day,
+            isDropDownOpen = picker?.IsDropDownOpen,
+        };
+    }
+
     private static bool IsSemanticClickTarget(Visual visual) => visual is Button
         or MenuItem
         or ListBoxItem
@@ -205,7 +274,7 @@ public sealed class InputHandler : IRequestHandler
             "Target an item container returned by get_snapshot or get_tree.",
             new { nodeId, elementType = control.GetType().Name, ownerType = owner.GetType().Name });
 
-    private static void SimulatePointerClick(Control control, Point position)
+    private static void SimulatePointerClick(Control control, Point position, Action? betweenPressAndRelease = null)
     {
         var pointer = new Pointer(Pointer.GetNextFreeId(), PointerType.Mouse, isPrimary: true);
         var rootVisual = FindRootVisual(control);
@@ -220,6 +289,8 @@ public sealed class InputHandler : IRequestHandler
             timestamp,
             new PointerPointProperties(RawInputModifiers.LeftMouseButton, PointerUpdateKind.LeftButtonPressed),
             KeyModifiers.None));
+
+        betweenPressAndRelease?.Invoke();
 
         control.RaiseEvent(new PointerReleasedEventArgs(
             control,

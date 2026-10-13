@@ -73,8 +73,8 @@ public sealed class TreeTools
 
     [McpServerTool(Name = "get_screen_text"), Description("""
         All visible text on screen in reading order (top-to-bottom, left-to-right). Cheapest way to "read" the UI when you don't need nodeIds; otherwise prefer get_snapshot.
-        Returns: plain text string, one logical line per text element.
-        Example: "Welcome\nUsername\nPassword\nSign in\nForgot password?"
+        Returns: {coordinateSpace:"root", lines:[{Text, X, Y, NodeId, RootId}], plainText}. X/Y are DIPs relative to the window or popup identified by RootId (the same root id as get_snapshot); lines from different roots are not comparable. A template's repeated label is reported once; distinct controls with equal text stay distinct.
+        Example: plainText "Welcome\nUsername\nPassword\nSign in\nForgot password?"
         """)]
     public static async Task<string> GetScreenText(
         ConnectionPool pool,

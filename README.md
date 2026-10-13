@@ -272,12 +272,14 @@ Every read and action tool that targets an element accepts a single CSS-like `se
 #42                                  digits  → existing nodeId
 #SaveBtn                             ident   → x:Name match
 Button                               type    → all controls of that type
+Button.Primary                       .class  → style class in Classes (case-sensitive)
 Button[Content="Save"]               attribute equality (case-insensitive)
-TextBox[Text*="hello"]               *= contains, ^= starts, $= ends, ~= word
+TextBox[Text*="hello"]               *= contains, ^= starts, $= ends
 [dc.User.Name="Alice"]               dc.Path → DataContext property path
 [dc:'x => x.IsValid && x.Items.Count > 0']  Roslyn predicate (200ms, sandboxed)
 ListBox >> ListBoxItem:nth(2)        '>>' descendant, ':nth(N)' positional
 StackPanel > Button                  '>' direct child
+Panel .Primary                       whitespace = descendant
 :focused, :visible, :enabled, :checked   pseudo-classes (hyphenated)
 Button[Content="OK"], Button[Content="Cancel"]   ',' alternatives
 ```
@@ -291,7 +293,9 @@ For the full grammar and recommended workflows, call `instructions` with `page='
 
 ## Error handling
 
-Every failure response carries a structured `DiagnosticError`:
+Failed tool calls return an MCP `CallToolResult` with `isError: true`; the text keeps the code and hint (`Error [NO_MATCH]: ... Hint: ...`), so clients can branch on `isError` without parsing it.
+
+Inside the AppHost protocol, every failure response carries a structured `DiagnosticError`:
 
 ```json
 {

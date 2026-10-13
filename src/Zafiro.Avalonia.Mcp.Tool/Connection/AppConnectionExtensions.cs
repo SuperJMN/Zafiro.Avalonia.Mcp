@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using ModelContextProtocol.Protocol;
+using Zafiro.Avalonia.Mcp.Tool.Tools;
 
 namespace Zafiro.Avalonia.Mcp.Tool.Connection;
 
@@ -10,6 +11,7 @@ internal static class AppConnectionExtensions
     /// Sends a request and returns the result as a string.
     /// Catches all exceptions and returns them as "Error: ..." text so the AI
     /// always sees the actual failure reason instead of the generic MCP error wrapper.
+    /// Failures are also flagged through <see cref="ToolFailure"/> so the MCP result has <c>isError: true</c>.
     /// Structured <see cref="McpRemoteException"/> responses include the stable error code
     /// and the recovery hint suggested by the AppHost handler.
     /// </summary>
@@ -63,6 +65,7 @@ internal static class AppConnectionExtensions
 
     private static string FormatRemoteError(McpRemoteException ex)
     {
+        ToolFailure.Mark();
         var sb = new StringBuilder("Error");
         if (ex.ErrorInfo?.Code is { Length: > 0 } code)
             sb.Append(" [").Append(code).Append(']');
@@ -74,6 +77,7 @@ internal static class AppConnectionExtensions
 
     private static async Task<string> FormatLocalError(AppConnection conn, Exception ex)
     {
+        ToolFailure.Mark();
         var message = $"Error: {ex.Message}";
         string? details = null;
         try

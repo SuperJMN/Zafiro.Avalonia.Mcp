@@ -32,7 +32,8 @@ public sealed class DiagnosticTools
 
     [McpServerTool(Name = "get_layout_info"), Description("""
         Get a comprehensive layout snapshot of a control: bounds, screen position, size constraints, alignment, visibility, and parent. Use to diagnose "why isn't my element showing?" or "why is it sized weirdly?".
-        Returns: {bounds, screenBounds, desiredSize, renderSize, margin, padding, horizontalAlignment, verticalAlignment, width, height, minWidth, minHeight, maxWidth, maxHeight, isVisible, isEffectivelyVisible, isEnabled, isHitTestVisible, clipToBounds, isMeasureValid, isArrangeValid, parent}.
+        Coordinates: bounds are parent-relative DIPs; rootBounds are DIPs relative to the window or popup described by root {nodeId, type, renderScaling} and only comparable within that root; screenBounds are physical screen pixels, comparable across windows and popups.
+        Returns: {bounds, root, rootBounds, screenBounds, desiredSize, renderSize, margin, padding, horizontalAlignment, verticalAlignment, width, height, minWidth, minHeight, maxWidth, maxHeight, isVisible, isEffectivelyVisible, isEnabled, isHitTestVisible, clipToBounds, isMeasureValid, isArrangeValid, parent}.
         Example: {"bounds":{"x":10,"y":20,"w":100,"h":30},"isVisible":true,"isEffectivelyVisible":false,"margin":{"l":4,"t":0,"r":4,"b":0}}
         """)]
     public static async Task<string> GetLayoutInfo(

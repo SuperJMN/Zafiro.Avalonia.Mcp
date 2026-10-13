@@ -41,41 +41,40 @@ public sealed class ScreenTextHandler : IRequestHandler
                 if (roots.Count == 0) return new { error = "No windows found" };
             }
 
-            var entries = new List<ScreenTextEntry>();
-
-            foreach (var root in roots)
-            {
-                var rootVisual = FindRootVisual(root);
-                var windowBounds = new Rect(0, 0, rootVisual.Bounds.Width, rootVisual.Bounds.Height);
-                CollectText(root, rootVisual, entries, visibleOnly, windowBounds);
-            }
-
-            // Deduplicate: templated controls (e.g. Button→AccessText→TextBlock)
-            // produce the same text at nearly the same position. Keep only the
-            // first (outermost) occurrence within a 20px radius (accounts for padding).
-            var deduped = new List<ScreenTextEntry>();
-            foreach (var entry in entries)
-            {
-                var isDuplicate = deduped.Any(e =>
-                    e.Text == entry.Text &&
-                    Math.Abs(e.X - entry.X) < 20 &&
-                    Math.Abs(e.Y - entry.Y) < 20);
-                if (!isDuplicate)
-                    deduped.Add(entry);
-            }
-
-            deduped.Sort((a, b) =>
-            {
-                var yCompare = a.Y.CompareTo(b.Y);
-                return yCompare != 0 ? yCompare : a.X.CompareTo(b.X);
-            });
-
-            return new
-            {
-                lines = deduped,
-                plainText = string.Join("\n", deduped.Select(e => e.Text))
-            };
+            return BuildResult(roots, visibleOnly);
         });
+    }
+
+    /// <summary>
+    /// Collects text for the given roots. Coordinates are in device-independent pixels relative to
+    /// the top-level root (window or popup) identified by each line's <c>rootId</c>; lines from
+    /// different roots are not in a comparable coordinate space.
+    /// </summary>
+    internal static object BuildResult(IEnumerable<Visual> roots, bool visibleOnly)
+    {
+        var entries = new List<ScreenTextEntry>();
+
+        foreach (var root in roots)
+        {
+            var rootVisual = FindRootVisual(root);
+            // Same root identity as get_snapshot: the window or popup TopLevel.
+            var rootId = NodeRegistry.GetOrRegister(TopLevel.GetTopLevel(root) ?? rootVisual);
+            var windowBounds = new Rect(rootVisual.Bounds.Size);
+            CollectText(root, rootVisual, rootId, entries, visibleOnly, windowBounds, []);
+        }
+
+        // Reading order within each root; roots keep their discovery order.
+        var ordered = entries
+            .GroupBy(e => e.RootId)
+            .SelectMany(g => g.OrderBy(e => e.Y).ThenBy(e => e.X))
+            .ToList();
+
+        return new
+        {
+            coordinateSpace = "root",
+            lines = ordered,
+            plainText = string.Join("\n", ordered.Select(e => e.Text))
+        };
     }
 
     private static Visual FindRootVisual(Visual visual)
@@ -86,19 +85,22 @@ public sealed class ScreenTextHandler : IRequestHandler
         return current;
     }
 
-    private static void CollectText(Visual visual, Visual rootVisual, List<ScreenTextEntry> entries,
-        bool visibleOnly, Rect windowBounds)
+    private static void CollectText(Visual visual, Visual rootVisual, int rootId, List<ScreenTextEntry> entries,
+        bool visibleOnly, Rect windowBounds, IReadOnlyList<string> ancestorTexts)
     {
         if (!visual.IsVisible) return;
 
         var text = ExtractText(visual);
         if (!string.IsNullOrEmpty(text))
         {
-            var transform = visual.TransformToVisual(rootVisual);
-            if (transform.HasValue)
+            // A template part repeating its owner's label (Button → ContentPresenter → TextBlock) is the
+            // same visible text; distinct controls with equal text are not ancestors of one another.
+            if (IsTemplateRepresentation(visual) && ancestorTexts.Contains(text))
             {
-                var absoluteBounds = visual.Bounds.TransformToAABB(transform.Value);
-
+                text = null;
+            }
+            else if (GetRootBounds(visual, rootVisual) is { } absoluteBounds)
+            {
                 // When visibleOnly is true, skip elements outside the window viewport
                 // and elements clipped by ancestor ScrollViewers
                 if (visibleOnly && !IsInViewport(visual, absoluteBounds, rootVisual, windowBounds))
@@ -109,16 +111,31 @@ public sealed class ScreenTextHandler : IRequestHandler
                     Text = text,
                     X = Math.Round(absoluteBounds.X, 1),
                     Y = Math.Round(absoluteBounds.Y, 1),
-                    NodeId = NodeRegistry.GetOrRegister(visual)
+                    NodeId = NodeRegistry.GetOrRegister(visual),
+                    RootId = rootId
                 });
             }
         }
 
+        var childAncestorTexts = string.IsNullOrEmpty(text) ? ancestorTexts : [.. ancestorTexts, text];
         foreach (var child in visual.GetVisualChildren())
         {
-            CollectText(child, rootVisual, entries, visibleOnly, windowBounds);
+            CollectText(child, rootVisual, rootId, entries, visibleOnly, windowBounds, childAncestorTexts);
         }
     }
+
+    /// <summary>
+    /// Bounds of <paramref name="visual"/> in <paramref name="rootVisual"/> coordinates.
+    /// <see cref="Visual.Bounds"/> is parent-relative, so only its size is transformed from local space.
+    /// </summary>
+    private static Rect? GetRootBounds(Visual visual, Visual rootVisual) =>
+        visual.TransformToVisual(rootVisual) is { } transform
+            ? new Rect(visual.Bounds.Size).TransformToAABB(transform)
+            : null;
+
+    private static bool IsTemplateRepresentation(Visual visual) =>
+        visual is StyledElement { TemplatedParent: not null }
+        || visual.GetVisualParent() is ContentPresenter { Content: string };
 
     /// <summary>
     /// Check if the element's absolute bounds intersect the visible viewport.
@@ -134,15 +151,10 @@ public sealed class ScreenTextHandler : IRequestHandler
         var current = visual.GetVisualParent();
         while (current is not null)
         {
-            if (current is ScrollViewer sv)
+            if (current is ScrollViewer sv && GetRootBounds(sv, rootVisual) is { } svAbsoluteBounds
+                && !svAbsoluteBounds.Intersects(absoluteBounds))
             {
-                var svTransform = sv.TransformToVisual(rootVisual);
-                if (svTransform.HasValue)
-                {
-                    var svAbsoluteBounds = sv.Bounds.TransformToAABB(svTransform.Value);
-                    if (!svAbsoluteBounds.Intersects(absoluteBounds))
-                        return false;
-                }
+                return false;
             }
 
             current = current.GetVisualParent();
@@ -172,5 +184,6 @@ public sealed class ScreenTextHandler : IRequestHandler
         public double X { get; init; }
         public double Y { get; init; }
         public int NodeId { get; init; }
+        public int RootId { get; init; }
     }
 }

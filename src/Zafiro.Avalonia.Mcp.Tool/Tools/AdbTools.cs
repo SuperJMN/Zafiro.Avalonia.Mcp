@@ -31,7 +31,10 @@ public sealed class AdbTools
         [Description("Optional synthetic PID. Defaults to a stable hash of host:port. Use to keep multiple devices distinguishable.")] int pid = 0)
     {
         if (port <= 0 || port > 65535)
+        {
+            ToolFailure.Mark();
             return $"Invalid port {port}. Must be 1..65535.";
+        }
 
         var resolvedPid = pid != 0 ? pid : SyntheticPid(host, port);
         var resolvedLabel = string.IsNullOrWhiteSpace(label) ? $"android-{port}" : label;
@@ -60,6 +63,7 @@ public sealed class AdbTools
                 pool.Invalidate(conn);
             }
 
+            ToolFailure.Mark();
             return $"Error connecting to tcp:{host}:{port}: {ex.Message}\n" +
                    "Check that 'adb forward tcp:" + port + " tcp:<devicePort>' is active and the app is running with UseMcpDiagnostics().";
         }

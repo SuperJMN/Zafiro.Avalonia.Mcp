@@ -176,6 +176,8 @@ public sealed class SelectorEngine
                 return MatchesPredicate(visual, dpf);
             case PseudoFilter pf:
                 return MatchesPseudo(visual, pf);
+            case ClassFilter cf:
+                return visual is StyledElement styled && styled.Classes.Contains(cf.Name);
             default:
                 return false;
         }

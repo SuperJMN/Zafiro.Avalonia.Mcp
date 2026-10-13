@@ -187,6 +187,48 @@ public class SelectorParserTests
     }
 
     [Fact]
+    public void Parses_ClassFilter_OnType()
+    {
+        var p = SelectorParser.Parse("Button.Primary");
+        var compound = Single(p).Steps.Single().Compound;
+        Assert.Equal("Button", compound.TypeName);
+        Assert.Equal("Primary", Assert.IsType<ClassFilter>(Assert.Single(compound.Filters)).Name);
+    }
+
+    [Fact]
+    public void Parses_ClassFilter_Standalone_WithHyphens()
+    {
+        var p = SelectorParser.Parse(".accent-button.Primary");
+        var classes = Single(p).Steps.Single().Compound.Filters.Cast<ClassFilter>().Select(f => f.Name);
+        Assert.Equal(new[] { "accent-button", "Primary" }, classes);
+    }
+
+    [Fact]
+    public void Parses_WhitespaceBeforeClass_AsDescendant()
+    {
+        var path = Single(SelectorParser.Parse("Panel .Primary"));
+        Assert.Equal(2, path.Steps.Count);
+        Assert.Equal("Panel", path.Steps[0].Compound.TypeName);
+        Assert.Empty(path.Steps[0].Compound.Filters);
+        Assert.Equal(Combinator.Descendant, path.Steps[1].Combinator);
+        Assert.IsType<ClassFilter>(Assert.Single(path.Steps[1].Compound.Filters));
+    }
+
+    [Fact]
+    public void Parses_WhitespaceBeforeId_AsDescendant()
+    {
+        var path = Single(SelectorParser.Parse("Panel #Save"));
+        Assert.Equal(2, path.Steps.Count);
+        Assert.Null(path.Steps[1].Compound.TypeName);
+    }
+
+    [Fact]
+    public void Throws_DotWithoutClassName()
+    {
+        Assert.Throws<SelectorParseException>(() => SelectorParser.Parse("Button."));
+    }
+
+    [Fact]
     public void Throws_Empty()
     {
         Assert.Throws<SelectorParseException>(() => SelectorParser.Parse(""));
