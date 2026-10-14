@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Zafiro.Avalonia.Mcp.AppHost.Handlers;
@@ -40,6 +41,13 @@ public sealed class EventBus : IDisposable
     private readonly HashSet<Visual> _hookedVisuals = new();
     private bool _wired;
     private Timer? _windowScanTimer;
+
+    // Looked up by name instead of referencing InputElement.GotFocus/GotFocusEvent: their
+    // argument type changed from GotFocusEventArgs (Avalonia 11) to FocusChangedEventArgs (12),
+    // so a compiled reference fails to load on the other major version.
+    private static RoutedEvent? GotFocusEvent =>
+        RoutedEventRegistry.Instance.GetRegistered(typeof(InputElement))
+            .FirstOrDefault(e => e.Name == "GotFocus");
 
     public EventBus() : this(TimeSpan.FromMinutes(5), maxSubs: 32, bufferLimit: 1000, runExpirationTimer: true) { }
 
@@ -211,7 +219,7 @@ public sealed class EventBus : IDisposable
         catch { /* ignore */ }
     }
 
-    private void HookWindow(Window window)
+    internal void HookWindow(Window window)
     {
         bool firstTime;
         lock (_hookLock)
@@ -226,15 +234,18 @@ public sealed class EventBus : IDisposable
             Publish(WindowClosed, NodeRegistry.GetOrRegister(window), null,
                 new { title = window.Title });
 
-        window.GotFocus += (_, _) =>
+        if (GotFocusEvent is { } gotFocus)
         {
-            var focused = window.FocusManager?.GetFocusedElement();
-            if (focused is Visual visual)
+            window.AddHandler(gotFocus, new EventHandler<RoutedEventArgs>((_, _) =>
             {
-                Publish(FocusChanged, NodeRegistry.GetOrRegister(visual), null,
-                    new { type = visual.GetType().Name });
-            }
-        };
+                var focused = window.FocusManager?.GetFocusedElement();
+                if (focused is Visual visual)
+                {
+                    Publish(FocusChanged, NodeRegistry.GetOrRegister(visual), null,
+                        new { type = visual.GetType().Name });
+                }
+            }));
+        }
 
         HookPropertyChanged(window);
         foreach (var descendant in window.GetVisualDescendants())
