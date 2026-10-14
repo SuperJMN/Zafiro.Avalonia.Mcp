@@ -49,7 +49,13 @@ public sealed class PseudoClassHandler : IRequestHandler
 
         if (isActive.HasValue)
         {
-            ((IPseudoClasses)styled.Classes).Set(fullName, isActive.Value);
+            // Avoid the PseudoClasses.Set extension: its declaring type was renamed between
+            // Avalonia 11 and 12, so calling it breaks binary compatibility across versions.
+            IPseudoClasses pseudoClasses = styled.Classes;
+            if (isActive.Value)
+                pseudoClasses.Add(fullName);
+            else
+                pseudoClasses.Remove(fullName);
             return new { success = true, nodeId, pseudoClass = fullName, isActive = isActive.Value };
         }
 
