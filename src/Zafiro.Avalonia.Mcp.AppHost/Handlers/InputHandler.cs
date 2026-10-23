@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
-using Avalonia.Input.Raw;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
@@ -22,14 +21,26 @@ public sealed class InputHandler : IRequestHandler
     public async Task<object> Handle(DiagnosticRequest request)
     {
         string? selector = null;
-        if (request.Params is JsonElement p && p.TryGetProperty("selector", out var s))
-            selector = s.GetString();
+        string? buttonName = null;
+        if (request.Params is JsonElement p)
+        {
+            if (p.TryGetProperty("selector", out var s)) selector = s.GetString();
+            if (p.TryGetProperty("button", out var b)) buttonName = b.GetString();
+        }
+
+        if (!MouseButtonParser.TryParse(buttonName, out var button))
+        {
+            return HandlerResult.Error(
+                DiagnosticErrorCodes.InvalidParam,
+                $"Unknown mouse button '{buttonName}'.",
+                $"Use one of: {MouseButtonParser.Accepted}.");
+        }
 
         return await Dispatcher.UIThread.InvokeAsync<object>(() =>
         {
             var (visual, error) = SelectorRequestHelper.ResolveSingle(selector);
             if (visual is null) return error!;
-            return Click(visual);
+            return Click(visual, button);
         });
     }
 
@@ -37,8 +48,11 @@ public sealed class InputHandler : IRequestHandler
     /// Performs the appropriate "click" semantic on the given visual.
     /// Exposed for tests so they don't need to spin a Dispatcher.
     /// </summary>
-    internal static object Click(Visual visual)
+    internal static object Click(Visual visual, MouseButton mouseButton = MouseButton.Left)
     {
+        if (mouseButton != MouseButton.Left)
+            return PointerButtonClick(visual, mouseButton);
+
         if (visual is TextBlock)
         {
             var interactiveAncestor = visual.GetVisualAncestors().FirstOrDefault(IsSemanticClickTarget);
@@ -198,6 +212,59 @@ public sealed class InputHandler : IRequestHandler
     }
 
     /// <summary>
+    /// Right and middle clicks have no semantic shortcut: they always raise the real pointer press/release on
+    /// the element itself, so the app's own handlers (ContextRequested, ContextMenu, ContextFlyout, custom
+    /// PointerPressed logic) decide what happens.
+    /// </summary>
+    private static object PointerButtonClick(Visual visual, MouseButton button)
+    {
+        var nodeId = NodeRegistry.GetOrRegister(visual);
+        var buttonName = MouseButtonParser.Name(button);
+
+        if (visual is not Control control)
+        {
+            return HandlerResult.Error(
+                DiagnosticErrorCodes.UnsupportedOperation,
+                $"Cannot {buttonName}-click element type '{visual.GetType().Name}'.",
+                null,
+                new { nodeId, elementType = visual.GetType().Name });
+        }
+
+        if (!control.IsEffectivelyEnabled)
+            return DisabledClickError(visual, nodeId);
+
+        var gesture = new PointerGesture(control, button);
+        var center = PointerGesture.Center(control);
+        var pressHandled = gesture.Press(center);
+        var releaseHandled = gesture.Release(center);
+        var handled = pressHandled || releaseHandled;
+        var warning = handled
+            ? null
+            : $"No handler marked the {buttonName}-button press or release as handled; verify the resulting UI state explicitly.";
+
+        if (button == MouseButton.Right)
+        {
+            return new
+            {
+                success = true,
+                nodeId,
+                method = "pointer",
+                button = buttonName,
+                handled,
+                contextMenuOpen = IsContextMenuOpen(control),
+                warning,
+            };
+        }
+
+        return new { success = true, nodeId, method = "pointer", button = buttonName, handled, warning };
+    }
+
+    private static bool IsContextMenuOpen(Control control) =>
+        control.GetSelfAndVisualAncestors()
+            .OfType<Control>()
+            .Any(c => c.ContextMenu?.IsOpen == true || c.ContextFlyout?.IsOpen == true);
+
+    /// <summary>
     /// Calendar selects dates from the day button's pointer press/release handlers, not from its Click
     /// event, so raising <see cref="Button.ClickEvent"/> would report success without selecting anything.
     /// Emit the pointer gesture the calendar listens to and verify the resulting selection.
@@ -276,31 +343,10 @@ public sealed class InputHandler : IRequestHandler
 
     private static void SimulatePointerClick(Control control, Point position, Action? betweenPressAndRelease = null)
     {
-        var pointer = new Pointer(Pointer.GetNextFreeId(), PointerType.Mouse, isPrimary: true);
-        var rootVisual = FindRootVisual(control);
-        var rootPosition = control.TransformToVisual(rootVisual)?.Transform(position) ?? position;
-        var timestamp = unchecked((ulong)Environment.TickCount64);
-
-        control.RaiseEvent(new PointerPressedEventArgs(
-            control,
-            pointer,
-            rootVisual,
-            rootPosition,
-            timestamp,
-            new PointerPointProperties(RawInputModifiers.LeftMouseButton, PointerUpdateKind.LeftButtonPressed),
-            KeyModifiers.None));
-
+        var gesture = new PointerGesture(control, MouseButton.Left);
+        gesture.Press(position);
         betweenPressAndRelease?.Invoke();
-
-        control.RaiseEvent(new PointerReleasedEventArgs(
-            control,
-            pointer,
-            rootVisual,
-            rootPosition,
-            timestamp + 1,
-            new PointerPointProperties(RawInputModifiers.None, PointerUpdateKind.LeftButtonReleased),
-            KeyModifiers.None,
-            MouseButton.Left));
+        gesture.Release(position);
     }
 
     private static bool ActivateMenuItem(MenuItem menuItem)
@@ -333,14 +379,6 @@ public sealed class InputHandler : IRequestHandler
         var menu = menuItem.GetLogicalAncestors().OfType<MenuBase>().FirstOrDefault()
             ?? menuItem.GetVisualAncestors().OfType<MenuBase>().FirstOrDefault();
         menu?.Close();
-    }
-
-    private static Visual FindRootVisual(Visual visual)
-    {
-        var current = visual;
-        while (current.GetVisualParent() is Visual parent)
-            current = parent;
-        return current;
     }
 }
 

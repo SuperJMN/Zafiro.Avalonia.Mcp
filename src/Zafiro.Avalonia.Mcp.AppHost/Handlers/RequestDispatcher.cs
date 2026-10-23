@@ -35,6 +35,7 @@ public sealed class RequestDispatcher
         // Input & Interaction
         Register(new InputHandler());
         Register(new TapHandler());
+        Register(new DragHandler());
         Register(new KeyboardHandler());
         Register(new KeyUpHandler());
         Register(new TextInputHandler());

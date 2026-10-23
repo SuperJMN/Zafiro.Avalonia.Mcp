@@ -240,7 +240,7 @@ When the preview host needs copied native assets from `runtimes/<rid>/native`, i
 | **Diagnostics** *(new in v2)* | `get_focus`, `get_active_window`, `get_open_dialogs`, `get_command_info`, `get_validation_errors`, `get_layout_info`, `find_by_datacontext`, `get_item` |
 | **Properties** | `get_props`, `explain_property`, `set_prop`, `get_prop_values`, `get_styles`, `get_resources` |
 | **MVVM / XAML** | `get_datacontext`, `get_bindings`, `find_view_source`, `get_xaml` |
-| **Input** | `click`, `click_by_query`, `click_and_wait`, `key_down`, `key_up`, `text_input`, `tap` |
+| **Input** | `click` (left/right/middle), `drag`, `click_by_query`, `click_and_wait`, `key_down`, `key_up`, `text_input`, `tap` |
 | **Interaction** | `select_item`, `toggle`, `set_value`, `scroll`, `action` |
 | **Composite** *(new in v2)* | `fill_form` |
 | **Events** *(new in v2)* | `subscribe`, `poll_events`, `unsubscribe` |

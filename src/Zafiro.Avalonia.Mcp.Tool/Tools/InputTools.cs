@@ -12,17 +12,48 @@ public sealed class InputTools
     private const string SelectorDescription =
         "Selector identifying the element. Examples: '#42' (nodeId), '#SaveBtn' (x:Name), 'Button[Content=\"Save\"]', 'ListBox >> ListBoxItem:nth(2)'.";
 
+    private const string ButtonDescription = "Mouse button: left (default), right or middle.";
+
     [McpServerTool(Name = "click"), Description("""
-        Click a UI element by selector. Handles Button (invokes command), ToggleButton (toggles), ListBoxItem (selects), TabItem (switches), MenuItem (invokes); falls back to pointer simulation for anything else. For lists/tabs prefer select_item, for checkboxes prefer toggle, for "click the X button" prefer click_by_query.
-        Returns: confirmation string with the actual semantic invoked.
-        Example: "Clicked Button 'Save' (invoked Command)"
+        Click a UI element by selector. A left click (default) handles Button (invokes command), ToggleButton (toggles), ListBoxItem (selects), TabItem (switches), MenuItem (invokes); falls back to pointer simulation for anything else. button='right' or 'middle' always raises a real pointer press/release on the element (right opens its ContextMenu/ContextFlyout through ContextRequested). For lists/tabs prefer select_item, for checkboxes prefer toggle, for "click the X button" prefer click_by_query.
+        Returns: confirmation with the semantic invoked (method); right/middle clicks also report handled, contextMenuOpen (right) and a warning when no handler reacted.
+        Example: {"success":true,"method":"pointer","button":"right","handled":true,"contextMenuOpen":true}
         """)]
     public static async Task<string> Click(
         ConnectionPool pool,
-        [Description(SelectorDescription)] string selector)
+        [Description(SelectorDescription)] string selector,
+        [Description(ButtonDescription)] string? button = null)
     {
         var conn = pool.GetActive();
-        return await conn.InvokeAsync(ProtocolMethods.Click, new { selector });
+        var parms = new Dictionary<string, object?> { ["selector"] = selector };
+        if (button is not null) parms["button"] = button;
+        return await conn.InvokeAsync(ProtocolMethods.Click, parms);
+    }
+
+    [McpServerTool(Name = "drag"), Description("""
+        Press a mouse button on an element, move the pointer in a straight line and release it (press-and-drag gesture). Use for Thumb, GridSplitter, Slider thumbs, ScrollBar thumbs, resize handles and pan/drag surfaces. Events go to the element and then to whatever captures the pointer, as with real input; OS drag-and-drop (DragDrop.DoDragDrop) is not simulated.
+        Returns: start/end points (element-relative), steps, and which phases a handler marked as handled; a warning when none did.
+        Example: {"success":true,"method":"pointer_drag","button":"left","from":{"x":4,"y":50},"to":{"x":124,"y":50},"steps":10,"handled":{"press":true,"move":true,"release":true}}
+        """)]
+    public static async Task<string> Drag(
+        ConnectionPool pool,
+        [Description(SelectorDescription)] string selector,
+        [Description("Horizontal distance to drag, in pixels (positive = right). Omit for 0.")] double? deltaX = null,
+        [Description("Vertical distance to drag, in pixels (positive = down). Omit for 0.")] double? deltaY = null,
+        [Description("Start X relative to the element's top-left corner. Omit (with startY) to start at the centre.")] double? startX = null,
+        [Description("Start Y relative to the element's top-left corner. Omit (with startX) to start at the centre.")] double? startY = null,
+        [Description(ButtonDescription)] string? button = null,
+        [Description("Number of intermediate pointer moves (1-100, default 10).")] int? steps = null)
+    {
+        var conn = pool.GetActive();
+        var parms = new Dictionary<string, object?> { ["selector"] = selector };
+        if (deltaX is not null) parms["deltaX"] = deltaX;
+        if (deltaY is not null) parms["deltaY"] = deltaY;
+        if (startX is not null) parms["startX"] = startX;
+        if (startY is not null) parms["startY"] = startY;
+        if (button is not null) parms["button"] = button;
+        if (steps is not null) parms["steps"] = steps;
+        return await conn.InvokeAsync(ProtocolMethods.Drag, parms);
     }
 
     [McpServerTool(Name = "tap"), Description("""

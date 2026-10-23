@@ -123,6 +123,17 @@ public class InstructionsToolTests
     }
 
     [Fact]
+    public void Catalogue_Documents_Mouse_Button_And_Drag_Arguments()
+    {
+        var tools = ToolsCatalogue.GetTools().ToDictionary(t => t.Name);
+
+        Assert.Contains(tools["click"].Parameters, p => p.Name == "button" && !p.Required);
+        Assert.Equal(
+            new[] { "selector", "deltaX", "deltaY", "startX", "startY", "button", "steps" },
+            tools["drag"].Parameters.Select(p => p.Name));
+    }
+
+    [Fact]
     public void Registered_Tool_Types_Cover_Catalogue_Tool_Types()
     {
         var advertisedTypes = typeof(ToolsCatalogue).Assembly
