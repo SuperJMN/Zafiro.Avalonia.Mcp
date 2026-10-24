@@ -22,6 +22,7 @@ public static class ProtocolMethods
     // Input
     public const string Click = "click";
     public const string Tap = "tap";
+    public const string Drag = "drag";
     public const string KeyDown = "key_down";
     public const string KeyUp = "key_up";
     public const string TextInput = "text_input";
