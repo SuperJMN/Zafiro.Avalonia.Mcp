@@ -40,6 +40,12 @@ public sealed class DotnetProcessRunner : IProcessRunner
             process.StartInfo.ArgumentList.Add(argument);
         }
 
+        // Build servers started by this command would inherit the redirected pipes and keep them
+        // open after it exits, so reading the output to the end would never finish.
+        process.StartInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+        process.StartInfo.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
+        process.StartInfo.Environment["UseSharedCompilation"] = "false";
+
         process.Start();
 
         var standardOutput = process.StandardOutput.ReadToEndAsync(cancellationToken);
