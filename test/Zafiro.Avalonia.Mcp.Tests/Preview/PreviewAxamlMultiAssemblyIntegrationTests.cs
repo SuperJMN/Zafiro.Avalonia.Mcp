@@ -52,6 +52,54 @@ public sealed class PreviewAxamlMultiAssemblyIntegrationTests
         }
     }
 
+    [Fact]
+    public Task PreviewAxaml_StartsAppInDesignMode_SoStartupGuardedByDesignModeIsSkipped() =>
+        AssertPreviewRendersWithApp(MultiAssemblyPreviewFixture.AppThatNeedsRuntimeConfiguration);
+
+    [Fact]
+    public Task PreviewAxaml_ExposesAppRuntimeConfigProperties_SoAppsReadingThemStart() =>
+        AssertPreviewRendersWithApp(MultiAssemblyPreviewFixture.AppThatNeedsRuntimeConfigProperty);
+
+    [Fact]
+    public Task PreviewAxaml_ResolvesUsingNamespaces_FromReferencedAssembliesNotYetLoaded() =>
+        AssertPreviewRendersWithApp(MultiAssemblyPreviewFixture.PlainApp, fixture => fixture.UsingNamespaceViewPath);
+
+    private static async Task AssertPreviewRendersWithApp(
+        string appSource,
+        Func<MultiAssemblyPreviewFixture, string>? viewPath = null)
+    {
+        using var fixture = new MultiAssemblyPreviewFixture(appSource);
+        using var pool = new ConnectionPool();
+        using var previews = new PreviewProcessManager(
+            discoveryTimeout: TimeSpan.FromSeconds(30),
+            pollInterval: TimeSpan.FromMilliseconds(100));
+
+        try
+        {
+            var previewResult = await PreviewTools.PreviewAxaml(
+                pool,
+                previews,
+                new PreviewTargetResolver(new DotnetProcessRunner()),
+                viewPath?.Invoke(fixture) ?? fixture.ViewPath,
+                projectPath: fixture.HostProjectPath,
+                entryType: "PreviewFixture.Host.Program",
+                width: 420,
+                height: 240,
+                backend: "headless");
+
+            using var previewDocument = JsonDocument.Parse(previewResult);
+            Assert.False(previewDocument.RootElement.TryGetProperty("error", out _), previewResult);
+
+            var screenText = await TreeTools.GetScreenText(pool);
+
+            Assert.Contains(MultiAssemblyPreviewFixture.VisibleText, screenText);
+        }
+        finally
+        {
+            PreviewTools.ClosePreview(pool, previews);
+        }
+    }
+
     private sealed class DisplayEnvironmentScope : IDisposable
     {
         private static readonly string[] VariableNames =
@@ -102,19 +150,55 @@ public sealed class PreviewAxamlMultiAssemblyIntegrationTests
     {
         public const string VisibleText = "Visible from referenced UI assembly";
 
-        public MultiAssemblyPreviewFixture()
+        public const string PlainApp = "public sealed class App : Application;";
+
+        public const string AppThatNeedsRuntimeConfiguration = """
+            public sealed class App : Application
+            {
+                public override void OnFrameworkInitializationCompleted()
+                {
+                    if (!Avalonia.Controls.Design.IsDesignMode)
+                    {
+                        throw new InvalidOperationException("Runtime configuration is missing.");
+                    }
+
+                    base.OnFrameworkInitializationCompleted();
+                }
+            }
+            """;
+
+        public const string AppThatNeedsRuntimeConfigProperty = """
+            public sealed class App : Application
+            {
+                public override void OnFrameworkInitializationCompleted()
+                {
+                    if (AppContext.GetData("PreviewFixture.RuntimeOption") as string != "configured")
+                    {
+                        throw new InvalidOperationException("Runtime config property is missing.");
+                    }
+
+                    base.OnFrameworkInitializationCompleted();
+                }
+            }
+            """;
+
+        public MultiAssemblyPreviewFixture(string appSource = PlainApp)
         {
             Root = Path.Combine(Path.GetTempPath(), "avalonia-mcp-multi-assembly-preview", Guid.NewGuid().ToString("N"));
             var uiDirectory = Path.Combine(Root, "PreviewFixture.Ui");
             var hostDirectory = Path.Combine(Root, "PreviewFixture.Host");
+            var controlsDirectory = Path.Combine(Root, "PreviewFixture.Controls");
             Directory.CreateDirectory(Path.Combine(uiDirectory, "Views"));
             Directory.CreateDirectory(hostDirectory);
+            Directory.CreateDirectory(controlsDirectory);
 
             UiProjectPath = Path.Combine(uiDirectory, "PreviewFixture.Ui.csproj");
             HostProjectPath = Path.Combine(hostDirectory, "PreviewFixture.Host.csproj");
             ViewPath = Path.Combine(uiDirectory, "Views", "PreviewView.axaml");
+            UsingNamespaceViewPath = Path.Combine(uiDirectory, "Views", "UsingNamespaceView.axaml");
+            var controlsProjectPath = Path.Combine(controlsDirectory, "PreviewFixture.Controls.csproj");
 
-            File.WriteAllText(UiProjectPath, """
+            File.WriteAllText(controlsProjectPath, """
                 <Project Sdk="Microsoft.NET.Sdk">
                   <PropertyGroup>
                     <TargetFramework>net10.0</TargetFramework>
@@ -125,6 +209,47 @@ public sealed class PreviewAxamlMultiAssemblyIntegrationTests
                     <PackageReference Include="Avalonia" Version="12.0.2" />
                   </ItemGroup>
                 </Project>
+                """);
+            File.WriteAllText(Path.Combine(controlsDirectory, "FixtureLabel.cs"), """
+                using Avalonia.Controls;
+
+                namespace PreviewFixture.Controls;
+
+                public class FixtureLabel : TextBlock;
+                """);
+            File.WriteAllText(UiProjectPath, $$"""
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net10.0</TargetFramework>
+                    <Nullable>enable</Nullable>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                  </PropertyGroup>
+                  <ItemGroup>
+                    <ProjectReference Include="{{controlsProjectPath}}" />
+                    <PackageReference Include="Avalonia" Version="12.0.2" />
+                  </ItemGroup>
+                </Project>
+                """);
+            File.WriteAllText(UsingNamespaceViewPath, $$"""
+                <UserControl xmlns="https://github.com/avaloniaui"
+                             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                             xmlns:c="using:PreviewFixture.Controls"
+                             x:Class="PreviewFixture.Ui.Views.UsingNamespaceView">
+                  <c:FixtureLabel Text="{{VisibleText}}" />
+                </UserControl>
+                """);
+            File.WriteAllText(Path.Combine(uiDirectory, "Views", "UsingNamespaceView.axaml.cs"), """
+                using Avalonia.Controls;
+
+                namespace PreviewFixture.Ui.Views;
+
+                public partial class UsingNamespaceView : UserControl
+                {
+                    public UsingNamespaceView()
+                    {
+                        InitializeComponent();
+                    }
+                }
                 """);
             File.WriteAllText(ViewPath, $$"""
                 <UserControl xmlns="https://github.com/avaloniaui"
@@ -159,10 +284,11 @@ public sealed class PreviewAxamlMultiAssemblyIntegrationTests
                   <ItemGroup>
                     <ProjectReference Include="{{UiProjectPath}}" />
                     <PackageReference Include="Avalonia.Desktop" Version="12.0.2" />
+                    <RuntimeHostConfigurationOption Include="PreviewFixture.RuntimeOption" Value="configured" />
                   </ItemGroup>
                 </Project>
                 """);
-            File.WriteAllText(Path.Combine(hostDirectory, "Program.cs"), """
+            File.WriteAllText(Path.Combine(hostDirectory, "Program.cs"), $$"""
                 using Avalonia;
                 using Avalonia.Controls.ApplicationLifetimes;
 
@@ -178,7 +304,7 @@ public sealed class PreviewAxamlMultiAssemblyIntegrationTests
                         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
                 }
 
-                public sealed class App : Application;
+                {{appSource}}
                 """);
         }
 
@@ -186,6 +312,7 @@ public sealed class PreviewAxamlMultiAssemblyIntegrationTests
         public string UiProjectPath { get; }
         public string HostProjectPath { get; }
         public string ViewPath { get; }
+        public string UsingNamespaceViewPath { get; }
 
         public void Dispose()
         {

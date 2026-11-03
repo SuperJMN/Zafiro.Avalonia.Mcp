@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -32,12 +33,17 @@ internal static class PreviewHost
     public static int Run(string[] args)
     {
         var options = Parse(args);
+        ApplyAppRuntimeConfigProperties(options.AssemblyPath);
         InstallAssemblyResolver(options.AssemblyPath);
 
         var appAssembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(options.AssemblyPath);
         var xamlAssembly = SamePath(options.AssemblyPath, options.XamlAssemblyPath)
             ? appAssembly
             : AssemblyLoadContext.Default.LoadFromAssemblyPath(options.XamlAssemblyPath);
+
+        LoadReferencedAssemblies(appAssembly, xamlAssembly);
+        EnableDesignMode();
+
         var builder = PreviewAppBuilderFactory.Create(appAssembly, options.EntryType, options.Backend)
             .UseMcpDiagnostics();
 
@@ -62,6 +68,70 @@ internal static class PreviewHost
 
         return lifetime.Start();
     }
+
+    // The runtime XAML compiler only sees loaded assemblies, so "using:" namespaces from references
+    // the app hasn't touched yet (e.g. Avalonia.Xaml.Interactivity) would not resolve.
+    private static void LoadReferencedAssemblies(params Assembly[] roots)
+    {
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pending = new Stack<Assembly>(roots);
+
+        while (pending.TryPop(out var assembly))
+        {
+            foreach (var reference in assembly.GetReferencedAssemblies())
+            {
+                if (!visited.Add(reference.FullName))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    pending.Push(AssemblyLoadContext.Default.LoadFromAssemblyName(reference));
+                }
+                catch (Exception ex) when (ex is FileNotFoundException or FileLoadException or BadImageFormatException)
+                {
+                }
+            }
+        }
+    }
+
+    // Avalonia's previewer runs with the app's runtimeconfig.json, so app code reading AppContext
+    // data (e.g. AvaloniaUI.Licensing.RuntimeKey_N used by AvaloniaUI.DiagnosticsSupport) finds it.
+    private static void ApplyAppRuntimeConfigProperties(string assemblyPath)
+    {
+        var runtimeConfigPath = Path.ChangeExtension(assemblyPath, ".runtimeconfig.json");
+        if (!File.Exists(runtimeConfigPath))
+        {
+            return;
+        }
+
+        using var document = JsonDocument.Parse(
+            File.ReadAllText(runtimeConfigPath),
+            new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+
+        if (!document.RootElement.TryGetProperty("runtimeOptions", out var runtimeOptions)
+            || !runtimeOptions.TryGetProperty("configProperties", out var configProperties)
+            || configProperties.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        foreach (var property in configProperties.EnumerateObject())
+        {
+            var value = property.Value.ValueKind == JsonValueKind.String
+                ? property.Value.GetString()
+                : property.Value.GetRawText();
+            AppContext.SetData(property.Name, value);
+        }
+    }
+
+    // Avalonia's previewer sets this before the app starts, so apps can skip runtime-only startup
+    // work such as building service hosts that need configuration a preview doesn't have.
+    private static void EnableDesignMode() =>
+        typeof(Design).GetProperty(nameof(Design.IsDesignMode))?
+            .GetSetMethod(nonPublic: true)?
+            .Invoke(null, [true]);
 
     private static Window CreatePreviewWindow(
         PreviewHostOptions options,
